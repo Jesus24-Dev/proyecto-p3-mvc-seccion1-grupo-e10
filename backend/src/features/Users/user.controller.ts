@@ -27,7 +27,7 @@ export class UserController {
             const user = await this.userService.createUser(req.body);
             return res.status(201).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "An error occurred"})
         }
     }
 

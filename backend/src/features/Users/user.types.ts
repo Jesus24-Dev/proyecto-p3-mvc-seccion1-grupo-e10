@@ -16,7 +16,7 @@ enum roles {
 }
  */
 
-import { type users as PrismaUser, roles as PrismaRoles } from "@prisma/client";
+import { type users as PrismaUser, roles as PrismaRoles } from "../../generated/prisma/client";
 
 export type UserEntity = Omit<PrismaUser, 'password'>
 

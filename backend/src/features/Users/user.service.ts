@@ -1,4 +1,4 @@
-import {Prisma} from '@prisma/client';
+import {Prisma} from "../../generated/prisma/client";
 import {UserRepository} from './user.repository.js';
 import { type CreateUserBody } from './user.schema.js';
 

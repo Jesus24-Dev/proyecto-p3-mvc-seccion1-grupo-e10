@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import { roles } from '@prisma/client';
+import { roles } from "../../generated/prisma/client";
 
 export const CreateUserSchema = z.object({
     body: z.object({
@@ -9,6 +9,7 @@ export const CreateUserSchema = z.object({
             error: () => ({message: "El rol seleccionado no es valido."})
         })
     })
-})
+});
+
 
 export type CreateUserBody = z.infer<typeof CreateUserSchema>['body'];

@@ -1,4 +1,4 @@
-import prisma from "../../database/prisma.js";
+import {prisma} from "../../database/prisma";
 import { type CreateUserBody } from "./user.schema.js";
 import type { UserEntity } from "./user.types.js";
 

@@ -36,11 +36,11 @@ model users {
   password String
   role roles 
   
-  customer_information customers_information?
+  user_information users_information?
   orders_by_user orders[]
 }
 
-model customers_information {
+model users_information {
   id String @id @default(uuid())
   first_name String
   last_name String

@@ -45,7 +45,7 @@ model users_information {
   first_name String
   last_name String
   address String
-  birthday DateTime
+  birthday DateTime @db.Date
 
   user_id String @unique
   user users @relation(fields: [user_id], references: [id])

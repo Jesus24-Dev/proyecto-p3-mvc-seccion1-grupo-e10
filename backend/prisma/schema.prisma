@@ -63,8 +63,8 @@ model agencies {
 
 model orders {
   id String @id @default(uuid())
-  date_arrived DateTime
-  date_received DateTime
+  date_arrived DateTime @db.Timestamp(3)
+  date_received DateTime @db.Timestamp(3)
   description String
   amount Float
   status transfer_status @default(CREATED)

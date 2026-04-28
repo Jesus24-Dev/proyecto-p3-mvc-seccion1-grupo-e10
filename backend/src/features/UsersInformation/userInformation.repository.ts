@@ -24,8 +24,7 @@ export class UserInformationRepository{
     }
     
     async create(body: CreateUserInformationBody): Promise<UsersInformationEntity | undefined>{
-        try {
-            return  await prisma.users_information.create({
+        return  await prisma.users_information.create({
             data: {
                 user_id: body.user_id,
                 first_name: body.first_name,
@@ -33,12 +32,7 @@ export class UserInformationRepository{
                 address: body.address,
                 birthday: new Date(body.birthday)
             }
-            });
-        } catch (e){
-            console.log(e);
-        }
-        
-
+        });    
     }
     
     async update(id: string, body: Omit<CreateUserInformationBody, "id" | "user_id">): Promise<UsersInformationEntity>{

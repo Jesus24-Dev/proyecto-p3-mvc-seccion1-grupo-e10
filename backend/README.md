@@ -72,6 +72,22 @@ Nota: No olvides configurar tu archivo .env en la raíz del proyecto con las cre
 - `JWT_SECRET`: clave utilizada para firmar los tokens del endpoint de autenticación.
 - `JWT_EXPIRES_IN` (opcional): duración del token, por ejemplo `1d` o `12h`.
 
+## Registro de usuario
+
+- `POST /auth/register`
+
+Body esperado:
+
+```json
+{
+  "email": "admin@drlogistics.local",
+  "password": "Admin123*",
+  "role": "ADMIN"
+}
+```
+
+La respuesta incluye el token JWT y la información básica del usuario creado.
+
 ## Autenticación
 
 - `POST /auth/login`

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { roles } from "../../generated/prisma/browser";
 
 export const LoginSchema = z.object({
 	body: z.object({
@@ -14,8 +15,12 @@ export const RegisterSchema = z.object({
 			message:
 				"La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
 		}),
+		role: z.enum(roles, {
+			error: () => ({message: "El rol seleccionado no es valido."})
+		})
 	}),
 });
+
 
 export type LoginBody = z.infer<typeof LoginSchema>["body"];
 export type RegisterBody = z.infer<typeof RegisterSchema>["body"];

@@ -1,9 +1,9 @@
 import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { Prisma, roles } from "../../generated/prisma/client.js";
-import { prisma } from "../../database/prisma.js";
+import { Prisma } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
+import type { AuthRepository } from "./auth.repository.js";
 
 export class AuthServiceError extends Error {
 	constructor(
@@ -16,16 +16,10 @@ export class AuthServiceError extends Error {
 }
 
 export class AuthService {
+	constructor(private authRepository: AuthRepository) {}
 	async login(body: LoginBody): Promise<LoginResponse> {
-		const user = await prisma.users.findUnique({
-			where: { email: body.email },
-			select: {
-				id: true,
-				email: true,
-				password: true,
-				role: true,
-			},
-		});
+
+		const user = await this.authRepository.findUserByEmail(body.email);
 
 		if (!user) {
 			throw new AuthServiceError("Invalid email or password", 401);
@@ -52,18 +46,7 @@ export class AuthService {
 
 	async register(body: RegisterBody): Promise<LoginResponse> {
 		try {
-			const user = await prisma.users.create({
-				data: {
-					email: body.email,
-					password: await bcrypt.hash(body.password, 10),
-					role: roles.USER,
-				},
-				select: {
-					id: true,
-					email: true,
-					role: true,
-				},
-			});
+			const user = await this.authRepository.createUser(body.email, await bcrypt.hash(body.password, 10), body.role);
 
 			return this.buildAuthResponse(user);
 		} catch (error) {

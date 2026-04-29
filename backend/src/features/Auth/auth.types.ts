@@ -1,4 +1,4 @@
-import { type roles as PrismaRole } from "../../generated/prisma/client.js";
+import type { users as PrismaUser, roles as PrismaRole } from "../../generated/prisma/client.js";
 
 export interface AuthUser {
   id: string;
@@ -10,3 +10,5 @@ export interface LoginResponse {
   token: string;
   user: AuthUser;
 }
+
+export type UserEntity = PrismaUser;

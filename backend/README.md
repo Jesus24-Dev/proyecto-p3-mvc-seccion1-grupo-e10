@@ -65,3 +65,24 @@ npm run dev
 ```
 
 Nota: No olvides configurar tu archivo .env en la raíz del proyecto con las credenciales de acceso a tu base de datos local antes de iniciar las migraciones.
+
+## Variables de Entorno
+
+- `DATABASE_URL`: conexión a PostgreSQL.
+- `JWT_SECRET`: clave utilizada para firmar los tokens del endpoint de autenticación.
+- `JWT_EXPIRES_IN` (opcional): duración del token, por ejemplo `1d` o `12h`.
+
+## Autenticación
+
+- `POST /auth/login`
+
+Body esperado:
+
+```json
+{
+  "email": "admin@drlogistics.local",
+  "password": "Admin123*"
+}
+```
+
+La respuesta incluye el token JWT y la información básica del usuario autenticado.

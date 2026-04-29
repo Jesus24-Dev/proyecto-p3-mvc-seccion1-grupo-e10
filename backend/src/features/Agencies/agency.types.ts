@@ -19,4 +19,5 @@ export interface AgencyResponse {
     name: string;
     location: string;
     is_active: boolean;
+    user_id: string;
 }

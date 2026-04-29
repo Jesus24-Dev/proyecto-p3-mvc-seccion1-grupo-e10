@@ -5,14 +5,14 @@ import type { AgencyEntity } from "./agency.types";
 export class AgencyRepository {
     async findAll(): Promise<AgencyEntity[]>{
         return await prisma.agencies.findMany({
-            select: {id: true, name: true, location: true, is_active: true}
+            select: {id: true, name: true, location: true, is_active: true, user_id: true},
         });
     }
 
     async findById(id: string): Promise<AgencyEntity | null>{
         return await prisma.agencies.findUnique({
             where: {id: id},
-            select: {id: true, name: true, location: true, is_active: true}
+            select: {id: true, name: true, location: true, is_active: true, user_id: true}
         });
     }  
 
@@ -21,7 +21,8 @@ export class AgencyRepository {
             data: {
                 name: body.name,
                 location: body.location,
-                is_active: body.is_active,
+                is_active: true,
+                user_id: body.user_id
             }
         });    
     }
@@ -31,7 +32,7 @@ export class AgencyRepository {
             data: {
                 name: body.name,
                 location: body.location,
-                is_active: body.is_active,
+                is_active: body.is_active ? body.is_active : true,
             }
         });
     }

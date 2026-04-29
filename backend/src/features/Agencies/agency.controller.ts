@@ -29,7 +29,8 @@ export class AgencyController {
             const agency = await this.agencyService.createAgency({
                 name: body.name,
                 location: body.location,
-                is_active: true
+                is_active: true,
+                user_id: body.user_id
             });
             return res.status(201).json(agency);
         } catch (error){

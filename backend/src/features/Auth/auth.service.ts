@@ -1,7 +1,8 @@
 import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
+import { Prisma, roles } from "../../generated/prisma/client.js";
 import { prisma } from "../../database/prisma.js";
-import type { LoginBody } from "./auth.schema.js";
+import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
 
 export class AuthServiceError extends Error {
@@ -42,21 +43,57 @@ export class AuthService {
 			throw new AuthServiceError("JWT_SECRET is not configured", 500);
 		}
 
+		return this.buildAuthResponse({
+			id: user.id,
+			email: user.email,
+			role: user.role,
+		});
+	}
+
+	async register(body: RegisterBody): Promise<LoginResponse> {
+		try {
+			const user = await prisma.users.create({
+				data: {
+					email: body.email,
+					password: await bcrypt.hash(body.password, 10),
+					role: roles.USER,
+				},
+				select: {
+					id: true,
+					email: true,
+					role: true,
+				},
+			});
+
+			return this.buildAuthResponse(user);
+		} catch (error) {
+			if (
+				error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === "P2002"
+			) {
+				throw new AuthServiceError("El email ya se encuentra registrado", 409);
+			}
+
+			throw error;
+		}
+	}
+
+	private buildAuthResponse(user: AuthUser): LoginResponse {
+		const secret = process.env.JWT_SECRET?.trim();
+
+		if (!secret) {
+			throw new AuthServiceError("JWT_SECRET is not configured", 500);
+		}
+
 		const expiresIn = (process.env.JWT_EXPIRES_IN ?? "1d") as NonNullable<
 			SignOptions["expiresIn"]
 		>;
 
-		const authUser: AuthUser = {
-			id: user.id,
-			email: user.email,
-			role: user.role,
-		};
-
 		const token = jwt.sign(
 			{
-				sub: authUser.id,
-				email: authUser.email,
-				role: authUser.role,
+				sub: user.id,
+				email: user.email,
+				role: user.role,
 			},
 			secret,
 			{ expiresIn },
@@ -64,7 +101,7 @@ export class AuthService {
 
 		return {
 			token,
-			user: authUser,
+			user,
 		};
 	}
 }

@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
-import { roleLabel } from '../lib/roles';
-import type { AuthSession } from '../types';
+import type { ReactNode } from "react";
+import { roleLabel } from "../lib/roles";
+import type { AuthSession } from "../types";
 
-type AdminPath = '/admin' | '/admin/users/new' | '/admin/agencies/new';
+type AdminPath = "/admin" | "/admin/users/new" | "/admin/agencies/new";
 
 type AdminShellProps = {
   children: ReactNode;
@@ -17,12 +17,22 @@ type AdminShellProps = {
 };
 
 const navigationItems: Array<{ path: AdminPath; label: string }> = [
-  { path: '/admin', label: 'Dashboard' },
-  { path: '/admin/users/new', label: 'Crear usuario' },
-  { path: '/admin/agencies/new', label: 'Crear agencia' },
+  { path: "/admin", label: "Dashboard" },
+  { path: "/admin/users/new", label: "Crear usuario" },
+  { path: "/admin/agencies/new", label: "Crear agencia" },
 ];
 
-export function AdminShell({ children, currentPath, description, isLoading, onLogout, onNavigate, onRefresh, session, title }: AdminShellProps) {
+export function AdminShell({
+  children,
+  currentPath,
+  description,
+  isLoading,
+  onLogout,
+  onNavigate,
+  onRefresh,
+  session,
+  title,
+}: AdminShellProps) {
   return (
     <main className="app-shell admin-shell">
       <header className="admin-hero">
@@ -38,7 +48,7 @@ export function AdminShell({ children, currentPath, description, isLoading, onLo
               <button
                 key={item.path}
                 type="button"
-                className={`route-link ${currentPath === item.path ? 'route-link-active' : ''}`}
+                className={`route-link ${currentPath === item.path ? "route-link-active" : ""}`}
                 onClick={() => onNavigate(item.path)}
               >
                 {item.label}
@@ -48,8 +58,13 @@ export function AdminShell({ children, currentPath, description, isLoading, onLo
 
           <div className="hero-toolbar">
             {onRefresh && (
-              <button className="secondary-button" type="button" onClick={onRefresh} disabled={isLoading}>
-                {isLoading ? 'Actualizando...' : 'Actualizar'}
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={onRefresh}
+                disabled={isLoading}
+              >
+                {isLoading ? "Actualizando..." : "Actualizar"}
               </button>
             )}
             <button className="ghost-button" type="button" onClick={onLogout}>
@@ -64,7 +79,9 @@ export function AdminShell({ children, currentPath, description, isLoading, onLo
           <span className="eyebrow">Sesión activa</span>
           <strong>{session.user.email}</strong>
         </div>
-        <span className={`role-pill role-${session.user.role.toLowerCase()}`}>{roleLabel(session.user.role)}</span>
+        <span className={`role-pill role-${session.user.role.toLowerCase()}`}>
+          {roleLabel(session.user.role)}
+        </span>
       </section>
 
       {children}

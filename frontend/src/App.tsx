@@ -1,9 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { AgencyFormPage } from './components/AgencyFormPage';
-import { AdminDashboard } from './components/AdminDashboard';
-import { AdminShell } from './components/AdminShell';
-import { LoginPage } from './components/LoginPage';
-import { UserFormPage } from './components/UserFormPage';
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AgencyFormPage } from "./components/AgencyFormPage";
+import { AdminDashboard } from "./components/AdminDashboard";
+import { AdminShell } from "./components/AdminShell";
+import { LoginPage } from "./components/LoginPage";
+import { UserFormPage } from "./components/UserFormPage";
 import {
   agenciesApi,
   ApiRequestError,
@@ -11,48 +11,60 @@ import {
   clearStoredSession,
   getStoredSession,
   setStoredSession,
-  usersApi
-} from './api';
-import { roleLabel } from './lib/roles';
-import type { Agency, AuthSession, CreateAgencyPayload, CreateUserPayload, LoginPayload, UpdateUserPayload, User } from './types';
+  usersApi,
+} from "./api";
+import { roleLabel } from "./lib/roles";
+import type {
+  Agency,
+  AuthSession,
+  CreateAgencyPayload,
+  CreateUserPayload,
+  LoginPayload,
+  UpdateUserPayload,
+  User,
+} from "./types";
 
-type AdminPath = '/admin' | '/admin/users/new' | '/admin/agencies/new';
-type AppPath = '/' | AdminPath;
+type AdminPath = "/admin" | "/admin/users/new" | "/admin/agencies/new";
+type AppPath = "/" | AdminPath;
 
 const emptyLoginForm: LoginPayload = {
-  email: '',
-  password: ''
+  email: "",
+  password: "",
 };
 
 const emptyForm: CreateUserPayload = {
-  email: '',
-  password: '',
-  role: 'USER'
+  email: "",
+  password: "",
+  role: "USER",
 };
 
 const emptyAgencyForm: CreateAgencyPayload = {
-  name: '',
-  location: '',
-  user_id: ''
+  name: "",
+  location: "",
+  user_id: "",
 };
 
 const emptyAgencyOwnerForm: CreateUserPayload = {
-  email: '',
-  password: '',
-  role: 'DISTRIBUTOR'
+  email: "",
+  password: "",
+  role: "DISTRIBUTOR",
 };
 
 function normalizePath(pathname: string): AppPath {
-  if (pathname === '/admin' || pathname === '/admin/users/new' || pathname === '/admin/agencies/new') {
+  if (
+    pathname === "/admin" ||
+    pathname === "/admin/users/new" ||
+    pathname === "/admin/agencies/new"
+  ) {
     return pathname;
   }
 
-  return '/';
+  return "/";
 }
 
 function getCurrentPath(): AppPath {
-  if (typeof window === 'undefined') {
-    return '/';
+  if (typeof window === "undefined") {
+    return "/";
   }
 
   return normalizePath(window.location.pathname);
@@ -60,15 +72,19 @@ function getCurrentPath(): AppPath {
 
 function App() {
   const [path, setPath] = useState<AppPath>(() => getCurrentPath());
-  const [session, setSession] = useState<AuthSession | null>(() => getStoredSession());
+  const [session, setSession] = useState<AuthSession | null>(() =>
+    getStoredSession(),
+  );
   const [loginForm, setLoginForm] = useState<LoginPayload>(emptyLoginForm);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [form, setForm] = useState<CreateUserPayload>(emptyForm);
-  const [agencyForm, setAgencyForm] = useState<CreateAgencyPayload>(emptyAgencyForm);
-  const [agencyOwnerForm, setAgencyOwnerForm] = useState<CreateUserPayload>(emptyAgencyOwnerForm);
+  const [agencyForm, setAgencyForm] =
+    useState<CreateAgencyPayload>(emptyAgencyForm);
+  const [agencyOwnerForm, setAgencyOwnerForm] =
+    useState<CreateUserPayload>(emptyAgencyOwnerForm);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,12 +95,15 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [agencyError, setAgencyError] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [agencySearch, setAgencySearch] = useState('');
+  const [search, setSearch] = useState("");
+  const [agencySearch, setAgencySearch] = useState("");
 
-  const isAdminSession = session?.user.role === 'ADMIN';
+  const isAdminSession = session?.user.role === "ADMIN";
 
-  const userById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+  const userById = useMemo(
+    () => new Map(users.map((user) => [user.id, user])),
+    [users],
+  );
 
   const filteredUsers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -93,8 +112,10 @@ function App() {
       return users;
     }
 
-    return users.filter((user) =>
-      user.email.toLowerCase().includes(normalizedSearch) || user.role.toLowerCase().includes(normalizedSearch)
+    return users.filter(
+      (user) =>
+        user.email.toLowerCase().includes(normalizedSearch) ||
+        user.role.toLowerCase().includes(normalizedSearch),
     );
   }, [search, users]);
 
@@ -108,35 +129,42 @@ function App() {
     return agencies.filter((agency) => {
       const owner = userById.get(agency.user_id);
 
-      return agency.name.toLowerCase().includes(normalizedSearch)
-        || agency.location.toLowerCase().includes(normalizedSearch)
-        || owner?.email.toLowerCase().includes(normalizedSearch)
-        || roleLabel(owner?.role ?? 'USER').toLowerCase().includes(normalizedSearch);
+      return (
+        agency.name.toLowerCase().includes(normalizedSearch) ||
+        agency.location.toLowerCase().includes(normalizedSearch) ||
+        owner?.email.toLowerCase().includes(normalizedSearch) ||
+        roleLabel(owner?.role ?? "USER")
+          .toLowerCase()
+          .includes(normalizedSearch)
+      );
     });
   }, [agencySearch, agencies, userById]);
 
-  const stats = useMemo(() => ({
-    total: users.length,
-    admins: users.filter((user) => user.role === 'ADMIN').length,
-    distributors: users.filter((user) => user.role === 'DISTRIBUTOR').length,
-    agencies: agencies.length,
-    activeAgencies: agencies.filter((agency) => agency.is_active).length
-  }), [agencies, users]);
+  const stats = useMemo(
+    () => ({
+      total: users.length,
+      admins: users.filter((user) => user.role === "ADMIN").length,
+      distributors: users.filter((user) => user.role === "DISTRIBUTOR").length,
+      agencies: agencies.length,
+      activeAgencies: agencies.filter((agency) => agency.is_active).length,
+    }),
+    [agencies, users],
+  );
 
   const selectedAgencyOwner = useMemo(
     () => users.find((user) => user.id === agencyForm.user_id) ?? null,
-    [agencyForm.user_id, users]
+    [agencyForm.user_id, users],
   );
 
   function navigate(nextPath: AppPath, replace = false) {
-    if (typeof window === 'undefined') {
+    if (typeof window === "undefined") {
       return;
     }
 
     const currentPath = getCurrentPath();
 
     if (currentPath !== nextPath) {
-      window.history[replace ? 'replaceState' : 'pushState']({}, '', nextPath);
+      window.history[replace ? "replaceState" : "pushState"]({}, "", nextPath);
     }
 
     setPath(nextPath);
@@ -154,7 +182,7 @@ function App() {
   function resetAgencyForm() {
     setAgencyForm((currentForm) => ({
       ...emptyAgencyForm,
-      user_id: currentForm.user_id
+      user_id: currentForm.user_id,
     }));
   }
 
@@ -165,7 +193,11 @@ function App() {
     setAgencyMessage(null);
   }
 
-  function handleUnauthorized(message: string | null = 'Tu sesión ya no es válida. Inicia sesión de nuevo.') {
+  function handleUnauthorized(
+    message:
+      | string
+      | null = "Tu sesión ya no es válida. Inicia sesión de nuevo.",
+  ) {
     clearStoredSession();
     setSession(null);
     setUsers([]);
@@ -178,7 +210,7 @@ function App() {
     setAuthError(message);
     resetForm();
     resetAgencyRouteState();
-    navigate('/', true);
+    navigate("/", true);
   }
 
   async function loadAdminData() {
@@ -186,16 +218,26 @@ function App() {
     setDashboardError(null);
 
     try {
-      const [nextUsers, nextAgencies] = await Promise.all([usersApi.list(), agenciesApi.list()]);
+      const [nextUsers, nextAgencies] = await Promise.all([
+        usersApi.list(),
+        agenciesApi.list(),
+      ]);
       setUsers(nextUsers);
       setAgencies(nextAgencies);
     } catch (caughtError) {
-      if (caughtError instanceof ApiRequestError && (caughtError.statusCode === 401 || caughtError.statusCode === 403)) {
+      if (
+        caughtError instanceof ApiRequestError &&
+        (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+      ) {
         handleUnauthorized(caughtError.message);
         return;
       }
 
-      setDashboardError(caughtError instanceof Error ? caughtError.message : 'No se pudieron cargar los datos del panel.');
+      setDashboardError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudieron cargar los datos del panel.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -206,32 +248,32 @@ function App() {
       setPath(getCurrentPath());
     }
 
-    window.addEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener("popstate", handlePopState);
     };
   }, []);
 
   useEffect(() => {
-    if (session && session.user.role !== 'ADMIN') {
+    if (session && session.user.role !== "ADMIN") {
       clearStoredSession();
       setSession(null);
       return;
     }
 
-    if (!isAdminSession && path !== '/') {
-      navigate('/', true);
+    if (!isAdminSession && path !== "/") {
+      navigate("/", true);
       return;
     }
 
-    if (isAdminSession && path === '/') {
-      navigate('/admin', true);
+    if (isAdminSession && path === "/") {
+      navigate("/admin", true);
     }
   }, [isAdminSession, path, session]);
 
   useEffect(() => {
-    if (path !== '/' && isAdminSession) {
+    if (path !== "/" && isAdminSession) {
       void loadAdminData();
     }
   }, [isAdminSession, path]);
@@ -239,10 +281,14 @@ function App() {
   useEffect(() => {
     setAgencyForm((currentForm) => {
       if (users.length === 0) {
-        return currentForm.user_id ? { ...currentForm, user_id: '' } : currentForm;
+        return currentForm.user_id
+          ? { ...currentForm, user_id: "" }
+          : currentForm;
       }
 
-      const hasSelectedOwner = users.some((user) => user.id === currentForm.user_id);
+      const hasSelectedOwner = users.some(
+        (user) => user.id === currentForm.user_id,
+      );
 
       if (hasSelectedOwner) {
         return currentForm;
@@ -250,7 +296,7 @@ function App() {
 
       return {
         ...currentForm,
-        user_id: users[0].id
+        user_id: users[0].id,
       };
     });
   }, [users]);
@@ -263,19 +309,23 @@ function App() {
     try {
       const nextSession = await authApi.login(loginForm);
 
-      if (nextSession.user.role !== 'ADMIN') {
+      if (nextSession.user.role !== "ADMIN") {
         clearStoredSession();
         setSession(null);
-        setAuthError('Necesitas una cuenta ADMIN para entrar al panel.');
+        setAuthError("Necesitas una cuenta ADMIN para entrar al panel.");
         return;
       }
 
       setStoredSession(nextSession);
       setSession(nextSession);
       setLoginForm(emptyLoginForm);
-      navigate('/admin');
+      navigate("/admin");
     } catch (caughtError) {
-      setAuthError(caughtError instanceof Error ? caughtError.message : 'No se pudo iniciar sesión.');
+      setAuthError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo iniciar sesión.",
+      );
     } finally {
       setIsLoggingIn(false);
     }
@@ -288,19 +338,19 @@ function App() {
   function goToDashboard() {
     resetForm();
     resetAgencyRouteState();
-    navigateAdmin('/admin');
+    navigateAdmin("/admin");
   }
 
   function openCreateUserPage() {
     resetForm();
     setMessage(null);
     setError(null);
-    navigateAdmin('/admin/users/new');
+    navigateAdmin("/admin/users/new");
   }
 
   function openCreateAgencyPage() {
     resetAgencyRouteState();
-    navigateAdmin('/admin/agencies/new');
+    navigateAdmin("/admin/agencies/new");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -313,27 +363,41 @@ function App() {
       if (editingUser) {
         const updatedUserPayload: UpdateUserPayload = {
           email: form.email,
-          password: form.password
+          password: form.password,
         };
-        const updatedUser = await usersApi.update(editingUser.id, updatedUserPayload);
+        const updatedUser = await usersApi.update(
+          editingUser.id,
+          updatedUserPayload,
+        );
 
-        setUsers((currentUsers) => currentUsers.map((user) => (user.id === editingUser.id ? updatedUser : user)));
-        setMessage('Usuario actualizado correctamente.');
+        setUsers((currentUsers) =>
+          currentUsers.map((user) =>
+            user.id === editingUser.id ? updatedUser : user,
+          ),
+        );
+        setMessage("Usuario actualizado correctamente.");
         setEditingUser(null);
         setForm(emptyForm);
       } else {
         const createdUser = await usersApi.create(form);
         setUsers((currentUsers) => [createdUser, ...currentUsers]);
-        setMessage('Usuario creado correctamente.');
+        setMessage("Usuario creado correctamente.");
         setForm(emptyForm);
       }
     } catch (caughtError) {
-      if (caughtError instanceof ApiRequestError && (caughtError.statusCode === 401 || caughtError.statusCode === 403)) {
+      if (
+        caughtError instanceof ApiRequestError &&
+        (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+      ) {
         handleUnauthorized(caughtError.message);
         return;
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo guardar el usuario.');
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo guardar el usuario.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -348,15 +412,22 @@ function App() {
     try {
       const createdAgency = await agenciesApi.create(agencyForm);
       setAgencies((currentAgencies) => [createdAgency, ...currentAgencies]);
-      setAgencyMessage('Agencia creada correctamente.');
+      setAgencyMessage("Agencia creada correctamente.");
       resetAgencyForm();
     } catch (caughtError) {
-      if (caughtError instanceof ApiRequestError && (caughtError.statusCode === 401 || caughtError.statusCode === 403)) {
+      if (
+        caughtError instanceof ApiRequestError &&
+        (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+      ) {
         handleUnauthorized(caughtError.message);
         return;
       }
 
-      setAgencyError(caughtError instanceof Error ? caughtError.message : 'No se pudo crear la agencia.');
+      setAgencyError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo crear la agencia.",
+      );
     } finally {
       setIsSavingAgency(false);
     }
@@ -373,17 +444,26 @@ function App() {
       setUsers((currentUsers) => [createdUser, ...currentUsers]);
       setAgencyForm((currentForm) => ({
         ...currentForm,
-        user_id: createdUser.id
+        user_id: createdUser.id,
       }));
       setAgencyOwnerForm(emptyAgencyOwnerForm);
-      setAgencyMessage('Usuario responsable creado y seleccionado para la agencia.');
+      setAgencyMessage(
+        "Usuario responsable creado y seleccionado para la agencia.",
+      );
     } catch (caughtError) {
-      if (caughtError instanceof ApiRequestError && (caughtError.statusCode === 401 || caughtError.statusCode === 403)) {
+      if (
+        caughtError instanceof ApiRequestError &&
+        (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+      ) {
         handleUnauthorized(caughtError.message);
         return;
       }
 
-      setAgencyError(caughtError instanceof Error ? caughtError.message : 'No se pudo crear el usuario responsable.');
+      setAgencyError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo crear el usuario responsable.",
+      );
     } finally {
       setIsSavingAgencyOwner(false);
     }
@@ -393,12 +473,12 @@ function App() {
     setEditingUser(user);
     setForm({
       email: user.email,
-      password: '',
-      role: user.role
+      password: "",
+      role: user.role,
     });
     setMessage(null);
     setError(null);
-    navigateAdmin('/admin/users/new');
+    navigateAdmin("/admin/users/new");
   }
 
   async function handleDelete(user: User) {
@@ -413,19 +493,28 @@ function App() {
 
     try {
       await usersApi.remove(user.id);
-      setUsers((currentUsers) => currentUsers.filter((currentUser) => currentUser.id !== user.id));
-      setMessage('Usuario eliminado correctamente.');
+      setUsers((currentUsers) =>
+        currentUsers.filter((currentUser) => currentUser.id !== user.id),
+      );
+      setMessage("Usuario eliminado correctamente.");
 
       if (editingUser?.id === user.id) {
         resetForm();
       }
     } catch (caughtError) {
-      if (caughtError instanceof ApiRequestError && (caughtError.statusCode === 401 || caughtError.statusCode === 403)) {
+      if (
+        caughtError instanceof ApiRequestError &&
+        (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+      ) {
         handleUnauthorized(caughtError.message);
         return;
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : 'No se pudo eliminar el usuario.');
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "No se pudo eliminar el usuario.",
+      );
     }
   }
 
@@ -436,32 +525,49 @@ function App() {
     }));
   }
 
-  function handleUserFieldChange(field: keyof CreateUserPayload, value: string) {
+  function handleUserFieldChange(
+    field: keyof CreateUserPayload,
+    value: string,
+  ) {
     setForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
   }
 
-  function handleAgencyFieldChange(field: keyof CreateAgencyPayload, value: string) {
+  function handleAgencyFieldChange(
+    field: keyof CreateAgencyPayload,
+    value: string,
+  ) {
     setAgencyForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
   }
 
-  function handleAgencyOwnerFieldChange(field: keyof CreateUserPayload, value: string) {
+  function handleAgencyOwnerFieldChange(
+    field: keyof CreateUserPayload,
+    value: string,
+  ) {
     setAgencyOwnerForm((currentForm) => ({
       ...currentForm,
       [field]: value,
     }));
   }
 
-  if (path === '/' || !isAdminSession) {
-    return <LoginPage authError={authError} isLoggingIn={isLoggingIn} loginForm={loginForm} onLoginFieldChange={handleLoginFieldChange} onSubmit={handleLogin} />;
+  if (path === "/" || !isAdminSession) {
+    return (
+      <LoginPage
+        authError={authError}
+        isLoggingIn={isLoggingIn}
+        loginForm={loginForm}
+        onLoginFieldChange={handleLoginFieldChange}
+        onSubmit={handleLogin}
+      />
+    );
   }
 
-  if (path === '/admin/users/new') {
+  if (path === "/admin/users/new") {
     return (
       <AdminShell
         currentPath={path}
@@ -470,7 +576,9 @@ function App() {
         onLogout={handleLogout}
         onNavigate={navigateAdmin}
         session={session}
-        title={editingUser ? 'Editar usuario operativo' : 'Nuevo usuario Domesa'}
+        title={
+          editingUser ? "Editar usuario operativo" : "Nuevo usuario Domesa"
+        }
       >
         <UserFormPage
           editingUser={editingUser}
@@ -480,14 +588,14 @@ function App() {
           message={message}
           onBack={goToDashboard}
           onFieldChange={handleUserFieldChange}
-          onRoleChange={(role) => handleUserFieldChange('role', role)}
+          onRoleChange={(role) => handleUserFieldChange("role", role)}
           onSubmit={handleSubmit}
         />
       </AdminShell>
     );
   }
 
-  if (path === '/admin/agencies/new') {
+  if (path === "/admin/agencies/new") {
     return (
       <AdminShell
         currentPath={path}
@@ -507,7 +615,9 @@ function App() {
           isSavingAgencyOwner={isSavingAgencyOwner}
           onAgencyFieldChange={handleAgencyFieldChange}
           onAgencyOwnerFieldChange={handleAgencyOwnerFieldChange}
-          onAgencyOwnerRoleChange={(role) => handleAgencyOwnerFieldChange('role', role)}
+          onAgencyOwnerRoleChange={(role) =>
+            handleAgencyOwnerFieldChange("role", role)
+          }
           onAgencyOwnerSubmit={handleAgencyOwnerSubmit}
           onAgencySubmit={handleAgencySubmit}
           onBack={goToDashboard}

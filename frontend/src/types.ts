@@ -1,4 +1,4 @@
-export type UserRole = 'USER' | 'ADMIN' | 'DISTRIBUTOR';
+export type UserRole = "USER" | "ADMIN" | "DISTRIBUTOR";
 
 export interface User {
   id: string;
@@ -47,7 +47,7 @@ export interface ApiFieldError {
 }
 
 export interface ApiErrorResponse {
-  status: 'error';
+  status: "error";
   message?: string;
   errors?: ApiFieldError[];
 }

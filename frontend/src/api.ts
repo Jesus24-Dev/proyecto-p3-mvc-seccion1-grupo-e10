@@ -6,38 +6,40 @@ import type {
   CreateUserPayload,
   LoginPayload,
   UpdateUserPayload,
-  User
-} from './types';
+  User,
+} from "./types";
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
-const SESSION_STORAGE_KEY = 'dr-logistics-admin-session';
+const API_URL = import.meta.env.VITE_API_URL ?? "";
+const SESSION_STORAGE_KEY = "dr-logistics-admin-session";
 
 export class ApiRequestError extends Error {
   constructor(
     message: string,
-    public readonly statusCode: number
+    public readonly statusCode: number,
   ) {
     super(message);
-    this.name = 'ApiRequestError';
+    this.name = "ApiRequestError";
   }
 }
 
 function isAuthSession(value: unknown): value is AuthSession {
-  if (!value || typeof value !== 'object') {
+  if (!value || typeof value !== "object") {
     return false;
   }
 
   const candidate = value as Partial<AuthSession>;
 
-  return typeof candidate.token === 'string'
-    && Boolean(candidate.user)
-    && typeof candidate.user?.id === 'string'
-    && typeof candidate.user?.email === 'string'
-    && typeof candidate.user?.role === 'string';
+  return (
+    typeof candidate.token === "string" &&
+    Boolean(candidate.user) &&
+    typeof candidate.user?.id === "string" &&
+    typeof candidate.user?.email === "string" &&
+    typeof candidate.user?.role === "string"
+  );
 }
 
 export function getStoredSession(): AuthSession | null {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return null;
   }
 
@@ -63,7 +65,7 @@ export function getStoredSession(): AuthSession | null {
 }
 
 export function setStoredSession(session: AuthSession) {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return;
   }
 
@@ -71,31 +73,35 @@ export function setStoredSession(session: AuthSession) {
 }
 
 export function clearStoredSession() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return;
   }
 
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
-async function request<T>(path: string, options?: RequestInit, includeAuth = true): Promise<T> {
+async function request<T>(
+  path: string,
+  options?: RequestInit,
+  includeAuth = true,
+): Promise<T> {
   const headers = new Headers(options?.headers);
 
-  if (!(options?.body instanceof FormData) && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+  if (!(options?.body instanceof FormData) && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
   }
 
   if (includeAuth) {
     const session = getStoredSession();
 
     if (session?.token) {
-      headers.set('Authorization', `Bearer ${session.token}`);
+      headers.set("Authorization", `Bearer ${session.token}`);
     }
   }
 
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers
+    headers,
   });
 
   if (response.status === 204) {
@@ -106,7 +112,10 @@ async function request<T>(path: string, options?: RequestInit, includeAuth = tru
 
   if (!response.ok) {
     const error = data as ApiErrorResponse | null;
-    const message = error?.errors?.map((item) => item.message).join('\n') || error?.message || 'Request failed';
+    const message =
+      error?.errors?.map((item) => item.message).join("\n") ||
+      error?.message ||
+      "Request failed";
     throw new ApiRequestError(message, response.status);
   }
 
@@ -114,31 +123,40 @@ async function request<T>(path: string, options?: RequestInit, includeAuth = tru
 }
 
 export const authApi = {
-  login: (payload: LoginPayload) => request<AuthSession>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  }, false)
+  login: (payload: LoginPayload) =>
+    request<AuthSession>(
+      "/auth/login",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      false,
+    ),
 };
 
 export const usersApi = {
-  list: () => request<User[]>('/users'),
-  create: (payload: CreateUserPayload) => request<User>('/users', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  }),
-  update: (id: string, payload: UpdateUserPayload) => request<User>(`/users/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload)
-  }),
-  remove: (id: string) => request<void>(`/users/${id}`, {
-    method: 'DELETE'
-  })
+  list: () => request<User[]>("/users"),
+  create: (payload: CreateUserPayload) =>
+    request<User>("/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateUserPayload) =>
+    request<User>(`/users/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/users/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export const agenciesApi = {
-  list: () => request<Agency[]>('/agencies'),
-  create: (payload: CreateAgencyPayload) => request<Agency>('/agencies', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  })
+  list: () => request<Agency[]>("/agencies"),
+  create: (payload: CreateAgencyPayload) =>
+    request<Agency>("/agencies", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };

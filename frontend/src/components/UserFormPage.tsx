@@ -1,6 +1,6 @@
-import type { FormEvent } from 'react';
-import { roleLabel, roles } from '../lib/roles';
-import type { CreateUserPayload, User, UserRole } from '../types';
+import type { FormEvent } from "react";
+import { roleLabel, roles } from "../lib/roles";
+import type { CreateUserPayload, User, UserRole } from "../types";
 
 type UserFormPageProps = {
   editingUser: User | null;
@@ -14,9 +14,19 @@ type UserFormPageProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
-export function UserFormPage({ editingUser, error, form, isSaving, message, onBack, onFieldChange, onRoleChange, onSubmit }: UserFormPageProps) {
-  const heading = editingUser ? 'Editar usuario' : 'Crear usuario';
-  const eyebrow = editingUser ? 'Edición de operador' : 'Nuevo operador';
+export function UserFormPage({
+  editingUser,
+  error,
+  form,
+  isSaving,
+  message,
+  onBack,
+  onFieldChange,
+  onRoleChange,
+  onSubmit,
+}: UserFormPageProps) {
+  const heading = editingUser ? "Editar usuario" : "Crear usuario";
+  const eyebrow = editingUser ? "Edición de operador" : "Nuevo operador";
 
   return (
     <section className="form-route-grid">
@@ -26,7 +36,8 @@ export function UserFormPage({ editingUser, error, form, isSaving, message, onBa
             <p className="eyebrow">{eyebrow}</p>
             <h2>{heading}</h2>
             <p className="section-copy">
-              Registra usuarios para la red Domesa y controla el acceso administrativo o operativo desde una pantalla dedicada.
+              Registra usuarios para la red Domesa y controla el acceso
+              administrativo o operativo desde una pantalla dedicada.
             </p>
           </div>
         </div>
@@ -37,7 +48,7 @@ export function UserFormPage({ editingUser, error, form, isSaving, message, onBa
             <input
               type="email"
               value={form.email}
-              onChange={(event) => onFieldChange('email', event.target.value)}
+              onChange={(event) => onFieldChange("email", event.target.value)}
               placeholder="operador@domesa.com.ve"
               required
             />
@@ -48,7 +59,9 @@ export function UserFormPage({ editingUser, error, form, isSaving, message, onBa
             <input
               type="password"
               value={form.password}
-              onChange={(event) => onFieldChange('password', event.target.value)}
+              onChange={(event) =>
+                onFieldChange("password", event.target.value)
+              }
               placeholder="Mínimo 8 caracteres, 1 mayúscula y 1 número"
               required
             />
@@ -77,8 +90,16 @@ export function UserFormPage({ editingUser, error, form, isSaving, message, onBa
           <button className="ghost-button" type="button" onClick={onBack}>
             Volver al dashboard
           </button>
-          <button className="primary-button primary-button-inline" type="submit" disabled={isSaving}>
-            {isSaving ? 'Guardando...' : editingUser ? 'Guardar cambios' : 'Crear usuario'}
+          <button
+            className="primary-button primary-button-inline"
+            type="submit"
+            disabled={isSaving}
+          >
+            {isSaving
+              ? "Guardando..."
+              : editingUser
+                ? "Guardar cambios"
+                : "Crear usuario"}
           </button>
         </div>
       </form>
@@ -87,11 +108,16 @@ export function UserFormPage({ editingUser, error, form, isSaving, message, onBa
         <p className="eyebrow">Operación</p>
         <h3>Rutas, operadores y control</h3>
         <p className="section-copy">
-          Usa esta vista para crear personal administrativo, operadores de agencia o distribuidores que gestionan entregas y retiros.
+          Usa esta vista para crear personal administrativo, operadores de
+          agencia o distribuidores que gestionan entregas y retiros.
         </p>
         <div className="helper-note">
           <strong>Consejo</strong>
-          <span>Los usuarios con rol ADMIN mantienen acceso al panel. Los responsables de agencia suelen funcionar mejor como DISTRIBUTOR o USER según el flujo operativo.</span>
+          <span>
+            Los usuarios con rol ADMIN mantienen acceso al panel. Los
+            responsables de agencia suelen funcionar mejor como DISTRIBUTOR o
+            USER según el flujo operativo.
+          </span>
         </div>
       </aside>
     </section>

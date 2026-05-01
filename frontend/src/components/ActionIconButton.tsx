@@ -1,10 +1,10 @@
-import type { MouseEventHandler } from 'react';
+import type { MouseEventHandler } from "react";
 
 type ActionIconButtonProps = {
   label: string;
   onClick: MouseEventHandler<HTMLButtonElement>;
-  tone?: 'default' | 'danger';
-  type: 'edit' | 'delete';
+  tone?: "default" | "danger";
+  type: "edit" | "delete";
 };
 
 function EditIcon() {
@@ -23,16 +23,21 @@ function DeleteIcon() {
   );
 }
 
-export function ActionIconButton({ label, onClick, tone = 'default', type }: ActionIconButtonProps) {
+export function ActionIconButton({
+  label,
+  onClick,
+  tone = "default",
+  type,
+}: ActionIconButtonProps) {
   return (
     <button
       type="button"
-      className={`icon-button ${tone === 'danger' ? 'icon-button-danger' : ''}`}
+      className={`icon-button ${tone === "danger" ? "icon-button-danger" : ""}`}
       aria-label={label}
       title={label}
       onClick={onClick}
     >
-      {type === 'edit' ? <EditIcon /> : <DeleteIcon />}
+      {type === "edit" ? <EditIcon /> : <DeleteIcon />}
     </button>
   );
 }

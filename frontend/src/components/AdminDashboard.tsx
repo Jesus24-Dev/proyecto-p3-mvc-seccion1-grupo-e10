@@ -1,6 +1,6 @@
-import { ActionIconButton } from './ActionIconButton';
-import { roleLabel } from '../lib/roles';
-import type { Agency, User } from '../types';
+import { ActionIconButton } from "./ActionIconButton";
+import { roleLabel } from "../lib/roles";
+import type { Agency, User } from "../types";
 
 export type DashboardStats = {
   total: number;
@@ -48,7 +48,10 @@ export function AdminDashboard({
 }: AdminDashboardProps) {
   return (
     <>
-      <section className="stats-grid" aria-label="Resumen del panel administrativo">
+      <section
+        className="stats-grid"
+        aria-label="Resumen del panel administrativo"
+      >
         <article className="stat-card">
           <span>Total usuarios</span>
           <strong>{stats.total}</strong>
@@ -78,9 +81,16 @@ export function AdminDashboard({
           <div className="cta-copy">
             <p className="eyebrow">Usuarios</p>
             <h3>Nuevo operador o administrador</h3>
-            <p>Abre una vista dedicada para crear personal de agencia, operadores internos y cuentas administrativas.</p>
+            <p>
+              Abre una vista dedicada para crear personal de agencia, operadores
+              internos y cuentas administrativas.
+            </p>
           </div>
-          <button className="primary-button primary-button-inline" type="button" onClick={usersSection.onCreateUser}>
+          <button
+            className="primary-button primary-button-inline"
+            type="button"
+            onClick={usersSection.onCreateUser}
+          >
             Crear usuario
           </button>
         </article>
@@ -89,9 +99,16 @@ export function AdminDashboard({
           <div className="cta-copy">
             <p className="eyebrow">Agencias</p>
             <h3>Nueva sucursal Domesa</h3>
-            <p>Registra una agencia, asigna su responsable y mantiene la red logística organizada por ciudad o región.</p>
+            <p>
+              Registra una agencia, asigna su responsable y mantiene la red
+              logística organizada por ciudad o región.
+            </p>
           </div>
-          <button className="primary-button primary-button-inline" type="button" onClick={agenciesSection.onCreateAgency}>
+          <button
+            className="primary-button primary-button-inline"
+            type="button"
+            onClick={agenciesSection.onCreateAgency}
+          >
             Crear agencia
           </button>
         </article>
@@ -103,19 +120,28 @@ export function AdminDashboard({
             <div>
               <p className="eyebrow">Directorio</p>
               <h2 className="panel-title">Usuarios registrados</h2>
-              <p className="panel-copy">Gestiona cuentas activas dentro de la red Domesa con acceso rapido para editar o eliminar.</p>
+              <p className="panel-copy">
+                Gestiona cuentas activas dentro de la red Domesa con acceso
+                rapido para editar o eliminar.
+              </p>
             </div>
             <input
               className="search-input"
               type="search"
               value={usersSection.search}
-              onChange={(event) => usersSection.onSearchChange(event.target.value)}
+              onChange={(event) =>
+                usersSection.onSearchChange(event.target.value)
+              }
               placeholder="Buscar usuario o rol"
             />
           </div>
 
-          {usersSection.message && <div className="alert success">{usersSection.message}</div>}
-          {usersSection.error && <div className="alert error">{usersSection.error}</div>}
+          {usersSection.message && (
+            <div className="alert success">{usersSection.message}</div>
+          )}
+          {usersSection.error && (
+            <div className="alert error">{usersSection.error}</div>
+          )}
 
           {usersSection.isLoading ? (
             <div className="empty-state">Cargando usuarios...</div>
@@ -137,13 +163,26 @@ export function AdminDashboard({
                     <tr key={user.id}>
                       <td>{user.email}</td>
                       <td>
-                        <span className={`role-pill role-${user.role.toLowerCase()}`}>{roleLabel(user.role)}</span>
+                        <span
+                          className={`role-pill role-${user.role.toLowerCase()}`}
+                        >
+                          {roleLabel(user.role)}
+                        </span>
                       </td>
                       <td className="muted-cell">{user.id}</td>
                       <td>
                         <div className="row-actions">
-                          <ActionIconButton label={`Editar ${user.email}`} onClick={() => usersSection.onEdit(user)} type="edit" />
-                          <ActionIconButton label={`Eliminar ${user.email}`} onClick={() => usersSection.onDelete(user)} tone="danger" type="delete" />
+                          <ActionIconButton
+                            label={`Editar ${user.email}`}
+                            onClick={() => usersSection.onEdit(user)}
+                            type="edit"
+                          />
+                          <ActionIconButton
+                            label={`Eliminar ${user.email}`}
+                            onClick={() => usersSection.onDelete(user)}
+                            tone="danger"
+                            type="delete"
+                          />
                         </div>
                       </td>
                     </tr>
@@ -159,13 +198,18 @@ export function AdminDashboard({
             <div>
               <p className="eyebrow">Agencias</p>
               <h2 className="panel-title">Agencias registradas</h2>
-              <p className="panel-copy">Supervisa la red operativa por ubicación y confirma quién lleva la coordinación de cada punto.</p>
+              <p className="panel-copy">
+                Supervisa la red operativa por ubicación y confirma quién lleva
+                la coordinación de cada punto.
+              </p>
             </div>
             <input
               className="search-input"
               type="search"
               value={agenciesSection.agencySearch}
-              onChange={(event) => agenciesSection.onAgencySearchChange(event.target.value)}
+              onChange={(event) =>
+                agenciesSection.onAgencySearchChange(event.target.value)
+              }
               placeholder="Buscar agencia o responsable"
             />
           </div>
@@ -193,16 +237,22 @@ export function AdminDashboard({
                       <tr key={agency.id}>
                         <td>
                           <strong>{agency.name}</strong>
-                          <div className="table-detail muted-copy">{agency.id}</div>
+                          <div className="table-detail muted-copy">
+                            {agency.id}
+                          </div>
                         </td>
                         <td>{agency.location}</td>
                         <td>
-                          <div>{owner?.email ?? 'Usuario no disponible'}</div>
-                          <div className="table-detail muted-copy">{owner ? roleLabel(owner.role) : 'Sin relacion'}</div>
+                          <div>{owner?.email ?? "Usuario no disponible"}</div>
+                          <div className="table-detail muted-copy">
+                            {owner ? roleLabel(owner.role) : "Sin relacion"}
+                          </div>
                         </td>
                         <td>
-                          <span className={`status-pill ${agency.is_active ? 'status-active' : 'status-inactive'}`}>
-                            {agency.is_active ? 'Activa' : 'Inactiva'}
+                          <span
+                            className={`status-pill ${agency.is_active ? "status-active" : "status-inactive"}`}
+                          >
+                            {agency.is_active ? "Activa" : "Inactiva"}
                           </span>
                         </td>
                       </tr>

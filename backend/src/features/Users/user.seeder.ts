@@ -5,33 +5,33 @@ import { userSeedData } from "../../database/seeders/fixtures.js";
 const SALT_ROUNDS = 10;
 
 export async function seedUsers() {
-    const seededUsers = [];
+  const seededUsers = [];
 
-    for (const user of userSeedData) {
-        const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
+  for (const user of userSeedData) {
+    const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
 
-        const seededUser = await prisma.users.upsert({
-            where: {
-                email: user.email,
-            },
-            update: {
-                password: hashedPassword,
-                role: user.role,
-            },
-            create: {
-                email: user.email,
-                password: hashedPassword,
-                role: user.role,
-            },
-            select: {
-                id: true,
-                email: true,
-                role: true,
-            },
-        });
+    const seededUser = await prisma.users.upsert({
+      where: {
+        email: user.email,
+      },
+      update: {
+        password: hashedPassword,
+        role: user.role,
+      },
+      create: {
+        email: user.email,
+        password: hashedPassword,
+        role: user.role,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    });
 
-        seededUsers.push(seededUser);
-    }
+    seededUsers.push(seededUser);
+  }
 
-    return seededUsers;
+  return seededUsers;
 }

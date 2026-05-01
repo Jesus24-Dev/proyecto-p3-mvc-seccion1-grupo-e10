@@ -13,10 +13,10 @@ const service = new AgencyService(repository);
 const controller = new AgencyController(service);
 
 router.use(requireAdmin);
-router.get('/', controller.getAgencies);
-router.get('/:id', controller.getAgencyById);
-router.post('/', validate(CreateAgencySchema), controller.createAgency);
-router.put('/:id', controller.updateAgency);
-router.delete('/:id', controller.deleteAgency);
+router.get("/", controller.getAgencies);
+router.get("/:id", controller.getAgencyById);
+router.post("/", validate(CreateAgencySchema), controller.createAgency);
+router.put("/:id", controller.updateAgency);
+router.delete("/:id", controller.deleteAgency);
 
 export const AgencyRoutes = router;

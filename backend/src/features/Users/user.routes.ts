@@ -13,10 +13,10 @@ const service = new UserService(repository);
 const controller = new UserController(service);
 
 router.use(requireAdmin);
-router.get('/', controller.getUsers);
-router.get('/:id', controller.getUserById);
-router.post('/', validate(CreateUserSchema), controller.createUser);
-router.put('/:id', controller.updateUser);
-router.delete('/:id', controller.deleteUser)
+router.get("/", controller.getUsers);
+router.get("/:id", controller.getUserById);
+router.post("/", validate(CreateUserSchema), controller.createUser);
+router.put("/:id", controller.updateUser);
+router.delete("/:id", controller.deleteUser);
 
 export const UserRoutes = router;

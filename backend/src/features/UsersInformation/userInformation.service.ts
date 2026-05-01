@@ -35,7 +35,7 @@ export class UserInformationService {
         } catch (e){
             if (e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${id}`)
+                    throw new Error(`No se encontró usuario con ID ${id}`)
                 }
                 if (e.code === "P2002"){
                     throw new Error("Este usuario cuenta con datos registrados")
@@ -50,7 +50,7 @@ export class UserInformationService {
         } catch (e){
             if (e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${user_id}`)
+                    throw new Error(`No se encontró usuario con ID ${user_id}`)
                 }
                 if (e.code === "P2002"){
                     throw new Error("Este usuario cuenta con datos registrados")
@@ -65,7 +65,7 @@ export class UserInformationService {
         } catch (e) {
             if(e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${id}`)
+                    throw new Error(`No se encontró usuario con ID ${id}`)
                 }
             }
         }
@@ -77,7 +77,7 @@ export class UserInformationService {
         } catch (e) {
             if(e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${user_id}`)
+                    throw new Error(`No se encontró usuario con ID ${user_id}`)
                 }
             }
         }

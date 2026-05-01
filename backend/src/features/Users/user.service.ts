@@ -31,7 +31,7 @@ export class UserService {
         } catch (e){
             if (e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${id}`)
+                    throw new Error(`No se encontró usuario con ID ${id}`)
                 }
                 if (e.code === "P2002"){
                     throw new Error("El email ya se encuentra registrado")
@@ -46,7 +46,7 @@ export class UserService {
         } catch (e) {
             if(e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro usuario con ID ${id}`)
+                    throw new Error(`No se encontró usuario con ID ${id}`)
                 }
             }
         }

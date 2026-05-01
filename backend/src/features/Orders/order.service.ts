@@ -23,7 +23,7 @@ export class OrderService {
         } catch (e){
             if (e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro orden con ID ${id}`)
+                    throw new Error(`No se encontró orden con ID ${id}`)
                 }
             }
         }
@@ -35,7 +35,7 @@ export class OrderService {
         } catch (e) {
             if(e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro orden con ID ${id}`)
+                    throw new Error(`No se encontró orden con ID ${id}`)
                 }
             }
         }

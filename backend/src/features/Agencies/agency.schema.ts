@@ -6,7 +6,7 @@ export const CreateAgencySchema = z.object({
         location: z.string(),
         is_active: z.optional(z.boolean()),
         user_id: z.guid({
-            message: "Ingrese un ID de usuario valido"
+            message: "Ingrese un ID de usuario válido"
         }),
     }),
 });

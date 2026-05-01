@@ -23,7 +23,7 @@ export class AgencyService {
         } catch (e){
             if (e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro agencia con ID ${id}`)
+                    throw new Error(`No se encontró agencia con ID ${id}`)
                 }
             }
         }
@@ -35,7 +35,7 @@ export class AgencyService {
         } catch (e) {
             if(e instanceof Prisma.PrismaClientKnownRequestError){
                 if (e.code === "P2001"){
-                    throw new Error(`No se encontro agencia con ID ${id}`)
+                    throw new Error(`No se encontró agencia con ID ${id}`)
                 }
             }
         }

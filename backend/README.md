@@ -56,7 +56,21 @@ Genera el código del Prisma Client para habilitar el autocompletado y tipado en
 npx prisma generate
 ```
 
-4. Iniciar el servidor de desarrollo
+4. Cargar datos iniciales
+
+Ejecuta los seeders registrados de cada feature:
+
+```Bash
+npm run db:seed
+```
+
+También puedes usar Prisma directamente:
+
+```Bash
+npx prisma db seed
+```
+
+5. Iniciar el servidor de desarrollo
 
 Lanza la aplicación en modo de desarrollo:
 

@@ -36,6 +36,7 @@ export async function seedUsersInformation() {
         last_name: item.last_name,
         address: item.address,
         birthday: item.birthday,
+        document_id: item.document_id,
       },
       create: {
         user_id: ownerId,
@@ -43,6 +44,7 @@ export async function seedUsersInformation() {
         last_name: item.last_name,
         address: item.address,
         birthday: item.birthday,
+        document_id: item.document_id,
       },
       select: {
         id: true,

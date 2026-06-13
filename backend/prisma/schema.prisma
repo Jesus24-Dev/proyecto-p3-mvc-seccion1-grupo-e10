@@ -13,9 +13,9 @@ datasource db {
 }
 
 enum roles {
-  USER 
+  CUSTOMER
+  EMPLOYEE
   ADMIN
-  DISTRIBUTOR
 }
 
 enum transfer_status {
@@ -35,6 +35,9 @@ model users {
   email String @unique
   password String
   role roles 
+  is_active Boolean @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
   
   user_information users_information?
   orders_by_user orders[]
@@ -43,35 +46,49 @@ model users {
 
 model users_information {
   id String @id @default(uuid())
+  document_id String @unique
   first_name String
   last_name String
   address String
   birthday DateTime @db.Date
+  phone String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   user_id String @unique
   user users @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
 }
 
 model agencies {
   id String @id @default(uuid())
   name String
   location String
-  is_active Boolean
+  phone String?
+  email String?
+  is_active Boolean @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   user_id String
   user users @relation(fields: [user_id], references: [id])
 
   origin_orders orders[] @relation("OriginAgency")
   destination_orders orders[] @relation("DestinationAgency")
+
+  @@index([user_id])
 }
 
 model orders {
   id String @id @default(uuid())
-  date_arrived DateTime @db.Timestamp(3)
-  date_received DateTime @db.Timestamp(3)
+  package_received_at DateTime @db.Timestamp(3)
+  package_delivered_at DateTime @db.Timestamp(3)
   description String
-  amount Float
+  amount Decimal @db.Decimal(10, 2)
   status transfer_status @default(CREATED)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   //Relation with user
   user_id String
@@ -83,4 +100,9 @@ model orders {
   
   destination_agency_id String
   destination_agency agencies @relation("DestinationAgency", fields: [destination_agency_id], references: [id])
+
+  @@index([status])
+  @@index([user_id])
+  @@index([origin_agency_id])
+  @@index([destination_agency_id])
 }

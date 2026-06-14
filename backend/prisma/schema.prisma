@@ -36,6 +36,8 @@ model users {
   password String
   role roles 
   is_active Boolean @default(true)
+  reset_token         String?   
+  reset_token_expires DateTime?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   

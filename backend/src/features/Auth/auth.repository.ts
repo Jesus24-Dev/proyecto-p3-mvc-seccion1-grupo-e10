@@ -11,6 +11,9 @@ export class AuthRepository {
                 email: true,
                 password: true,
                 role: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
             },
         });
     }
@@ -26,6 +29,9 @@ export class AuthRepository {
                 id: true,
                 email: true,
                 role: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
             },
         });
     }

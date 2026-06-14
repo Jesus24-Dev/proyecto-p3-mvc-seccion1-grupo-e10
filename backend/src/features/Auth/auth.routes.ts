@@ -13,5 +13,8 @@ const controller = new AuthController(service);
 
 router.post("/register", validate(RegisterSchema), controller.register);
 router.post("/login", validate(LoginSchema), controller.login);
+router.post("/change-password/:userId", controller.changePassword);
+router.post("/request-password-reset", controller.requestPasswordReset);
+router.post("/reset-password", controller.resetPassword);
 
 export const AuthRoutes = router;

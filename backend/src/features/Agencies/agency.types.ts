@@ -20,4 +20,6 @@ export interface AgencyResponse {
     location: string;
     is_active: boolean;
     user_id: string;
+    phone?: string | null;
+    email?: string | null;
 }

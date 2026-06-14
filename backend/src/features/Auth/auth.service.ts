@@ -1,9 +1,11 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { Prisma } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
 import type { AuthRepository } from "./auth.repository.js";
+import { UserRepository } from "../Users/user.repository.js";
 
 export class AuthServiceError extends Error {
 	constructor(
@@ -15,8 +17,20 @@ export class AuthServiceError extends Error {
 	}
 }
 
+export interface ChangePasswordBody {
+	currentPassword: string;
+	newPassword: string;
+}
+
+export interface ResetPasswordBody {
+	email: string;
+	token: string;
+	newPassword: string;
+}
+
 export class AuthService {
 	constructor(private authRepository: AuthRepository) {}
+	userRepository = new UserRepository();
 	async login(body: LoginBody): Promise<LoginResponse> {
 
 		const user = await this.authRepository.findUserByEmail(body.email);
@@ -41,6 +55,9 @@ export class AuthService {
 			id: user.id,
 			email: user.email,
 			role: user.role,
+			is_active: user.is_active,
+			created_at: user.created_at,
+			updated_at: user.updated_at,
 		});
 	}
 
@@ -59,6 +76,55 @@ export class AuthService {
 
 			throw error;
 		}
+	}
+
+	async changePassword(userId: string, body: ChangePasswordBody): Promise<void> {
+		const user = await this.userRepository.findByIdWithPassword(userId);
+		if (!user) throw new AuthServiceError("Usuario no encontrado", 404);
+
+		const isValid = await bcrypt.compare(body.currentPassword, user.password);
+		if (!isValid) throw new AuthServiceError("La contraseña actual es incorrecta", 400);
+
+		const newHashedPassword = await bcrypt.hash(body.newPassword, 10);
+		await this.authRepository.updatePassword(userId, newHashedPassword);
+	}
+
+	async requestPasswordReset(email: string): Promise<void> {
+		const user = await this.authRepository.findUserByEmail(email);
+		if (!user) return; 
+
+			const resetToken = crypto.randomBytes(32).toString("hex");
+			const hashedResetToken = await bcrypt.hash(resetToken, 10);
+
+			const expireTime = new Date(Date.now() + 15 * 60 * 1000);
+			
+			await this.userRepository.updateTokens(email, hashedResetToken, expireTime);
+			// TODO: Enviar el correo electrónico con el link:
+			// https://tu-frontend.com/reset-password?token=${resetToken}&email=${email}
+	}
+
+	async resetPassword(body: ResetPasswordBody): Promise<void> {
+		const user = await this.authRepository.findUserByEmail(body.email);
+		
+		if (!user || !user.reset_token || !user.reset_token_expires) {
+			throw new AuthServiceError("Token inválido", 400);
+		}
+
+		// Verificar expiración
+		if (new Date() > user.reset_token_expires) {
+			throw new AuthServiceError("El token ha expirado", 400);
+		}
+
+		// Verificar que el token proporcionado coincida con el guardado
+		const isTokenValid = await bcrypt.compare(body.token, user.reset_token);
+		if (!isTokenValid) {
+			throw new AuthServiceError("Token inválido", 400);
+		}
+
+		// Actualizar a la nueva contraseña y limpiar los tokens de recuperación
+		const newHashedPassword = await bcrypt.hash(body.newPassword, 10);
+		await this.userRepository.updateTokens(body.email, null, null); // Limpiar token
+		await this.authRepository.updatePassword(user.id, newHashedPassword);
 	}
 
 	private buildAuthResponse(user: AuthUser): LoginResponse {

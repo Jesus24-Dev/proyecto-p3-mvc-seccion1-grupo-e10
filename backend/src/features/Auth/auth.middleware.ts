@@ -1,13 +1,21 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { roles } from "../../generated/prisma/client.js";
-import type { ErrorResponse } from "../../shared/error.responses.types.js";
+
 
 type AuthTokenPayload = {
   sub: string;
   email: string;
   role: roles;
 };
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthTokenPayload;
+    }
+  }
+}
 
 function getBearerToken(request: Request) {
   const authorizationHeader = request.headers.authorization;
@@ -19,44 +27,29 @@ function getBearerToken(request: Request) {
   return authorizationHeader.slice("Bearer ".length).trim();
 }
 
-export function requireAdmin(
-  request: Request,
-  response: Response<ErrorResponse>,
-  next: NextFunction,
-) {
-  const token = getBearerToken(request);
-
-  if (!token) {
-    return response.status(401).json({
-      status: "error",
-      message: "Authentication required",
-    });
-  }
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const token = getBearerToken(req);
+  if (!token) return res.status(401).json({ status: "error", message: "Autenticación requerida" });
 
   const secret = process.env.JWT_SECRET?.trim();
-
-  if (!secret) {
-    return response.status(500).json({
-      status: "error",
-      message: "JWT_SECRET is not configured",
-    });
-  }
-
   try {
-    const payload = jwt.verify(token, secret) as AuthTokenPayload;
-
-    if (payload.role !== roles.ADMIN) {
-      return response.status(403).json({
-        status: "error",
-        message: "Admin access required",
-      });
-    }
-
+    const payload = jwt.verify(token, secret!) as AuthTokenPayload;
+    req.user = payload; // Inyectamos el payload para su uso posterior
     return next();
   } catch {
-    return response.status(401).json({
-      status: "error",
-      message: "Invalid or expired token",
-    });
+    return res.status(401).json({ status: "error", message: "Token inválido o expirado" });
   }
+}
+
+export function requireRoles(allowedRoles: roles[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const userRole = req.user?.role;
+    if (!userRole || !allowedRoles.includes(userRole)) {
+      return res.status(403).json({
+        status: "error",
+        message: "No tienes permisos para acceder a este recurso",
+      });
+    }
+    next();
+  };
 }

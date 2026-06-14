@@ -11,6 +11,11 @@ export class AuthRepository {
                 email: true,
                 password: true,
                 role: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
+                reset_token: true,
+                reset_token_expires: true,
             },
         });
     }
@@ -26,7 +31,17 @@ export class AuthRepository {
                 id: true,
                 email: true,
                 role: true,
+                is_active: true,
+                created_at: true,
+                updated_at: true,
             },
+        });
+    }
+
+    async updatePassword(userId: string, newHashedPassword: string) {
+        return prisma.users.update({
+            where: { id: userId },
+            data: { password: newHashedPassword },
         });
     }
 }

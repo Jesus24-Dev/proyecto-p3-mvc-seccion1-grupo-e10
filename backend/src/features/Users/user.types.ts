@@ -18,11 +18,12 @@ enum roles {
 
 import { type users as PrismaUser, roles as PrismaRoles } from "../../generated/prisma/client";
 
-export type UserEntity = Omit<PrismaUser, 'password'>
+export type UserEntity = Omit<PrismaUser, 'password' | 'reset_token' | 'reset_token_expires'>;
 
 export interface UserResponse {
     id: string;
     email: string;
     role: PrismaRoles;
+    is_active: boolean;
 }
 

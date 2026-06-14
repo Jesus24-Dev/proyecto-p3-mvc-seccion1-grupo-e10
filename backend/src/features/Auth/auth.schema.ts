@@ -11,9 +11,9 @@ export const LoginSchema = z.object({
 export const RegisterSchema = z.object({
   body: z.object({
     email: z.email("Formato de email inválido."),
-    password: z.string().regex(/^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/, {
+    password: z.string().regex(/^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
       message:
-        "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
+        "La contraseña debe tener al menos 8 caracteres, una mayúscula, un número y un carácter especial",
     }),
     role: z.enum(roles, {
       error: () => ({ message: "El rol seleccionado no es válido." }),

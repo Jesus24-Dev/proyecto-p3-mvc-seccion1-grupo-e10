@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { AuthService, AuthServiceError } from "./auth.service.js";
+import { AuthService, AuthServiceError, type ChangePasswordBody } from "./auth.service.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { LoginResponse } from "./auth.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
@@ -50,4 +50,72 @@ export class AuthController {
 			});
 		}
 	};
+
+	public changePassword = async (
+		req: Request<{ userId: string }, void | ErrorResponse, ChangePasswordBody>,
+		res: Response<void | ErrorResponse>,
+	) => {
+		const { userId } = req.params;
+
+		try {
+			await this.authService.changePassword(userId, req.body);
+			return res.status(204).send();
+		} catch (error) {
+			if (error instanceof AuthServiceError) {
+				return res.status(error.statusCode).json({
+					status: "error",
+					message: error.message,
+				});
+			}
+
+			return res.status(500).json({
+				status: "error",
+				message: "An error occurred",
+			});
+		}
+	}
+
+	public requestPasswordReset = async (
+		req: Request<{}, void | ErrorResponse, { email: string }>,
+		res: Response<void | ErrorResponse>,
+	) => {
+		try {
+			await this.authService.requestPasswordReset(req.body.email);
+			return res.status(204).send();
+		} catch (error) {
+			if (error instanceof AuthServiceError) {
+				return res.status(error.statusCode).json({
+					status: "error",
+					message: error.message,
+				});
+			}
+
+			return res.status(500).json({
+				status: "error",
+				message: "An error occurred",
+			});
+		}
+	};
+
+	public resetPassword = async (
+		req: Request<{}, void | ErrorResponse, { email: string; token: string; newPassword: string }>,
+		res: Response<void | ErrorResponse>,
+	) => {
+		try {
+			await this.authService.resetPassword(req.body);
+			return res.status(204).send();
+		} catch (error) {
+			if (error instanceof AuthServiceError) {
+				return res.status(error.statusCode).json({
+					status: "error",
+					message: error.message,
+				});
+			}
+
+			return res.status(500).json({
+				status: "error",
+				message: "An error occurred",
+			});
+		}
+	}
 }

@@ -6,16 +6,31 @@ import bcrypt from "bcrypt";
 export class UserRepository {
   async findAll(): Promise<UserEntity[]> {
     return await prisma.users.findMany({
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true},
     });
   }
 
   async findById(id: string): Promise<UserEntity | null> {
     return await prisma.users.findUnique({
       where: { id: id },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true },
     });
   }
+
+  async findByIdWithPassword(id: string): Promise<(UserEntity & { password: string }) | null> {
+    return await prisma.users.findUnique({
+      where: { id: id },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true, password: true },
+    });
+  }
+
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    return await prisma.users.findUnique({
+      where: { email: email },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true },
+    });
+  }
+
 
   async create(body: CreateUserBody): Promise<UserEntity> {
     return await prisma.users.create({
@@ -23,6 +38,16 @@ export class UserRepository {
         email: body.email,
         password: await bcrypt.hash(body.password, 10),
         role: body.role,
+      },
+    });
+  }
+
+  async updateTokens(email: string, resetToken: string | null, expires: Date | null): Promise<void> {
+    await prisma.users.update({
+      where: { email: email },
+      data: {
+        reset_token: resetToken,
+        reset_token_expires: expires,
       },
     });
   }

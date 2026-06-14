@@ -59,12 +59,16 @@ export async function seedAgencies() {
             location: agency.location,
             is_active: agency.is_active,
             user_id: ownerId,
+            phone: agency.phone,
+            email: agency.email
           },
           select: {
             id: true,
             name: true,
             location: true,
             user_id: true,
+            phone: true,
+            email: true,
           },
         });
 

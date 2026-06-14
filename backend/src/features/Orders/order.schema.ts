@@ -6,8 +6,8 @@ export const CreateOrderSchema = z.object({
     user_id: z.string().guid({
       message: "Ingrese un ID de usuario válido",
     }),
-    date_arrived: z.coerce.date(),
-    date_received: z.coerce.date(),
+    package_received_at: z.coerce.date(),
+    package_delivered_at: z.coerce.date(),
     origin_agency_id: z.string().guid({
       message: "Ingrese un ID de agencia válido",
     }),

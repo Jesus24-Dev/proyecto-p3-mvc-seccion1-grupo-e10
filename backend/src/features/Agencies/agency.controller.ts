@@ -30,7 +30,9 @@ export class AgencyController {
                 name: body.name,
                 location: body.location,
                 is_active: true,
-                user_id: body.user_id
+                user_id: body.user_id,
+                phone: body.phone,
+                email: body.email
             });
             return res.status(201).json(agency);
         } catch (error){

@@ -28,8 +28,8 @@ export class OrderController {
         try {
             const order = await this.orderService.createOrder({
                 user_id: body.user_id,
-                date_arrived: body.date_arrived,
-                date_received: body.date_received,
+                package_received_at: body.package_received_at,
+                package_delivered_at: body.package_delivered_at,
                 origin_agency_id: body.origin_agency_id,
                 destination_agency_id: body.destination_agency_id,
                 description: body.description,

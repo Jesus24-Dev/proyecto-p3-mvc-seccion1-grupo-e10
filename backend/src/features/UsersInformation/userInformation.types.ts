@@ -18,8 +18,10 @@ export type UsersInformationEntity = PrismaUsersInformation
 export interface UserInformationResponse {
     id: string;
     user_id: string;
+    document_id: string;
     first_name: string;
     last_name: string;
     address: string;
     birthday: Date;
+    phone?: string | null;
 }

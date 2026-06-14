@@ -8,6 +8,8 @@ export const CreateAgencySchema = z.object({
     user_id: z.guid({
       message: "Ingrese un ID de usuario válido",
     }),
+      phone: z.optional(z.string()),
+      email: z.optional(z.email({ message: "Ingrese un correo electrónico válido" })),
   }),
 });
 

@@ -22,17 +22,18 @@
  */
 
 import type {orders as PrismaOrder, transfer_status as TransferStatus} from "../../generated/prisma/client";
+import type { Decimal } from "../../generated/prisma/internal/prismaNamespace";
 
 export type OrderEntity = PrismaOrder;
 export interface OrderResponse {
     id: string;
     user_id: string
-    date_arrived: Date;
-    date_received: Date;
+    package_received_at: Date;
+    package_delivered_at: Date;
     origin_agency_id: string;
     destination_agency_id: string
     description: string;
-    amount: number;
+    amount: Decimal;
     status: TransferStatus
 }
 

@@ -24,5 +24,6 @@ export interface UserResponse {
     id: string;
     email: string;
     role: PrismaRoles;
+    is_active: boolean;
 }
 

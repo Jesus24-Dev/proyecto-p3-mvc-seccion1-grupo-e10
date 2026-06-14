@@ -4,6 +4,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
 import type { AuthRepository } from "./auth.repository.js";
+import type { UserRepository } from "../Users/user.repository.js";
 
 export class AuthServiceError extends Error {
 	constructor(
@@ -15,8 +16,13 @@ export class AuthServiceError extends Error {
 	}
 }
 
+export interface ChangePasswordBody {
+	currentPassword: string;
+	newPassword: string;
+}
+
 export class AuthService {
-	constructor(private authRepository: AuthRepository) {}
+	constructor(private authRepository: AuthRepository, private userRepository: UserRepository) {}
 	async login(body: LoginBody): Promise<LoginResponse> {
 
 		const user = await this.authRepository.findUserByEmail(body.email);
@@ -41,6 +47,9 @@ export class AuthService {
 			id: user.id,
 			email: user.email,
 			role: user.role,
+			is_active: user.is_active,
+			created_at: user.created_at,
+			updated_at: user.updated_at,
 		});
 	}
 
@@ -59,6 +68,17 @@ export class AuthService {
 
 			throw error;
 		}
+	}
+
+	async changePassword(userId: string, body: ChangePasswordBody): Promise<void> {
+		const user = await this.userRepository.findByIdWithPassword(userId);
+		if (!user) throw new AuthServiceError("Usuario no encontrado", 404);
+
+		const isValid = await bcrypt.compare(body.currentPassword, user.password);
+		if (!isValid) throw new AuthServiceError("La contraseña actual es incorrecta", 400);
+
+		const newHashedPassword = await bcrypt.hash(body.newPassword, 10);
+		await this.authRepository.updatePassword(userId, newHashedPassword);
 	}
 
 	private buildAuthResponse(user: AuthUser): LoginResponse {

@@ -6,14 +6,21 @@ import bcrypt from "bcrypt";
 export class UserRepository {
   async findAll(): Promise<UserEntity[]> {
     return await prisma.users.findMany({
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true},
     });
   }
 
   async findById(id: string): Promise<UserEntity | null> {
     return await prisma.users.findUnique({
       where: { id: id },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true },
+    });
+  }
+
+  async findByIdWithPassword(id: string): Promise<(UserEntity & { password: string }) | null> {
+    return await prisma.users.findUnique({
+      where: { id: id },
+      select: { id: true, email: true, role: true, is_active: true, created_at: true, updated_at: true, password: true },
     });
   }
 

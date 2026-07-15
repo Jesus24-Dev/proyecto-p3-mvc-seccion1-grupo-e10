@@ -8,7 +8,10 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Moon,
   Package,
+  PanelLeft,
+  Sun,
   Users,
   Workflow,
 } from "lucide-react";
@@ -25,6 +28,7 @@ import {
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { roleLabel } from "@/lib/roles";
 import { AgencySwitcher } from "@/components/layout/AgencySwitcher";
 
@@ -39,20 +43,33 @@ const navigationItems = [
   { to: "/admin/automatizaciones", label: "Automatizaciones", icon: Workflow },
 ];
 
-function BrandMark() {
+function BrandMark({ collapsed = false }: { collapsed?: boolean }) {
   return (
-    <div className="flex h-16 items-center gap-2.5 px-5">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+    <div
+      className={cn(
+        "flex h-16 items-center gap-2.5",
+        collapsed ? "justify-center px-0" : "px-5",
+      )}
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
         <Package className="size-4.5" aria-hidden="true" />
       </span>
-      <span className="text-[17px] font-medium tracking-tight">
-        Dr Logistics
-      </span>
+      {!collapsed && (
+        <span className="text-[17px] font-medium tracking-tight">
+          Dr Logistics
+        </span>
+      )}
     </div>
   );
 }
 
-function NavigationList({ onNavigate }: { onNavigate?: () => void }) {
+function NavigationList({
+  onNavigate,
+  collapsed = false,
+}: {
+  onNavigate?: () => void;
+  collapsed?: boolean;
+}) {
   return (
     <nav aria-label="Secciones del panel" className="flex flex-col gap-1 px-3">
       {navigationItems.map((item) => (
@@ -61,26 +78,52 @@ function NavigationList({ onNavigate }: { onNavigate?: () => void }) {
           to={item.to}
           end={item.end}
           onClick={onNavigate}
+          title={collapsed ? item.label : undefined}
           className={({ isActive }) =>
             cn(
-              "flex h-10 items-center gap-3 rounded-full px-4 text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+              "flex h-10 items-center gap-3 rounded-full text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+              collapsed ? "justify-center px-0" : "px-4",
               isActive &&
                 "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )
           }
         >
-          <item.icon className="size-4.5" aria-hidden="true" />
-          {item.label}
+          <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
+          {!collapsed && item.label}
+          {collapsed && <span className="sr-only">{item.label}</span>}
         </NavLink>
       ))}
     </nav>
   );
 }
 
+const SIDEBAR_COLLAPSED_KEY = "dr-logistics-sidebar-collapsed";
+
+/** Rutas que aprovechan todo el ancho de la pantalla. */
+const FULL_BLEED_PREFIXES = ["/admin/conversaciones", "/admin/automatizaciones"];
+
 export function AppLayout() {
   const { session, logout } = useAuth();
+  const { mode, toggleMode } = useTheme();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1",
+  );
+
+  function toggleCollapsed() {
+    setIsCollapsed((current) => {
+      const next = !current;
+      window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  }
+
+  const isFullBleed = FULL_BLEED_PREFIXES.some((prefix) =>
+    location.pathname.startsWith(prefix),
+  );
 
   const currentItem = [...navigationItems]
     .reverse()
@@ -95,14 +138,16 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-svh bg-background">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-        <BrandMark />
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 md:flex",
+          isCollapsed ? "w-16" : "w-60",
+        )}
+      >
+        <BrandMark collapsed={isCollapsed} />
         <div className="flex-1 py-3">
-          <NavigationList />
+          <NavigationList collapsed={isCollapsed} />
         </div>
-        <p className="px-5 pb-5 text-xs text-muted-foreground">
-          Proyecto MVC · Sección 1 · Grupo E10
-        </p>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -132,10 +177,34 @@ export function AppLayout() {
             <h1 className="truncate text-lg font-medium tracking-tight md:sr-only">
               {currentItem?.label ?? "Panel"}
             </h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hidden md:inline-flex"
+              aria-label={
+                isCollapsed ? "Expandir navegación" : "Colapsar navegación"
+              }
+              onClick={toggleCollapsed}
+            >
+              <PanelLeft aria-hidden="true" />
+            </Button>
             <div className="hidden md:block">
               <AgencySwitcher />
             </div>
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={mode === "dark" ? "Modo claro" : "Modo oscuro"}
+            onClick={toggleMode}
+          >
+            {mode === "dark" ? (
+              <Sun aria-hidden="true" />
+            ) : (
+              <Moon aria-hidden="true" />
+            )}
+          </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -169,8 +238,18 @@ export function AppLayout() {
           </DropdownMenu>
         </header>
 
-        <main className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="mx-auto w-full max-w-6xl">
+        <main
+          className={cn(
+            "flex flex-1 flex-col",
+            isFullBleed ? "px-4 py-4 md:px-6 md:py-5" : "px-4 py-6 md:px-8 md:py-8",
+          )}
+        >
+          <div
+            className={cn(
+              "mx-auto flex w-full flex-1 flex-col",
+              isFullBleed ? "max-w-none" : "max-w-6xl",
+            )}
+          >
             <Outlet />
           </div>
         </main>

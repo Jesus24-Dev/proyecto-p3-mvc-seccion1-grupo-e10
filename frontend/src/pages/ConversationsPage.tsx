@@ -8,7 +8,7 @@ import {
   Search,
   Send,
 } from "lucide-react";
-import { contactsApi, usersApi } from "@/api";
+import { agenciesApi, contactsApi, membershipsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,7 +16,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useActiveAgency } from "@/context/AgencyContext";
 import { usePageData } from "@/hooks/usePageData";
 import { cn } from "@/lib/utils";
 import type { UserInformation } from "@/types";
@@ -190,10 +198,19 @@ function StatusTicks({ status }: { status: MessageStatus }) {
 
 export function ConversationsPage() {
   const { data, isLoading, error } = usePageData(() =>
-    Promise.all([contactsApi.list(), usersApi.list()]),
+    Promise.all([
+      contactsApi.list(),
+      usersApi.list(),
+      membershipsApi.list(),
+      agenciesApi.list(),
+    ]),
   );
-  const [contacts, users] = data ?? [[], []];
+  const [contacts, users, memberships, agencies] = data ?? [[], [], [], []];
 
+  const { activeAgencyId } = useActiveAgency();
+  const [agencyFilter, setAgencyFilter] = useState<string>(
+    () => activeAgencyId ?? "all",
+  );
   const [search, setSearch] = useState("");
   const [selectedContactId, setSelectedContactId] = useState<string | null>(
     null,
@@ -229,6 +246,43 @@ export function ConversationsPage() {
     [contacts],
   );
 
+  /** Primera membresía de cada usuario: user_id → agency_id. */
+  const agencyIdByUserId = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const membership of memberships) {
+      if (!map.has(membership.user_id)) {
+        map.set(membership.user_id, membership.agency_id);
+      }
+    }
+
+    return map;
+  }, [memberships]);
+
+  const agencyNameById = useMemo(
+    () => new Map(agencies.map((agency) => [agency.id, agency.name])),
+    [agencies],
+  );
+
+  const agencyFilterItems = useMemo(
+    () => [
+      { value: "all", label: "Todas las agencias" },
+      ...agencies.map((agency) => ({ value: agency.id, label: agency.name })),
+    ],
+    [agencies],
+  );
+
+  /** Valor efectivo del filtro: cae a "todas" si la agencia guardada ya no existe. */
+  const agencyFilterValue =
+    agencyFilter === "all" || agencyNameById.has(agencyFilter)
+      ? agencyFilter
+      : "all";
+
+  function agencyLabelFor(contact: UserInformation) {
+    const agencyId = agencyIdByUserId.get(contact.user_id);
+    return (agencyId && agencyNameById.get(agencyId)) || "Sin agencia";
+  }
+
   const messagesFor = useMemo(
     () => (contactId: string) => {
       const index = contactIndexById.get(contactId) ?? 0;
@@ -240,14 +294,17 @@ export function ConversationsPage() {
   const filteredContacts = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) {
-      return contacts;
-    }
+    return contacts.filter((contact) => {
+      if (
+        agencyFilterValue !== "all" &&
+        agencyIdByUserId.get(contact.user_id) !== agencyFilterValue
+      ) {
+        return false;
+      }
 
-    return contacts.filter((contact) =>
-      fullName(contact).toLowerCase().includes(query),
-    );
-  }, [contacts, search]);
+      return !query || fullName(contact).toLowerCase().includes(query);
+    });
+  }, [contacts, search, agencyFilterValue, agencyIdByUserId]);
 
   const selectedContact =
     contacts.find((contact) => contact.id === selectedContactId) ?? null;
@@ -331,7 +388,7 @@ export function ConversationsPage() {
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       <PageHeader
         title="Conversaciones"
         description="Los chats de WhatsApp de tus contactos, sincronizados con el panel para dar seguimiento a envíos sin salir de aquí."
@@ -343,7 +400,7 @@ export function ConversationsPage() {
         </Alert>
       )}
 
-      <Card className="h-[calc(100vh-16rem)] min-h-[480px] overflow-hidden p-0">
+      <Card className="min-h-[480px] flex-1 overflow-hidden p-0">
         {isLoading ? (
           <div className="grid h-full grid-cols-1 grid-rows-[minmax(0,1fr)] md:grid-cols-[20rem_1fr]">
             <div className="grid content-start gap-4 overflow-hidden border-r p-4">
@@ -377,7 +434,26 @@ export function ConversationsPage() {
                 selectedContact ? "hidden" : "flex",
               )}
             >
-              <div className="border-b p-3">
+              <div className="grid gap-2 border-b p-3">
+                <Select
+                  items={agencyFilterItems}
+                  value={agencyFilterValue}
+                  onValueChange={(value) => setAgencyFilter(value as string)}
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    aria-label="Filtrar conversaciones por agencia"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agencyFilterItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <div className="relative">
                   <Search
                     className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -396,7 +472,8 @@ export function ConversationsPage() {
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {filteredContacts.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground">
-                    Ninguna conversación coincide con la búsqueda.
+                    Ninguna conversación coincide con la búsqueda ni el filtro
+                    de agencia.
                   </p>
                 ) : (
                   <ul>
@@ -433,6 +510,16 @@ export function ConversationsPage() {
                                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                                   {last.day === "Ayer" ? "Ayer" : last.time}
                                 </span>
+                              </span>
+                              <span className="mt-0.5 flex">
+                                <Badge
+                                  variant="secondary"
+                                  className="h-4 max-w-full px-1.5 text-[0.6875rem] font-normal text-muted-foreground"
+                                >
+                                  <span className="truncate">
+                                    {agencyLabelFor(contact)}
+                                  </span>
+                                </Badge>
                               </span>
                               <span className="flex items-center justify-between gap-2">
                                 <span className="truncate text-xs text-muted-foreground">
@@ -612,6 +699,6 @@ export function ConversationsPage() {
           </div>
         )}
       </Card>
-    </>
+    </div>
   );
 }

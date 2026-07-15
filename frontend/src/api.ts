@@ -3,10 +3,16 @@ import type {
   ApiErrorResponse,
   AuthSession,
   CreateAgencyPayload,
+  CreateOrderPayload,
+  CreateUserInformationPayload,
   CreateUserPayload,
   LoginPayload,
+  Order,
+  UpdateAgencyPayload,
+  UpdateUserInformationPayload,
   UpdateUserPayload,
   User,
+  UserInformation,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -193,5 +199,50 @@ export const agenciesApi = {
     request<Agency>("/agencies", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateAgencyPayload) =>
+    request<Agency>(`/agencies/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/agencies/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const ordersApi = {
+  list: () => request<Order[]>("/orders"),
+  create: (payload: CreateOrderPayload) =>
+    request<Order>("/orders", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: CreateOrderPayload) =>
+    request<Order>(`/orders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/orders/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const contactsApi = {
+  list: () => request<UserInformation[]>("/info"),
+  create: (payload: CreateUserInformationPayload) =>
+    request<UserInformation>("/info", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (userId: string, payload: UpdateUserInformationPayload) =>
+    request<UserInformation>(`/info/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (userId: string) =>
+    request<void>(`/info/${userId}`, {
+      method: "DELETE",
     }),
 };

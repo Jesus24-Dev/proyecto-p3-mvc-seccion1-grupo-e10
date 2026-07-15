@@ -142,7 +142,7 @@ export function DashboardPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           icon={Users}
           label="Usuarios"
@@ -169,7 +169,7 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Envíos por estado</CardTitle>
@@ -223,6 +223,7 @@ export function DashboardPage() {
               <Button
                 variant="ghost"
                 size="sm"
+                nativeButton={false}
                 render={<Link to="/admin/envios" />}
               >
                 Ver todos

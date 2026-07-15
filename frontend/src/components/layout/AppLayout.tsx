@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -139,14 +140,16 @@ export function AppLayout() {
               }
             />
             <DropdownMenuContent align="end" className="min-w-56">
-              <DropdownMenuLabel>
-                <div className="grid gap-0.5">
-                  <span className="truncate font-medium">{email}</span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    {session ? roleLabel(session.user.role) : ""}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <div className="grid gap-0.5">
+                    <span className="truncate font-medium">{email}</span>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {session ? roleLabel(session.user.role) : ""}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>
                 <LogOut aria-hidden="true" />

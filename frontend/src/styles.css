@@ -165,10 +165,14 @@ select:focus-visible {
 }
 
 .brand-stamp {
+  color: var(--domesa-red-dark);
+}
+
+.login-story .brand-stamp {
   color: #ffd1d7;
 }
 
-.brand-stamp::before {
+.login-story .brand-stamp::before {
   background: #ff98a6;
 }
 
@@ -399,6 +403,16 @@ h3 {
 .cta-card h3,
 .cta-card p {
   color: #fff7ef;
+}
+
+.cta-card-agencies .primary-button {
+  background: #fff7ef;
+  color: var(--domesa-red-dark);
+  box-shadow: 0 6px 16px rgba(90, 10, 20, 0.25);
+}
+
+.cta-card-agencies .primary-button:hover:not(:disabled) {
+  background: #ffffff;
 }
 
 .dashboard-grid {

@@ -24,7 +24,7 @@ export class AuthController {
 
 			return res.status(500).json({
 				status: "error",
-				message: "An error occurred",
+				message: "Ocurrió un error inesperado en el servidor.",
 			});
 		}
 	};
@@ -46,7 +46,7 @@ export class AuthController {
 
 			return res.status(500).json({
 				status: "error",
-				message: "An error occurred",
+				message: "Ocurrió un error inesperado en el servidor.",
 			});
 		}
 	};

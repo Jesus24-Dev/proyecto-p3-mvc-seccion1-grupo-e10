@@ -19,8 +19,8 @@ export class AgencyController {
         if(agency){
             return res.status(200).json(agency);
         } else {
-            return res.status(404).json({"status": "error", "message": "agency not founded"})
-        }       
+            return res.status(404).json({"status": "error", "message": "La agencia solicitada no existe."})
+        }
     }
 
     public createAgency = async (req: Request<{}, {}, CreateAgencyBody>, res: Response<AgencyResponse | ErrorResponse>) => {
@@ -34,7 +34,7 @@ export class AgencyController {
             });
             return res.status(201).json(agency);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "An error occurred"})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo crear la agencia. Revisa los datos enviados."})
         }
     }
 
@@ -44,7 +44,7 @@ export class AgencyController {
             const agency = await this.agencyService.updateAgency(id, req.body);
             return res.status(200).json(agency);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": "No se pudo actualizar la agencia. Revisa los datos enviados."})
         }
     }
     
@@ -54,7 +54,7 @@ export class AgencyController {
             await this.agencyService.deleteAgency(id);
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "agency not founded"})
+            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: la agencia no existe o ya fue eliminada."})
         }
     }
 }

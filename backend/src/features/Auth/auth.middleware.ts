@@ -29,7 +29,7 @@ export function requireAdmin(
   if (!token) {
     return response.status(401).json({
       status: "error",
-      message: "Authentication required",
+      message: "Necesitas iniciar sesión para acceder a este recurso.",
     });
   }
 
@@ -48,7 +48,7 @@ export function requireAdmin(
     if (payload.role !== roles.ADMIN) {
       return response.status(403).json({
         status: "error",
-        message: "Admin access required",
+        message: "Necesitas una cuenta ADMIN para realizar esta acción.",
       });
     }
 
@@ -56,7 +56,7 @@ export function requireAdmin(
   } catch {
     return response.status(401).json({
       status: "error",
-      message: "Invalid or expired token",
+      message: "Tu sesión expiró o no es válida. Inicia sesión de nuevo.",
     });
   }
 }

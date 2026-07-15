@@ -18,8 +18,8 @@ export class UserController {
         if(user){
             return res.status(200).json(user);
         } else {
-            return res.status(404).json({"status": "error", "message": "User not founded"})
-        }       
+            return res.status(404).json({"status": "error", "message": "El usuario solicitado no existe."})
+        }
     }
 
     public createUser = async (req: Request, res: Response<UserResponse | ErrorResponse>) => {
@@ -27,7 +27,7 @@ export class UserController {
             const user = await this.userService.createUser(req.body);
             return res.status(201).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "An error occurred"})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo crear el usuario. Revisa los datos enviados."})
         }
     }
 
@@ -37,7 +37,7 @@ export class UserController {
             const user = await this.userService.updateUser(id, req.body);
             return res.status(200).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": "No se pudo actualizar: el email ya está registrado por otro usuario."})
         }
     }
     
@@ -47,7 +47,7 @@ export class UserController {
             await this.userService.deleteUser(id);
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "User not founded"})
+            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el usuario no existe o ya fue eliminado."})
         }
     }
 }

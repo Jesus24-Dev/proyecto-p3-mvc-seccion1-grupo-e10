@@ -22,13 +22,13 @@ export class AuthService {
 		const user = await this.authRepository.findUserByEmail(body.email);
 
 		if (!user) {
-			throw new AuthServiceError("Invalid email or password", 401);
+			throw new AuthServiceError("Correo o contraseña incorrectos.", 401);
 		}
 
 		const isPasswordValid = await bcrypt.compare(body.password, user.password);
 
 		if (!isPasswordValid) {
-			throw new AuthServiceError("Invalid email or password", 401);
+			throw new AuthServiceError("Correo o contraseña incorrectos.", 401);
 		}
 
 		const secret = process.env.JWT_SECRET?.trim();

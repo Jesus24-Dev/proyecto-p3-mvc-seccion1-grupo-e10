@@ -1,7 +1,9 @@
 import {
   Clock,
+  GitBranch,
   Mail,
   MessageCircle,
+  Split,
   Tag,
   Webhook,
   Zap,
@@ -14,7 +16,9 @@ export type StepKind =
   | "send_whatsapp"
   | "send_email"
   | "add_tag"
-  | "send_webhook";
+  | "send_webhook"
+  | "condition"
+  | "switch";
 
 export type StepData = {
   kind: StepKind;
@@ -33,8 +37,49 @@ export type StepData = {
   /** send_webhook */
   url?: string;
   method?: "POST" | "GET";
+  /** condition / switch */
+  field?: string;
+  operator?: string;
+  value?: string;
+  cases?: string[];
   [key: string]: unknown;
 };
+
+/** Campos del contacto/evento sobre los que ramifica un condicional. */
+export const BRANCH_FIELDS = [
+  { value: "tag", label: "Etiqueta del contacto" },
+  { value: "agency", label: "Agencia del contacto" },
+  { value: "package_status", label: "Estado del paquete" },
+  { value: "order_status", label: "Estado del envío" },
+] as const;
+
+export const CONDITION_OPERATORS = [
+  { value: "equals", label: "es igual a" },
+  { value: "not_equals", label: "es distinto de" },
+  { value: "contains", label: "contiene" },
+  { value: "exists", label: "existe" },
+] as const;
+
+/** Salidas (handles de origen) de un nodo según su tipo. */
+export type StepBranch = { id: string; label: string };
+
+export function branchesFor(data: StepData): StepBranch[] {
+  if (data.kind === "condition") {
+    return [
+      { id: "true", label: "Sí" },
+      { id: "false", label: "No" },
+    ];
+  }
+  if (data.kind === "switch") {
+    const cases = (data.cases ?? []).filter((item) => item.trim().length > 0);
+    return [
+      ...cases.map((item) => ({ id: `case:${item}`, label: item })),
+      { id: "default", label: "Otro" },
+    ];
+  }
+  // Un solo camino de salida para el resto de pasos (los disparadores incluidos).
+  return [{ id: "out", label: "" }];
+}
 
 export const TRIGGER_OPTIONS = [
   { value: "contact_created", label: "Contacto creado" },
@@ -106,6 +151,35 @@ export const STEP_META: Record<StepKind, StepMeta> = {
       }
     },
   },
+  condition: {
+    label: "Condición (Sí / No)",
+    icon: GitBranch,
+    summary: (data) => {
+      const field =
+        BRANCH_FIELDS.find((option) => option.value === data.field)?.label ??
+        "Elige un campo";
+      const operator = CONDITION_OPERATORS.find(
+        (option) => option.value === data.operator,
+      )?.label;
+      if (!operator) {
+        return field;
+      }
+      return data.operator === "exists"
+        ? `${field} ${operator}`
+        : `${field} ${operator} "${data.value ?? ""}"`;
+    },
+  },
+  switch: {
+    label: "Bifurcar (switch)",
+    icon: Split,
+    summary: (data) => {
+      const field =
+        BRANCH_FIELDS.find((option) => option.value === data.field)?.label ??
+        "Elige un campo";
+      const count = (data.cases ?? []).filter((c) => c.trim()).length;
+      return `${field} · ${count} caso${count === 1 ? "" : "s"}`;
+    },
+  },
 };
 
 export const ADDABLE_STEPS: StepKind[] = [
@@ -114,6 +188,8 @@ export const ADDABLE_STEPS: StepKind[] = [
   "send_email",
   "add_tag",
   "send_webhook",
+  "condition",
+  "switch",
 ];
 
 export function defaultDataFor(kind: StepKind): StepData {
@@ -130,5 +206,33 @@ export function defaultDataFor(kind: StepKind): StepData {
       return { kind, tag: "" };
     case "send_webhook":
       return { kind, url: "", method: "POST" };
+    case "condition":
+      return { kind, field: "tag", operator: "equals", value: "" };
+    case "switch":
+      return { kind, field: "package_status", cases: ["", ""] };
   }
+}
+
+/** Divide un texto en segmentos, marcando las variables {{...}}. */
+export function splitVariables(
+  text: string,
+): Array<{ text: string; variable: boolean }> {
+  const segments: Array<{ text: string; variable: boolean }> = [];
+  const pattern = /\{\{\s*[\w.]+\s*\}\}/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ text: text.slice(lastIndex, match.index), variable: false });
+    }
+    segments.push({ text: match[0], variable: true });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    segments.push({ text: text.slice(lastIndex), variable: false });
+  }
+
+  return segments;
 }

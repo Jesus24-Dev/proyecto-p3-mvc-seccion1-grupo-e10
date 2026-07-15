@@ -3,28 +3,29 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   Background,
   Controls,
+  MarkerType,
   ReactFlow,
-  addEdge,
-  useEdgesState,
-  useNodesState,
-  type Connection,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Play, Plus, Save, Search, Trash2, X } from "lucide-react";
 import { ApiRequestError, automationsApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useMutationHandler } from "@/hooks/usePageData";
 import {
-  ADDABLE_STEPS,
+  BRANCH_FIELDS,
+  CONDITION_OPERATORS,
   STEP_META,
   TRIGGER_OPTIONS,
   WAIT_UNITS,
+  branchesFor,
   defaultDataFor,
   type StepData,
   type StepKind,
 } from "@/lib/automationSteps";
+import { layoutTree } from "@/lib/automationLayout";
 import { StepNodeComponent, type StepNode } from "@/components/automations/StepNode";
+import { VariableTextarea } from "@/components/automations/VariableTextarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,9 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Automation, AutomationDefinition } from "@/types";
-
-/** `folder` aún no está declarado en los tipos compartidos; se anota localmente. */
+import { cn } from "@/lib/utils";
+import type { AutomationDefinition } from "@/types";
 
 const nodeTypes = { step: StepNodeComponent };
 
@@ -49,14 +49,24 @@ const WEBHOOK_METHODS = [
   { value: "GET", label: "GET" },
 ] as const;
 
-const initialNodes: StepNode[] = [
-  {
-    id: "trigger",
-    type: "step",
-    position: { x: 40, y: 160 },
-    data: defaultDataFor("trigger"),
-  },
+// Catálogo de acciones del panel derecho, agrupado como en un builder real.
+const ACTION_CATALOG: Array<{ group: string; kinds: StepKind[] }> = [
+  { group: "Mensajería", kinds: ["send_whatsapp", "send_email"] },
+  { group: "Contacto", kinds: ["add_tag"] },
+  { group: "Lógica", kinds: ["wait", "condition", "switch"] },
+  { group: "Integraciones", kinds: ["send_webhook"] },
 ];
+
+type Step = { id: string; data: StepData };
+type Insertion = { nodeId: string; branchId: string };
+
+const initialSteps: Step[] = [{ id: "trigger", data: defaultDataFor("trigger") }];
+
+function newId(): string {
+  return `n${Date.now().toString(36)}${Math.floor(performance.now())
+    .toString(36)
+    .slice(-3)}`;
+}
 
 export function AutomationEditorPage() {
   const { automationId } = useParams();
@@ -65,10 +75,11 @@ export function AutomationEditorPage() {
   const { expireSession } = useAuth();
   const runMutation = useMutationHandler();
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<StepNode>(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [steps, setSteps] = useState<Step[]>(initialSteps);
+  const [edges, setEdges] = useState<Edge[]>([]);
   const [name, setName] = useState("Nueva automatización");
   const [folder, setFolder] = useState("");
+  const [folderOptions, setFolderOptions] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,120 +88,205 @@ export function AutomationEditorPage() {
     text: string;
     tone: "success" | "danger";
   } | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pending, setPending] = useState<Insertion | null>(null);
+  const [actionQuery, setActionQuery] = useState("");
+
+  // Aristas válidas: descarta las que apuntan a ramas ya inexistentes
+  // (p. ej. un caso de switch eliminado) o a nodos borrados.
+  const validEdges = useMemo(() => {
+    const stepById = new Map(steps.map((step) => [step.id, step]));
+    return edges.filter((edge) => {
+      const source = stepById.get(edge.source);
+      if (!source || !stepById.has(edge.target)) {
+        return false;
+      }
+      const branchIds = branchesFor(source.data).map((branch) => branch.id);
+      return !edge.sourceHandle || branchIds.includes(edge.sourceHandle);
+    });
+  }, [steps, edges]);
+
+  const flowNodes = useMemo(
+    () =>
+      layoutTree(steps, validEdges).map((node) => ({
+        ...node,
+        selected: node.id === selectedId,
+      })),
+    [steps, validEdges, selectedId],
+  );
+
+  const flowEdges = useMemo(
+    () =>
+      validEdges.map((edge) => ({
+        ...edge,
+        markerEnd: { type: MarkerType.ArrowClosed },
+      })),
+    [validEdges],
+  );
+
+  const selectedStep = useMemo(
+    () => steps.find((step) => step.id === selectedId) ?? null,
+    [steps, selectedId],
+  );
+
+  useEffect(() => {
+    // Sugerencias de carpeta a partir de las automatizaciones existentes.
+    automationsApi
+      .list()
+      .then((list) => {
+        const folders = [
+          ...new Set(list.map((item) => item.folder).filter(Boolean)),
+        ];
+        setFolderOptions(folders);
+      })
+      .catch(() => setFolderOptions([]));
+  }, []);
 
   useEffect(() => {
     if (isNew) {
       return;
     }
-
-    let isCancelled = false;
+    let cancelled = false;
 
     automationsApi
       .get(automationId!)
       .then((automation) => {
-        if (isCancelled) {
+        if (cancelled) {
           return;
         }
         setName(automation.name);
         setFolder(automation.folder ?? "");
         setIsActive(automation.is_active);
-        setNodes(automation.definition.nodes as unknown as StepNode[]);
+        setSteps(
+          (automation.definition.nodes as unknown as StepNode[]).map(
+            (node) => ({ id: node.id, data: node.data }),
+          ),
+        );
         setEdges(automation.definition.edges as unknown as Edge[]);
       })
-      .catch((caughtError: unknown) => {
-        if (isCancelled) {
+      .catch((error: unknown) => {
+        if (cancelled) {
           return;
         }
         if (
-          caughtError instanceof ApiRequestError &&
-          (caughtError.statusCode === 401 || caughtError.statusCode === 403)
+          error instanceof ApiRequestError &&
+          (error.statusCode === 401 || error.statusCode === 403)
         ) {
-          expireSession(caughtError.message);
+          expireSession(error.message);
           return;
         }
         setNotice({
           text:
-            caughtError instanceof Error
-              ? caughtError.message
+            error instanceof Error
+              ? error.message
               : "No se pudo cargar la automatización.",
           tone: "danger",
         });
       })
       .finally(() => {
-        if (!isCancelled) {
+        if (!cancelled) {
           setIsLoading(false);
         }
       });
 
     return () => {
-      isCancelled = true;
+      cancelled = true;
     };
-  }, [automationId, isNew, setNodes, setEdges, expireSession]);
+  }, [automationId, isNew, expireSession]);
 
-  const onConnect = useCallback(
-    (connection: Connection) =>
-      setEdges((currentEdges) => addEdge(connection, currentEdges)),
-    [setEdges],
-  );
+  // El "+" de cada nodo/rama pide insertar un paso: guarda el objetivo y
+  // deja el panel derecho en modo catálogo.
+  useEffect(() => {
+    function onAddStep(event: Event) {
+      const detail = (event as CustomEvent<Insertion>).detail;
+      setPending(detail);
+      setSelectedId(null);
+    }
+    window.addEventListener("automation:add-step", onAddStep);
+    return () => window.removeEventListener("automation:add-step", onAddStep);
+  }, []);
 
-  const selectedNode = useMemo(
-    () => nodes.find((node) => node.id === selectedNodeId) ?? null,
-    [nodes, selectedNodeId],
-  );
+  function updateSelected(patch: Partial<StepData>) {
+    if (!selectedId) {
+      return;
+    }
+    setSteps((current) =>
+      current.map((step) =>
+        step.id === selectedId
+          ? { ...step, data: { ...step.data, ...patch } }
+          : step,
+      ),
+    );
+  }
 
-  const incomingWebhookUrl = isNew
-    ? ""
-    : `${window.location.origin}/hooks/automations/${automationId}`;
-
+  /** Inserta un paso conectado al objetivo pendiente (o al final del flujo). */
   function addStep(kind: StepKind) {
-    const id = `n${Date.now().toString(36)}`;
-    const lastNode = nodes[nodes.length - 1];
+    const target =
+      pending ??
+      (() => {
+        // Sin objetivo explícito: engancha al primer nodo sin salida.
+        const withOutgoing = new Set(validEdges.map((edge) => edge.source));
+        const leaf =
+          [...steps].reverse().find((step) => !withOutgoing.has(step.id)) ??
+          steps[steps.length - 1];
+        const branch = branchesFor(leaf.data)[0];
+        return { nodeId: leaf.id, branchId: branch.id };
+      })();
 
-    setNodes((currentNodes) => [
-      ...currentNodes,
-      {
-        id,
-        type: "step",
-        position: {
-          x: (lastNode?.position.x ?? 0) + 280,
-          y: lastNode?.position.y ?? 160,
-        },
-        data: defaultDataFor(kind),
-      },
-    ]);
-    setSelectedNodeId(id);
-  }
+    const id = newId();
+    const newData = defaultDataFor(kind);
+    // Handle de paso del nuevo nodo (para insertar "entre" dos pasos).
+    const passHandle = branchesFor(newData)[0].id;
+    const sourceHandle =
+      target.branchId === "out" ? undefined : target.branchId;
 
-  function updateSelectedNode(patch: Partial<StepData>) {
-    if (!selectedNodeId) {
-      return;
-    }
-
-    setNodes((currentNodes) =>
-      currentNodes.map((node) =>
-        node.id === selectedNodeId
-          ? { ...node, data: { ...node.data, ...patch } }
-          : node,
-      ),
-    );
-  }
-
-  function removeSelectedNode() {
-    if (!selectedNode || selectedNode.data.kind === "trigger") {
-      return;
-    }
-
-    setNodes((currentNodes) =>
-      currentNodes.filter((node) => node.id !== selectedNodeId),
-    );
-    setEdges((currentEdges) =>
-      currentEdges.filter(
+    setSteps((current) => [...current, { id, data: newData }]);
+    setEdges((current) => {
+      // ¿La salida elegida ya alimentaba un hijo? Entonces insertamos en medio:
+      // origen → nuevo → hijo previo.
+      const existing = current.find(
         (edge) =>
-          edge.source !== selectedNodeId && edge.target !== selectedNodeId,
+          edge.source === target.nodeId &&
+          (edge.sourceHandle ?? "out") === target.branchId,
+      );
+
+      const rest = current.filter((edge) => edge !== existing);
+      const inserted: Edge[] = [
+        { id: `e${id}`, source: target.nodeId, target: id, sourceHandle },
+      ];
+
+      if (existing) {
+        inserted.push({
+          id: `e${id}-c`,
+          source: id,
+          target: existing.target,
+          sourceHandle: passHandle === "out" ? undefined : passHandle,
+        });
+      }
+
+      return [...rest, ...inserted];
+    });
+    setPending(null);
+    setSelectedId(id);
+  }
+
+  function removeSelected() {
+    if (!selectedStep || selectedStep.data.kind === "trigger") {
+      return;
+    }
+    setSteps((current) => current.filter((step) => step.id !== selectedId));
+    setEdges((current) =>
+      current.filter(
+        (edge) => edge.source !== selectedId && edge.target !== selectedId,
       ),
     );
-    setSelectedNodeId(null);
+    setSelectedId(null);
+  }
+
+  function updateSwitchCase(index: number, value: string) {
+    const cases = [...(selectedStep?.data.cases ?? [])];
+    cases[index] = value;
+    updateSelected({ cases });
   }
 
   async function handleSave() {
@@ -198,18 +294,22 @@ export function AutomationEditorPage() {
     setNotice(null);
 
     const definition: AutomationDefinition = {
-      nodes: nodes as unknown as AutomationDefinition["nodes"],
-      edges: edges as unknown as AutomationDefinition["edges"],
-    };
-
-    const payload = {
-      name,
-      folder: folder.trim() || undefined,
-      is_active: isActive,
-      definition,
+      nodes: steps.map((step) => ({
+        id: step.id,
+        type: "step",
+        position: { x: 0, y: 0 },
+        data: step.data,
+      })) as unknown as AutomationDefinition["nodes"],
+      edges: validEdges as unknown as AutomationDefinition["edges"],
     };
 
     const failure = await runMutation(async () => {
+      const payload = {
+        name,
+        folder: folder.trim() || undefined,
+        is_active: isActive,
+        definition,
+      };
       if (isNew) {
         const created = await automationsApi.create(payload);
         navigate(`/admin/automatizaciones/${created.id}`, { replace: true });
@@ -226,52 +326,38 @@ export function AutomationEditorPage() {
     );
   }
 
-  async function handleTestTrigger() {
+  const runTest = useCallback(async () => {
     if (isNew) {
       return;
     }
-
     setIsTesting(true);
     setNotice(null);
-
     try {
-      const result = await automationsApi.triggerWebhook(automationId!, {
-        source: "manual_test",
-      });
-      const stepLabels = (result.steps ?? [])
-        .map((step) => {
-          if (!step.kind) {
-            return null;
-          }
-          return step.kind in STEP_META
-            ? STEP_META[step.kind as StepKind].label
-            : step.kind;
-        })
-        .filter((label): label is string => Boolean(label));
-
+      const result = (await automationsApi.triggerWebhook(automationId!)) as {
+        status?: string;
+      };
       setNotice({
-        text:
-          stepLabels.length > 0
-            ? `Disparador ejecutado (${result.status ?? "en cola"}): ${stepLabels.join(" → ")}`
-            : `Disparador ejecutado: ${result.status ?? "en cola"}.`,
+        text: `Disparador ejecutado: ${result.status ?? "queued"}.`,
         tone: "success",
       });
-    } catch (caughtError) {
+    } catch (error) {
       setNotice({
         text:
-          caughtError instanceof Error
-            ? caughtError.message
-            : "No se pudo probar el disparador.",
+          error instanceof Error
+            ? error.message
+            : "No se pudo disparar la automatización.",
         tone: "danger",
       });
     } finally {
       setIsTesting(false);
     }
-  }
+  }, [automationId, isNew]);
 
   if (isLoading) {
     return <Skeleton className="h-[70vh] rounded-xl" />;
   }
+
+  const showCatalog = Boolean(pending) || !selectedStep;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -294,10 +380,16 @@ export function AutomationEditorPage() {
         <Input
           value={folder}
           onChange={(event) => setFolder(event.target.value)}
+          list="automation-folders"
+          placeholder="Carpeta (escribe o elige)"
           aria-label="Carpeta"
-          placeholder="Carpeta"
-          className="h-9 max-w-[11rem]"
+          className="h-9 max-w-44"
         />
+        <datalist id="automation-folders">
+          {folderOptions.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
         <Button
           variant="outline"
           size="sm"
@@ -309,11 +401,11 @@ export function AutomationEditorPage() {
           {!isNew && (
             <Button
               variant="outline"
-              onClick={() => void handleTestTrigger()}
+              onClick={() => void runTest()}
               disabled={isTesting}
             >
               <Play data-icon="inline-start" aria-hidden="true" />
-              {isTesting ? "Probando…" : "Probar disparador"}
+              {isTesting ? "Disparando…" : "Probar disparador"}
             </Button>
           )}
           <Button onClick={() => void handleSave()} disabled={isSaving}>
@@ -329,36 +421,23 @@ export function AutomationEditorPage() {
         </Alert>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-muted-foreground">Agregar paso:</span>
-        {ADDABLE_STEPS.map((kind) => {
-          const meta = STEP_META[kind];
-          return (
-            <Button
-              key={kind}
-              variant="outline"
-              size="sm"
-              onClick={() => addStep(kind)}
-            >
-              <Plus data-icon="inline-start" aria-hidden="true" />
-              {meta.label}
-            </Button>
-          );
-        })}
-      </div>
-
-      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[1fr_18rem]">
+      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[1fr_20rem]">
         <Card className="min-h-0 overflow-hidden p-0">
           <div className="h-full min-h-[460px]">
             <ReactFlow
-              nodes={nodes}
-              edges={edges}
+              nodes={flowNodes}
+              edges={flowEdges}
               nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeClick={(_, node) => setSelectedNodeId(node.id)}
-              onPaneClick={() => setSelectedNodeId(null)}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              onNodeClick={(_, node) => {
+                setSelectedId(node.id);
+                setPending(null);
+              }}
+              onPaneClick={() => {
+                setSelectedId(null);
+                setPending(null);
+              }}
               fitView
               proOptions={{ hideAttribution: true }}
             >
@@ -370,244 +449,93 @@ export function AutomationEditorPage() {
 
         <Card className="h-fit">
           <CardContent className="grid gap-4">
-            {!selectedNode ? (
-              <p className="text-sm text-muted-foreground">
-                Selecciona un paso del lienzo para configurarlo, o conecta los
-                pasos arrastrando desde sus bordes.
-              </p>
-            ) : (
+            {showCatalog ? (
               <>
-                <p className="font-medium">
-                  {STEP_META[selectedNode.data.kind].label}
-                </p>
-
-                {selectedNode.data.kind === "trigger" && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-trigger">Evento</Label>
-                      <Select
-                        items={TRIGGER_OPTIONS.map((option) => ({
-                          value: option.value,
-                          label: option.label,
-                        }))}
-                        value={selectedNode.data.trigger ?? "contact_created"}
-                        onValueChange={(value) =>
-                          updateSelectedNode({ trigger: value as string })
-                        }
-                      >
-                        <SelectTrigger id="step-trigger" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TRIGGER_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedNode.data.trigger === "webhook_received" && (
-                      <div className="grid gap-2">
-                        <Label htmlFor="incoming-webhook-url">
-                          URL del webhook entrante
-                        </Label>
-                        {isNew ? (
-                          <p className="text-sm text-muted-foreground">
-                            Guarda la automatización para generar la URL
-                          </p>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              id="incoming-webhook-url"
-                              readOnly
-                              value={incomingWebhookUrl}
-                              className="flex-1 font-mono text-xs"
-                            />
-                            <Button
-                              variant="outline"
-                              size="icon-sm"
-                              aria-label="Copiar URL del webhook"
-                              onClick={() =>
-                                void navigator.clipboard.writeText(
-                                  incomingWebhookUrl,
-                                )
-                              }
+                <div>
+                  <p className="font-medium">
+                    {pending ? "Elige la acción a insertar" : "Acciones"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {pending
+                      ? "Se conectará al punto que elegiste."
+                      : "Toca un “+” en el lienzo o una acción para agregarla."}
+                  </p>
+                </div>
+                <div className="relative">
+                  <Search
+                    className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <Input
+                    value={actionQuery}
+                    onChange={(event) => setActionQuery(event.target.value)}
+                    placeholder="Buscar acción"
+                    aria-label="Buscar acción"
+                    className="pl-9"
+                  />
+                </div>
+                <div className="grid gap-4">
+                  {ACTION_CATALOG.map((group) => {
+                    const kinds = group.kinds.filter((kind) =>
+                      STEP_META[kind].label
+                        .toLowerCase()
+                        .includes(actionQuery.trim().toLowerCase()),
+                    );
+                    if (kinds.length === 0) {
+                      return null;
+                    }
+                    return (
+                      <div key={group.group} className="grid gap-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {group.group}
+                        </p>
+                        {kinds.map((kind) => {
+                          const meta = STEP_META[kind];
+                          const Icon = meta.icon;
+                          return (
+                            <button
+                              key={kind}
+                              type="button"
+                              onClick={() => addStep(kind)}
+                              className="flex items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition-colors outline-none hover:border-primary/40 hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
                             >
-                              <Copy aria-hidden="true" />
-                            </Button>
-                          </div>
-                        )}
+                              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+                                <Icon className="size-4" aria-hidden="true" />
+                              </span>
+                              {meta.label}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
-                  </>
-                )}
-
-                {selectedNode.data.kind === "wait" && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-amount">Cantidad</Label>
-                      <Input
-                        id="step-amount"
-                        type="number"
-                        min="1"
-                        value={String(selectedNode.data.amount ?? 1)}
-                        onChange={(event) =>
-                          updateSelectedNode({
-                            amount: Number(event.target.value) || 1,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-unit">Unidad</Label>
-                      <Select
-                        items={WAIT_UNITS.map((option) => ({
-                          value: option.value,
-                          label: option.label,
-                        }))}
-                        value={selectedNode.data.unit ?? "days"}
-                        onValueChange={(value) =>
-                          updateSelectedNode({
-                            unit: value as StepData["unit"],
-                          })
-                        }
-                      >
-                        <SelectTrigger id="step-unit" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WAIT_UNITS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-
-                {selectedNode.data.kind === "send_whatsapp" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="step-message">Mensaje de WhatsApp</Label>
-                    <textarea
-                      id="step-message"
-                      value={selectedNode.data.message ?? ""}
-                      onChange={(event) =>
-                        updateSelectedNode({ message: event.target.value })
-                      }
-                      rows={4}
-                      placeholder="Hola {{nombre}}, tu paquete {{tracking}}…"
-                      className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Variables: {"{{nombre}}"}, {"{{tracking}}"}.
-                    </p>
-                  </div>
-                )}
-
-                {selectedNode.data.kind === "send_email" && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-subject">Asunto</Label>
-                      <Input
-                        id="step-subject"
-                        value={selectedNode.data.subject ?? ""}
-                        onChange={(event) =>
-                          updateSelectedNode({ subject: event.target.value })
-                        }
-                        placeholder="Tu paquete está en camino"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-body">Cuerpo</Label>
-                      <textarea
-                        id="step-body"
-                        value={selectedNode.data.body ?? ""}
-                        onChange={(event) =>
-                          updateSelectedNode({ body: event.target.value })
-                        }
-                        rows={4}
-                        className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {selectedNode.data.kind === "send_webhook" && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-url">URL de destino</Label>
-                      <Input
-                        id="step-url"
-                        type="url"
-                        value={selectedNode.data.url ?? ""}
-                        onChange={(event) =>
-                          updateSelectedNode({ url: event.target.value })
-                        }
-                        placeholder="https://api.ejemplo.com/hooks"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="step-method">Método</Label>
-                      <Select
-                        items={WEBHOOK_METHODS.map((option) => ({
-                          value: option.value,
-                          label: option.label,
-                        }))}
-                        value={selectedNode.data.method ?? "POST"}
-                        onValueChange={(value) =>
-                          updateSelectedNode({
-                            method: value as StepData["method"],
-                          })
-                        }
-                      >
-                        <SelectTrigger id="step-method" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WEBHOOK_METHODS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-
-                {selectedNode.data.kind === "add_tag" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="step-tag">Etiqueta</Label>
-                    <Input
-                      id="step-tag"
-                      value={selectedNode.data.tag ?? ""}
-                      onChange={(event) =>
-                        updateSelectedNode({ tag: event.target.value })
-                      }
-                      placeholder="bienvenida"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Se agrega a las etiquetas del contacto del flujo.
-                    </p>
-                  </div>
-                )}
-
-                {selectedNode.data.kind !== "trigger" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="justify-self-start text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={removeSelectedNode}
-                  >
-                    <Trash2 data-icon="inline-start" aria-hidden="true" />
-                    Eliminar paso
+                    );
+                  })}
+                </div>
+                {pending && (
+                  <Button variant="ghost" size="sm" onClick={() => setPending(null)}>
+                    <X data-icon="inline-start" aria-hidden="true" />
+                    Cancelar inserción
                   </Button>
                 )}
               </>
+            ) : (
+              <StepConfig
+                step={selectedStep}
+                onChange={updateSelected}
+                onSwitchCaseChange={updateSwitchCase}
+                onAddCase={() =>
+                  updateSelected({
+                    cases: [...(selectedStep.data.cases ?? []), ""],
+                  })
+                }
+                onRemoveCase={(index) =>
+                  updateSelected({
+                    cases: (selectedStep.data.cases ?? []).filter(
+                      (_, i) => i !== index,
+                    ),
+                  })
+                }
+                onRemove={removeSelected}
+              />
             )}
           </CardContent>
         </Card>
@@ -615,9 +543,302 @@ export function AutomationEditorPage() {
 
       <p className="text-xs text-muted-foreground">
         El motor de ejecución de flujos está fuera del alcance de esta entrega:
-        las automatizaciones se diseñan y guardan, y el estado Activa indica
-        que quedarían en producción.
+        las automatizaciones se diseñan y guardan, y el estado Activa indica que
+        quedarían en producción.
       </p>
     </div>
+  );
+}
+
+type StepConfigProps = {
+  step: Step;
+  onChange: (patch: Partial<StepData>) => void;
+  onSwitchCaseChange: (index: number, value: string) => void;
+  onAddCase: () => void;
+  onRemoveCase: (index: number) => void;
+  onRemove: () => void;
+};
+
+function StepConfig({
+  step,
+  onChange,
+  onSwitchCaseChange,
+  onAddCase,
+  onRemoveCase,
+  onRemove,
+}: StepConfigProps) {
+  const { data } = step;
+
+  return (
+    <>
+      <p className="font-medium">{STEP_META[data.kind].label}</p>
+
+      {data.kind === "trigger" && (
+        <div className="grid gap-2">
+          <Label htmlFor="cfg-trigger">Evento</Label>
+          <Select
+            items={TRIGGER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={data.trigger ?? "contact_created"}
+            onValueChange={(value) => onChange({ trigger: value as string })}
+          >
+            <SelectTrigger id="cfg-trigger" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TRIGGER_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {data.kind === "wait" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-amount">Cantidad</Label>
+            <Input
+              id="cfg-amount"
+              type="number"
+              min="1"
+              value={String(data.amount ?? 1)}
+              onChange={(event) =>
+                onChange({ amount: Number(event.target.value) || 1 })
+              }
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-unit">Unidad</Label>
+            <Select
+              items={WAIT_UNITS.map((o) => ({ value: o.value, label: o.label }))}
+              value={data.unit ?? "days"}
+              onValueChange={(value) =>
+                onChange({ unit: value as StepData["unit"] })
+              }
+            >
+              <SelectTrigger id="cfg-unit" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WAIT_UNITS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
+      {data.kind === "send_whatsapp" && (
+        <div className="grid gap-2">
+          <Label htmlFor="cfg-message">Mensaje de WhatsApp</Label>
+          <VariableTextarea
+            id="cfg-message"
+            value={data.message ?? ""}
+            onChange={(value) => onChange({ message: value })}
+            placeholder="¡Hola {{nombre}}! Tu paquete {{tracking}} va en camino."
+          />
+          <VariableHint />
+        </div>
+      )}
+
+      {data.kind === "send_email" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-subject">Asunto</Label>
+            <Input
+              id="cfg-subject"
+              value={data.subject ?? ""}
+              onChange={(event) => onChange({ subject: event.target.value })}
+              placeholder="Tu paquete está en camino"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-body">Cuerpo</Label>
+            <VariableTextarea
+              id="cfg-body"
+              value={data.body ?? ""}
+              onChange={(value) => onChange({ body: value })}
+              placeholder="Hola {{nombre}}, …"
+            />
+            <VariableHint />
+          </div>
+        </>
+      )}
+
+      {data.kind === "add_tag" && (
+        <div className="grid gap-2">
+          <Label htmlFor="cfg-tag">Etiqueta</Label>
+          <Input
+            id="cfg-tag"
+            value={data.tag ?? ""}
+            onChange={(event) => onChange({ tag: event.target.value })}
+            placeholder="bienvenida"
+          />
+        </div>
+      )}
+
+      {data.kind === "send_webhook" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-url">URL de destino</Label>
+            <Input
+              id="cfg-url"
+              value={data.url ?? ""}
+              onChange={(event) => onChange({ url: event.target.value })}
+              placeholder="https://api.ejemplo.com/hook"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-method">Método</Label>
+            <Select
+              items={WEBHOOK_METHODS.map((o) => ({ value: o.value, label: o.label }))}
+              value={data.method ?? "POST"}
+              onValueChange={(value) =>
+                onChange({ method: value as "POST" | "GET" })
+              }
+            >
+              <SelectTrigger id="cfg-method" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {WEBHOOK_METHODS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
+      {(data.kind === "condition" || data.kind === "switch") && (
+        <div className="grid gap-2">
+          <Label htmlFor="cfg-field">Campo</Label>
+          <Select
+            items={BRANCH_FIELDS.map((o) => ({ value: o.value, label: o.label }))}
+            value={data.field ?? "tag"}
+            onValueChange={(value) => onChange({ field: value as string })}
+          >
+            <SelectTrigger id="cfg-field" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BRANCH_FIELDS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {data.kind === "condition" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-operator">Operador</Label>
+            <Select
+              items={CONDITION_OPERATORS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              value={data.operator ?? "equals"}
+              onValueChange={(value) => onChange({ operator: value as string })}
+            >
+              <SelectTrigger id="cfg-operator" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONDITION_OPERATORS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {data.operator !== "exists" && (
+            <div className="grid gap-2">
+              <Label htmlFor="cfg-value">Valor</Label>
+              <Input
+                id="cfg-value"
+                value={data.value ?? ""}
+                onChange={(event) => onChange({ value: event.target.value })}
+                placeholder="vip"
+              />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            El flujo sigue por la rama “Sí” cuando se cumple, o “No” en caso
+            contrario.
+          </p>
+        </>
+      )}
+
+      {data.kind === "switch" && (
+        <div className="grid gap-2">
+          <Label>Casos</Label>
+          {(data.cases ?? []).map((value, index) => (
+            <div key={index} className="flex gap-2">
+              <Input
+                value={value}
+                onChange={(event) => onSwitchCaseChange(index, event.target.value)}
+                placeholder={`Caso ${index + 1}`}
+                aria-label={`Caso ${index + 1}`}
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Eliminar caso ${index + 1}`}
+                onClick={() => onRemoveCase(index)}
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={onAddCase}>
+            <Plus data-icon="inline-start" aria-hidden="true" />
+            Agregar caso
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Cada caso es una rama; “Otro” recoge lo que no coincida.
+          </p>
+        </div>
+      )}
+
+      {data.kind !== "trigger" && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "justify-self-start text-destructive hover:bg-destructive/10 hover:text-destructive",
+          )}
+          onClick={onRemove}
+        >
+          <Trash2 data-icon="inline-start" aria-hidden="true" />
+          Eliminar paso
+        </Button>
+      )}
+    </>
+  );
+}
+
+function VariableHint() {
+  return (
+    <p className="text-xs text-muted-foreground">
+      Variables:{" "}
+      <code className="rounded bg-primary/15 px-1 font-medium text-primary">
+        {"{{nombre}}"}
+      </code>{" "}
+      <code className="rounded bg-primary/15 px-1 font-medium text-primary">
+        {"{{tracking}}"}
+      </code>
+    </p>
   );
 }

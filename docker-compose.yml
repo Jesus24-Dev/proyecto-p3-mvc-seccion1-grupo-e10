@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: dr_logistics_ca
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Solo accesible desde esta máquina (útil para prisma studio).
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
@@ -23,11 +24,19 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/dr_logistics_ca
       PORT: 3000
-      JWT_SECRET: ${JWT_SECRET:-secreto-de-desarrollo-cambialo-en-produccion}
+      # Sin valor por defecto a propósito: define JWT_SECRET en un archivo
+      # .env en la raíz (copia .env.example) o el stack se niega a arrancar.
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env (copia .env.example)}
       JWT_EXPIRES_IN: 1d
     ports:
       # 3001 en el host por defecto para no chocar con otras apps en 3000.
       - "${BACKEND_PORT:-3001}:3000"
+    volumes:
+      # Recarga en caliente: tsx watch dentro del contenedor ve tus cambios.
+      # El montaje oculta el cliente Prisma generado en build, así que se
+      # regenera al arrancar (rápido: los binarios ya están en la imagen) y
+      # de paso queda disponible en el host para el editor.
+      - ./backend/src:/app/src
     command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run db:seed && npm run dev"
 
 volumes:

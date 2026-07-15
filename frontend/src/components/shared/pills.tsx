@@ -13,7 +13,7 @@ const toneClasses = {
 
 export function RolePill({ role }: { role: UserRole }) {
   const classes: Record<UserRole, string> = {
-    ADMIN: "bg-primary/10 text-primary",
+    ADMIN: "bg-blue-100 text-blue-950",
     DISTRIBUTOR: toneClasses.success,
     USER: toneClasses.neutral,
   };

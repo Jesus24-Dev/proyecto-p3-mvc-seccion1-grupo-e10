@@ -66,7 +66,10 @@ export function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    tone: "success" | "danger";
+  } | null>(null);
 
   const filteredUsers = useMemo(() => {
     const list = users ?? [];
@@ -106,7 +109,7 @@ export function UsersPage() {
       if (editingUser) {
         await usersApi.update(editingUser.id, {
           email: form.email,
-          password: form.password,
+          ...(form.password ? { password: form.password } : {}),
         });
       } else {
         await usersApi.create(form);
@@ -121,11 +124,12 @@ export function UsersPage() {
     }
 
     setIsFormOpen(false);
-    setNotice(
-      editingUser
+    setNotice({
+      text: editingUser
         ? "Usuario actualizado correctamente."
         : "Usuario creado correctamente.",
-    );
+      tone: "success",
+    });
     void reload();
   }
 
@@ -136,7 +140,11 @@ export function UsersPage() {
 
     const failure = await runMutation(() => usersApi.remove(userToDelete.id));
     setUserToDelete(null);
-    setNotice(failure ?? "Usuario eliminado correctamente.");
+    setNotice(
+      failure
+        ? { text: failure, tone: "danger" }
+        : { text: "Usuario eliminado correctamente.", tone: "success" },
+    );
     void reload();
   }
 
@@ -153,8 +161,11 @@ export function UsersPage() {
       </PageHeader>
 
       {notice && (
-        <Alert className="mb-4">
-          <AlertDescription>{notice}</AlertDescription>
+        <Alert
+          variant={notice.tone === "danger" ? "destructive" : "default"}
+          className="mb-4"
+        >
+          <AlertDescription>{notice.text}</AlertDescription>
         </Alert>
       )}
       {error && (
@@ -301,12 +312,21 @@ export function UsersPage() {
                   }))
                 }
                 placeholder="Mínimo 8 caracteres, 1 mayúscula y 1 número"
-                required
+                required={!editingUser}
               />
+              {editingUser && (
+                <p className="text-xs text-muted-foreground">
+                  Déjala en blanco para mantener la contraseña actual.
+                </p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="user-role">Rol</Label>
               <Select
+                items={roles.map((role) => ({
+                  value: role,
+                  label: roleLabel(role),
+                }))}
                 value={form.role}
                 onValueChange={(value) =>
                   setForm((current) => ({

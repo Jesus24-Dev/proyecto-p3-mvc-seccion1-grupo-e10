@@ -24,7 +24,8 @@ export interface CreateUserPayload {
 
 export interface UpdateUserPayload {
   email: string;
-  password: string;
+  /** Opcional: si se omite, la contraseña actual se mantiene. */
+  password?: string;
 }
 
 export interface Agency {

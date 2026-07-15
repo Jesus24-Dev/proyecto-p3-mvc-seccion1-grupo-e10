@@ -25,7 +25,7 @@ import { useAuth } from "@/context/AuthContext";
 import { roleLabel } from "@/lib/roles";
 
 const navigationItems = [
-  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true },
   { to: "/admin/usuarios", label: "Usuarios", icon: Users },
   { to: "/admin/agencias", label: "Agencias", icon: Building2 },
   { to: "/admin/envios", label: "Envíos", icon: Package },
@@ -122,7 +122,7 @@ export function AppLayout() {
                 </div>
               </SheetContent>
             </Sheet>
-            <h1 className="truncate text-lg font-medium tracking-tight">
+            <h1 className="truncate text-lg font-medium tracking-tight md:sr-only">
               {currentItem?.label ?? "Panel"}
             </h1>
           </div>

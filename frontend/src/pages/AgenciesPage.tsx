@@ -75,7 +75,10 @@ export function AgenciesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [agencyToDelete, setAgencyToDelete] = useState<Agency | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    tone: "success" | "danger";
+  } | null>(null);
 
   const userById = useMemo(
     () => new Map(users.map((user) => [user.id, user])),
@@ -144,11 +147,12 @@ export function AgenciesPage() {
     }
 
     setIsFormOpen(false);
-    setNotice(
-      editingAgency
+    setNotice({
+      text: editingAgency
         ? "Agencia actualizada correctamente."
         : "Agencia creada correctamente.",
-    );
+      tone: "success",
+    });
     void reload();
   }
 
@@ -161,7 +165,11 @@ export function AgenciesPage() {
       agenciesApi.remove(agencyToDelete.id),
     );
     setAgencyToDelete(null);
-    setNotice(failure ?? "Agencia eliminada correctamente.");
+    setNotice(
+      failure
+        ? { text: failure, tone: "danger" }
+        : { text: "Agencia eliminada correctamente.", tone: "success" },
+    );
     void reload();
   }
 
@@ -178,8 +186,11 @@ export function AgenciesPage() {
       </PageHeader>
 
       {notice && (
-        <Alert className="mb-4">
-          <AlertDescription>{notice}</AlertDescription>
+        <Alert
+          variant={notice.tone === "danger" ? "destructive" : "default"}
+          className="mb-4"
+        >
+          <AlertDescription>{notice.text}</AlertDescription>
         </Alert>
       )}
       {error && (
@@ -346,6 +357,10 @@ export function AgenciesPage() {
             <div className="grid gap-2">
               <Label htmlFor="agency-owner">Usuario responsable</Label>
               <Select
+                items={users.map((user) => ({
+                  value: user.id,
+                  label: `${user.email} · ${roleLabel(user.role)}`,
+                }))}
                 value={form.user_id}
                 onValueChange={(value) =>
                   setForm((current) => ({
@@ -370,6 +385,10 @@ export function AgenciesPage() {
               <div className="grid gap-2">
                 <Label htmlFor="agency-active">Estado</Label>
                 <Select
+                  items={[
+                    { value: "active", label: "Activa" },
+                    { value: "inactive", label: "Inactiva" },
+                  ]}
                   value={form.is_active ? "active" : "inactive"}
                   onValueChange={(value) =>
                     setForm((current) => ({

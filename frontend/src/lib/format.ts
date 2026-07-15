@@ -1,9 +1,12 @@
 import type { TransferStatus } from "../types";
 
+// Las fechas se guardan como medianoche UTC; formatear en UTC evita
+// que la zona local (VET, UTC-4) las corra un día hacia atrás.
 const dateFormatter = new Intl.DateTimeFormat("es-VE", {
   day: "2-digit",
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 const amountFormatter = new Intl.NumberFormat("es-VE", {

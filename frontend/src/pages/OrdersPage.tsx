@@ -89,7 +89,10 @@ export function OrdersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    tone: "success" | "danger";
+  } | null>(null);
 
   const userById = useMemo(
     () => new Map(users.map((user) => [user.id, user])),
@@ -184,11 +187,12 @@ export function OrdersPage() {
     }
 
     setIsFormOpen(false);
-    setNotice(
-      editingOrder
+    setNotice({
+      text: editingOrder
         ? "Envío actualizado correctamente."
         : "Envío registrado correctamente.",
-    );
+      tone: "success",
+    });
     void reload();
   }
 
@@ -199,7 +203,11 @@ export function OrdersPage() {
 
     const failure = await runMutation(() => ordersApi.remove(orderToDelete.id));
     setOrderToDelete(null);
-    setNotice(failure ?? "Envío eliminado correctamente.");
+    setNotice(
+      failure
+        ? { text: failure, tone: "danger" }
+        : { text: "Envío eliminado correctamente.", tone: "success" },
+    );
     void reload();
   }
 
@@ -216,8 +224,11 @@ export function OrdersPage() {
       </PageHeader>
 
       {notice && (
-        <Alert className="mb-4">
-          <AlertDescription>{notice}</AlertDescription>
+        <Alert
+          variant={notice.tone === "danger" ? "destructive" : "default"}
+          className="mb-4"
+        >
+          <AlertDescription>{notice.text}</AlertDescription>
         </Alert>
       )}
       {error && (
@@ -385,6 +396,10 @@ export function OrdersPage() {
             <div className="grid gap-2">
               <Label htmlFor="order-client">Cliente</Label>
               <Select
+                items={users.map((user) => ({
+                  value: user.id,
+                  label: user.email,
+                }))}
                 value={form.user_id}
                 onValueChange={(value) =>
                   setForm((current) => ({
@@ -409,6 +424,10 @@ export function OrdersPage() {
               <div className="grid gap-2">
                 <Label htmlFor="order-origin">Agencia de origen</Label>
                 <Select
+                  items={agencies.map((agency) => ({
+                    value: agency.id,
+                    label: agency.name,
+                  }))}
                   value={form.origin_agency_id}
                   onValueChange={(value) =>
                     setForm((current) => ({
@@ -432,6 +451,10 @@ export function OrdersPage() {
               <div className="grid gap-2">
                 <Label htmlFor="order-destination">Agencia de destino</Label>
                 <Select
+                  items={agencies.map((agency) => ({
+                    value: agency.id,
+                    label: agency.name,
+                  }))}
                   value={form.destination_agency_id}
                   onValueChange={(value) =>
                     setForm((current) => ({
@@ -470,7 +493,7 @@ export function OrdersPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="order-arrived">Fecha de llegada</Label>
+                <Label htmlFor="order-arrived">Fecha estimada de llegada</Label>
                 <Input
                   id="order-arrived"
                   type="date"
@@ -507,6 +530,10 @@ export function OrdersPage() {
               <div className="grid gap-2">
                 <Label htmlFor="order-status">Estado</Label>
                 <Select
+                  items={ORDER_STATUSES.map((status) => ({
+                    value: status,
+                    label: orderStatusLabel(status),
+                  }))}
                   value={form.status}
                   onValueChange={(value) =>
                     setForm((current) => ({

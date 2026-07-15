@@ -79,7 +79,10 @@ export function ContactsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [contactToDelete, setContactToDelete] =
     useState<UserInformation | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    text: string;
+    tone: "success" | "danger";
+  } | null>(null);
 
   const userById = useMemo(
     () => new Map(users.map((user) => [user.id, user])),
@@ -157,11 +160,12 @@ export function ContactsPage() {
     }
 
     setIsFormOpen(false);
-    setNotice(
-      editingContact
+    setNotice({
+      text: editingContact
         ? "Contacto actualizado correctamente."
         : "Contacto registrado correctamente.",
-    );
+      tone: "success",
+    });
     void reload();
   }
 
@@ -174,7 +178,11 @@ export function ContactsPage() {
       contactsApi.remove(contactToDelete.user_id),
     );
     setContactToDelete(null);
-    setNotice(failure ?? "Contacto eliminado correctamente.");
+    setNotice(
+      failure
+        ? { text: failure, tone: "danger" }
+        : { text: "Contacto eliminado correctamente.", tone: "success" },
+    );
     void reload();
   }
 
@@ -191,8 +199,11 @@ export function ContactsPage() {
       </PageHeader>
 
       {notice && (
-        <Alert className="mb-4">
-          <AlertDescription>{notice}</AlertDescription>
+        <Alert
+          variant={notice.tone === "danger" ? "destructive" : "default"}
+          className="mb-4"
+        >
+          <AlertDescription>{notice.text}</AlertDescription>
         </Alert>
       )}
       {error && (
@@ -328,6 +339,10 @@ export function ContactsPage() {
                 />
               ) : (
                 <Select
+                  items={usersWithoutContact.map((user) => ({
+                    value: user.id,
+                    label: user.email,
+                  }))}
                   value={form.user_id}
                   onValueChange={(value) =>
                     setForm((current) => ({

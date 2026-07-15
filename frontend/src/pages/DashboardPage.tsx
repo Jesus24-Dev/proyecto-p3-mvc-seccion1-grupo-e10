@@ -97,10 +97,7 @@ export function DashboardPage() {
     );
   }, [orders]);
 
-  const maxStatusCount = Math.max(
-    1,
-    ...statusBreakdown.map((entry) => entry.count),
-  );
+
 
   const recentOrders = useMemo(
     () =>
@@ -147,19 +144,19 @@ export function DashboardPage() {
           icon={Users}
           label="Usuarios"
           value={String(users.length)}
-          detail={`${stats.admins} admin · ${stats.distributors} distribuidores`}
+          detail={`${stats.admins} admin · ${stats.distributors} ${stats.distributors === 1 ? "distribuidor" : "distribuidores"}`}
         />
         <StatTile
           icon={Building2}
           label="Agencias"
           value={String(agencies.length)}
-          detail={`${stats.activeAgencies} activas`}
+          detail={`${stats.activeAgencies} ${stats.activeAgencies === 1 ? "activa" : "activas"}`}
         />
         <StatTile
           icon={Package}
           label="Envíos"
           value={String(orders.length)}
-          detail={`${stats.completedOrders} completados`}
+          detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
         />
         <StatTile
           icon={DollarSign}
@@ -198,9 +195,9 @@ export function DashboardPage() {
                       className="h-2.5 overflow-hidden rounded-full bg-muted"
                     >
                       <div
-                        className="h-full rounded-full bg-primary"
+                        className="h-full rounded-full bg-[oklch(0.45_0.06_260)]"
                         style={{
-                          width: `${(entry.count / maxStatusCount) * 100}%`,
+                          width: `${(entry.count / Math.max(1, orders.length)) * 100}%`,
                         }}
                       />
                     </div>

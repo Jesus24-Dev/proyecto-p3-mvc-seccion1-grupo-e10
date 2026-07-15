@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { roleLabel, roles } from "@/lib/roles";
 import type { User, UserRole } from "@/types";
 
@@ -85,6 +86,16 @@ export function UsersPage() {
         roleLabel(user.role).toLowerCase().includes(query),
     );
   }, [users, search]);
+
+  const {
+    sorted: sortedUsers,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(filteredUsers, {
+    email: (user) => user.email,
+    role: (user) => roleLabel(user.role),
+  });
 
   function openCreate() {
     setEditingUser(null);
@@ -219,8 +230,27 @@ export function UsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Correo</TableHead>
-                  <TableHead>Rol</TableHead>
+                  <TableHead
+                    className="pl-6"
+                    aria-sort={ariaSort("email", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Correo"
+                      columnKey="email"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead aria-sort={ariaSort("role", sortKey, direction)}>
+                    <SortButton
+                      label="Rol"
+                      columnKey="role"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead className="hidden md:table-cell">ID</TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
@@ -228,7 +258,7 @@ export function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {sortedUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="pl-6 font-medium">
                       {user.email}

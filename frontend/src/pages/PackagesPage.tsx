@@ -54,6 +54,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { useActiveAgency } from "@/context/AgencyContext";
 import { PACKAGE_STATUSES, packageStatusLabel } from "@/lib/format";
 import type { Package, PackageStatus } from "@/types";
@@ -199,6 +200,19 @@ export function PackagesPage() {
       );
     });
   }, [packages, search, contactById]);
+
+  const {
+    sorted: sortedPackages,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(filteredPackages, {
+    tracking: (item) => item.tracking_code,
+    description: (item) => item.description,
+    contact: (item) => contactLabel(item.contact_id),
+    weight: (item) => item.weight_kg,
+    status: (item) => packageStatusLabel(item.status),
+  });
 
   const canCreate = contacts.length > 0;
 
@@ -353,21 +367,69 @@ export function PackagesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-14 pl-6">Foto</TableHead>
-                  <TableHead>Rastreo</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Destinatario
+                  <TableHead
+                    aria-sort={ariaSort("tracking", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Rastreo"
+                      columnKey="tracking"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
                   </TableHead>
-                  <TableHead className="text-right">Peso</TableHead>
+                  <TableHead
+                    aria-sort={ariaSort("description", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Descripción"
+                      columnKey="description"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden md:table-cell"
+                    aria-sort={ariaSort("contact", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Destinatario"
+                      columnKey="contact"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="text-right"
+                    aria-sort={ariaSort("weight", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Peso"
+                      columnKey="weight"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead className="hidden lg:table-cell">Envío</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead aria-sort={ariaSort("status", sortKey, direction)}>
+                    <SortButton
+                      label="Estado"
+                      columnKey="status"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPackages.map((item) => {
+                {sortedPackages.map((item) => {
                   const contact = contactById.get(item.contact_id);
                   const order = item.order_id
                     ? orderById.get(item.order_id)

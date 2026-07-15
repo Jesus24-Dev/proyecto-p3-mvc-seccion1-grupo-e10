@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { useActiveAgency } from "@/context/AgencyContext";
 import {
   ORDER_STATUSES,
@@ -139,6 +140,18 @@ export function OrdersPage() {
       );
     });
   }, [orders, search, userById, agencyById]);
+
+  const {
+    sorted: sortedOrders,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(filteredOrders, {
+    description: (order) => order.description,
+    amount: (order) => order.amount,
+    received: (order) => Date.parse(order.date_received) || 0,
+    status: (order) => orderStatusLabel(order.status),
+  });
 
   const canCreate = users.length > 0 && agencies.length > 0;
 
@@ -299,23 +312,62 @@ export function OrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Envío</TableHead>
+                  <TableHead
+                    className="pl-6"
+                    aria-sort={ariaSort("description", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Envío"
+                      columnKey="description"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead>Ruta</TableHead>
                   <TableHead className="hidden lg:table-cell">
                     Cliente
                   </TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Recibido
+                  <TableHead
+                    className="text-right"
+                    aria-sort={ariaSort("amount", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Monto"
+                      columnKey="amount"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
                   </TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead
+                    className="hidden md:table-cell"
+                    aria-sort={ariaSort("received", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Recibido"
+                      columnKey="received"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead aria-sort={ariaSort("status", sortKey, direction)}>
+                    <SortButton
+                      label="Estado"
+                      columnKey="status"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => {
+                {sortedOrders.map((order) => {
                   const client = userById.get(order.user_id);
                   const origin = agencyById.get(order.origin_agency_id);
                   const destination = agencyById.get(

@@ -1,10 +1,19 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Building2, Pencil, Plus, Search, Trash2, Users2 } from "lucide-react";
+import {
+  Building2,
+  Palette,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users2,
+} from "lucide-react";
 import { agenciesApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ActivePill } from "@/components/shared/pills";
 import { AgencyMembersDialog } from "@/components/agencies/AgencyMembersDialog";
+import { AgencyThemeDialog } from "@/components/agencies/AgencyThemeDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -45,6 +54,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { roleLabel } from "@/lib/roles";
 import type { Agency } from "@/types";
 
@@ -79,6 +89,7 @@ export function AgenciesPage() {
   const [agencyForMembers, setAgencyForMembers] = useState<Agency | null>(
     null,
   );
+  const [agencyForTheme, setAgencyForTheme] = useState<Agency | null>(null);
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -106,6 +117,18 @@ export function AgenciesPage() {
       );
     });
   }, [agencies, search, userById]);
+
+  const {
+    sorted: sortedAgencies,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(filteredAgencies, {
+    name: (agency) => agency.name,
+    location: (agency) => agency.location,
+    owner: (agency) => userById.get(agency.user_id)?.email ?? "",
+    active: (agency) => (agency.is_active ? 1 : 0),
+  });
 
   function openCreate() {
     setEditingAgency(null);
@@ -248,19 +271,57 @@ export function AgenciesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Agencia</TableHead>
-                  <TableHead>Ubicación</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Responsable
+                  <TableHead
+                    className="pl-6"
+                    aria-sort={ariaSort("name", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Agencia"
+                      columnKey="name"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
                   </TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead
+                    aria-sort={ariaSort("location", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Ubicación"
+                      columnKey="location"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden md:table-cell"
+                    aria-sort={ariaSort("owner", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Responsable"
+                      columnKey="owner"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead aria-sort={ariaSort("active", sortKey, direction)}>
+                    <SortButton
+                      label="Estado"
+                      columnKey="active"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAgencies.map((agency) => {
+                {sortedAgencies.map((agency) => {
                   const owner = userById.get(agency.user_id);
 
                   return (
@@ -295,6 +356,14 @@ export function AgenciesPage() {
                             onClick={() => setAgencyForMembers(agency)}
                           >
                             <Users2 aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Apariencia de ${agency.name}`}
+                            onClick={() => setAgencyForTheme(agency)}
+                          >
+                            <Palette aria-hidden="true" />
                           </Button>
                           <Button
                             variant="ghost"
@@ -451,6 +520,15 @@ export function AgenciesPage() {
         users={users}
         onClose={() => setAgencyForMembers(null)}
       />
+
+      {agencyForTheme && (
+        <AgencyThemeDialog
+          key={agencyForTheme.id}
+          agency={agencyForTheme}
+          onClose={() => setAgencyForTheme(null)}
+          onSaved={() => void reload()}
+        />
+      )}
 
       <AlertDialog
         open={Boolean(agencyToDelete)}

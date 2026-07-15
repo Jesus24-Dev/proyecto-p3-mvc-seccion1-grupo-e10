@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { formatDate, toDateInputValue } from "@/lib/format";
 import type { UserInformation } from "@/types";
 
@@ -114,6 +115,18 @@ export function ContactsPage() {
       );
     });
   }, [contacts, search, userById]);
+
+  const {
+    sorted: sortedContacts,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(filteredContacts, {
+    name: (contact) => `${contact.first_name} ${contact.last_name}`,
+    owner: (contact) => userById.get(contact.user_id)?.email ?? "",
+    address: (contact) => contact.address,
+    birthday: (contact) => Date.parse(contact.birthday) || 0,
+  });
 
   function openCreate() {
     setEditingContact(null);
@@ -260,13 +273,50 @@ export function ContactsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Nombre</TableHead>
-                  <TableHead>Usuario</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Dirección
+                  <TableHead
+                    className="pl-6"
+                    aria-sort={ariaSort("name", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Nombre"
+                      columnKey="name"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
                   </TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Nacimiento
+                  <TableHead aria-sort={ariaSort("owner", sortKey, direction)}>
+                    <SortButton
+                      label="Usuario"
+                      columnKey="owner"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden md:table-cell"
+                    aria-sort={ariaSort("address", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Dirección"
+                      columnKey="address"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden md:table-cell"
+                    aria-sort={ariaSort("birthday", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Nacimiento"
+                      columnKey="birthday"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
                   </TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
@@ -274,7 +324,7 @@ export function ContactsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContacts.map((contact) => {
+                {sortedContacts.map((contact) => {
                   const owner = userById.get(contact.user_id);
 
                   return (

@@ -2,237 +2,156 @@
 
 # Dr-Logistics-CA
 
+Sistema de gestión logística, pagos y clientes para una red courier (inspirado en operadores venezolanos como Domesa, Zoom y MRW). Proyecto universitario de la unidad curricular Programación 3 — Sección 1, Grupo E10.
+
 Aplicación dividida en dos partes:
 
-- `backend/`: API en Express + TypeScript + Prisma + PostgreSQL.
-- `frontend/`: panel administrativo en React + Vite.
+- `backend/`: API en Express + TypeScript + Prisma + PostgreSQL, organizada por features bajo el patrón MVC/por capas.
+- `frontend/`: panel administrativo en React + Vite + Tailwind + shadcn/ui con dashboard de métricas y CRUDs de usuarios, agencias, envíos y contactos.
+
+## Alcance del proyecto
+
+El equipo optó por la alternativa de **proyecto mínimo/funcional aplicando MVC**: en lugar de refactorizar un sistema existente, se desarrolló desde cero un sistema operativo completo. El mapa mental del sistema contempla cuatro actores (Clientes, Mercado Libre, Banco Mercantil y Personal Administrativo); esta entrega implementa la rebanada del **Personal Administrativo**: autenticación, gestión de usuarios, agencias, órdenes de envío e información de contacto.
+
+Los módulos desarrollados bajo MVC/capas son: **Auth**, **Users**, **UsersInformation**, **Agencies** y **Orders**.
+
+## Arquitectura MVC aplicada
+
+Cada feature del backend sigue el mismo flujo de capas:
+
+```text
+Petición HTTP
+  → Ruta (feature.routes.ts): recibe la petición, aplica middleware de
+    autenticación (requireAdmin) y validación de esquema (Zod).
+  → Controlador (feature.controller.ts): coordina la petición y arma la
+    respuesta HTTP (códigos de estado, mensajes de error).
+  → Servicio (feature.service.ts): concentra la lógica de negocio
+    (hashing de contraseñas, firma de JWT, reglas y errores de dominio).
+  → Repositorio (feature.repository.ts): encapsula el acceso a datos
+    mediante Prisma (el "modelo").
+  → Base de datos (PostgreSQL) y de vuelta: respuesta JSON al cliente.
+```
+
+La **vista** es el frontend en React: consume la API vía `frontend/src/api.ts`, mantiene la sesión JWT en `localStorage` y presenta los datos en páginas por módulo (`frontend/src/pages/`).
 
 ## Requisitos
 
-- Node.js 20+
-- npm 10+
-- PostgreSQL disponible local o remotamente
+- Node.js 20+ y npm 10+
+- Docker Desktop (recomendado) **o** PostgreSQL local
 
-## Estructura
+## Opción A (recomendada): levantar con Docker
 
-```text
-Dr-Logistics-CA/
-├─ backend/
-└─ frontend/
-```
-
-## 1. Instalar dependencias
-
-Este repositorio no tiene un `package.json` en la raíz, así que la instalación se hace por carpeta.
-
-### Backend
+La base de datos y la API se levantan con un solo comando.
 
 ```bash
-cd backend
-npm install
+# 1. Variables de entorno (obligatorio: JWT_SECRET)
+cp .env.example .env
+# edita .env y define JWT_SECRET (por ejemplo: openssl rand -hex 32)
+
+# 2. Base de datos + API (migraciones y seeders corren solos)
+docker compose up --build
 ```
 
-### Frontend
+La API queda en `http://localhost:3001` (configurable con `BACKEND_PORT`). El código de `backend/src` está montado en el contenedor, así que los cambios se recargan en caliente.
 
 ```bash
+# 3. Frontend
 cd frontend
 npm install
+echo 'VITE_PROXY_TARGET=http://localhost:3001' > .env.local
+npm run dev
 ```
 
-## 2. Configurar la base de datos
+El panel queda en `http://localhost:5173`.
 
-Crea una base de datos PostgreSQL vacía y configura la conexión en el backend.
+> Nota: el seeder corre en cada arranque del contenedor y restablece las
+> cuentas de prueba (es idempotente y es un comportamiento intencional para
+> demos: la contraseña del admin siempre vuelve a ser la documentada abajo).
 
-Crea un archivo `backend/.env` con al menos estas variables:
+## Opción B: PostgreSQL local sin Docker
+
+1. Crea una base de datos vacía y configura `backend/.env`:
 
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:PUERTO/NOMBRE_DB"
 JWT_SECRET="cambia-esto-por-un-secreto-seguro"
 JWT_EXPIRES_IN="1d"
+PORT=3000
 ```
 
-Variables importantes:
-
-- `DATABASE_URL`: cadena de conexión de PostgreSQL.
-- `JWT_SECRET`: secreto usado para firmar JWT.
-- `JWT_EXPIRES_IN`: duración del token. Es opcional.
-
-## 3. Preparar Prisma
-
-Todos estos comandos se ejecutan dentro de `backend/`.
-
-### Generar el cliente de Prisma
+2. Prepara Prisma y los datos, y arranca la API (desde `backend/`):
 
 ```bash
-cd backend
+npm install
 npx prisma generate
-```
-
-### Aplicar migraciones
-
-```bash
 npx prisma migrate deploy
-```
-
-Si estás desarrollando cambios nuevos de esquema en local, también puedes usar:
-
-```bash
-npx prisma migrate dev
-```
-
-### Comandos útiles de Prisma
-
-```bash
-npx prisma studio
-npx prisma db seed
-npx prisma generate
-```
-
-## 4. Cargar datos iniciales
-
-El backend tiene un seeder centralizado que ejecuta seeders por feature.
-
-Desde `backend/` puedes usar cualquiera de estas opciones:
-
-```bash
 npm run db:seed
-```
-
-```bash
-npx prisma db seed
-```
-
-El flujo de seed carga usuarios, agencias, información de usuario y órdenes.
-
-## 5. Arrancar el backend
-
-Desde `backend/`:
-
-```bash
 npm run dev
 ```
 
-La API arranca por defecto en:
+3. Arranca el frontend (desde `frontend/`): `npm install && npm run dev`. El proxy de Vite apunta por defecto a `http://localhost:3000`; si tu API corre en otro puerto, define `VITE_PROXY_TARGET` en `frontend/.env.local`.
 
-```text
-http://localhost:3000
-```
+## Credenciales de prueba
 
-Healthcheck disponible en:
-
-```text
-GET http://localhost:3000/
-```
-
-Respuesta esperada:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-## 6. Arrancar el frontend
-
-Desde `frontend/`:
-
-```bash
-npm run dev
-```
-
-El frontend de Vite arranca por defecto en:
-
-```text
-http://localhost:5173
-```
-
-En desarrollo, el frontend ya tiene proxy configurado hacia el backend para estas rutas:
-
-- `/auth`
-- `/users`
-- `/agencies`
-
-## 7. Credenciales de prueba
-
-Si ejecutaste el seeder, puedes entrar al panel con:
+Con los seeders ejecutados puedes entrar al panel con:
 
 ```text
 admin@drlogistics.local
 Admin123*
 ```
 
-## 8. Autenticación y acceso administrativo
+## Módulos del panel
 
-Endpoints principales de autenticación:
+- **Dashboard**: métricas de la red (usuarios, agencias, envíos, montos), distribución de envíos por estado y órdenes recientes.
+- **Usuarios**: CRUD de cuentas (Administrador, Distribuidor, Cliente).
+- **Agencias**: CRUD de sucursales con responsable, ubicación y estado.
+- **Envíos**: CRUD de órdenes con ruta origen→destino, cliente, monto y los nueve estados del ciclo de vida de una transferencia.
+- **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento).
 
-### Login
+## API
 
-```http
-POST /auth/login
-```
+Endpoints principales (todos los módulos de datos requieren un Bearer token con rol `ADMIN`):
 
-Body:
+| Método(s) | Ruta | Descripción |
+|---|---|---|
+| POST | `/auth/login` | Inicia sesión y devuelve el JWT |
+| POST | `/auth/register` | Registro público (siempre crea cuentas `USER`) |
+| GET/POST/PUT/DELETE | `/users` | CRUD de usuarios (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/agencies` | CRUD de agencias (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/orders` | CRUD de órdenes (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/info` | CRUD de información de contacto (solo ADMIN) |
 
-```json
-{
-  "email": "admin@drlogistics.local",
-  "password": "Admin123*"
-}
-```
+Notas de seguridad:
 
-### Registro
+- El registro público **no** acepta rol: las cuentas privilegiadas se crean desde el panel por un administrador autenticado.
+- El frontend guarda la sesión en `localStorage` bajo la clave `dr-logistics-admin-session` y la invalida automáticamente ante respuestas 401/403.
 
-```http
-POST /auth/register
-```
+## Cambios realizados y evidencia de Git
 
-Body:
+El proyecto evolucionó en fases visibles en el historial de commits (`git log --oneline`):
 
-```json
-{
-  "email": "admin@drlogistics.local",
-  "password": "Admin123*",
-  "role": "ADMIN"
-}
-```
+1. **Base MVC** — features de Auth, Users, UsersInformation, Agencies y Orders con rutas, controladores, servicios y repositorios (`feat(auth)`, `feat(backend)`, `feat(database)`).
+2. **Primer frontend** — panel administrativo en React con login y gestión de usuarios/agencias (`feat(frontend)`).
+3. **Sistema de diseño** — contexto de producto y diseño documentados (`PRODUCT.md`, `DESIGN.md`) y refinamiento tipográfico/cromático (`style(frontend)`).
+4. **Endurecimiento** — mensajes de error significativos en español en toda la API, cierre del registro público con rol arbitrario, protección de `/orders` e `/info` con `requireAdmin` (`fix(backend)`).
+5. **Infraestructura** — dockerización del backend con PostgreSQL, migraciones y seeders automáticos (`feat: dockeriza`, `chore(docker)`).
+6. **Panel completo** — reconstrucción de la interfaz con Tailwind + shadcn/ui: shell con navegación lateral, dashboard de métricas y CRUDs de los cuatro módulos de datos, verificados de extremo a extremo con un navegador real (`feat(frontend)`).
 
-Notas:
-
-- `/users` y `/agencies` requieren un Bearer token válido con rol `ADMIN`.
-- El frontend guarda la sesión en `localStorage` bajo la clave `dr-logistics-admin-session`.
-
-## 9. Comandos frecuentes
-
-### Backend
+## Comandos frecuentes
 
 ```bash
-cd backend
-npm install
-npm run dev
+# Stack completo con Docker
+docker compose up --build      # levantar db + api
+docker compose down            # detener
+docker compose logs -f backend # logs de la API
+
+# Backend (local)
+cd backend && npm run dev
 npm run db:seed
-npx prisma generate
-npx prisma migrate deploy
 npx prisma studio
-```
 
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
+# Frontend
+cd frontend && npm run dev
 npm run build
-npm run preview
+npm run lint
 ```
-
-## 10. Orden recomendado de arranque
-
-Si vas a levantar el proyecto desde cero, esta es la secuencia recomendada:
-
-1. Instalar dependencias en `backend/` y `frontend/`.
-2. Crear `backend/.env` con `DATABASE_URL` y `JWT_SECRET`.
-3. Ejecutar `npx prisma generate` en `backend/`.
-4. Ejecutar `npx prisma migrate deploy` en `backend/`.
-5. Ejecutar `npm run db:seed` en `backend/`.
-6. Ejecutar `npm run dev` en `backend/`.
-7. Ejecutar `npm run dev` en `frontend/`.

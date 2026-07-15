@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/context/AuthContext";
 import { LoginPage } from "@/pages/LoginPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { UsersPage } from "@/pages/UsersPage";
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -27,10 +28,7 @@ function App() {
         }
       >
         <Route index element={<PlaceholderPage title="Dashboard" />} />
-        <Route
-          path="usuarios"
-          element={<PlaceholderPage title="Usuarios" />}
-        />
+        <Route path="usuarios" element={<UsersPage />} />
         <Route
           path="agencias"
           element={<PlaceholderPage title="Agencias" />}

@@ -6,6 +6,7 @@ import { UsersPage } from "@/pages/UsersPage";
 import { AgenciesPage } from "@/pages/AgenciesPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { ContactsPage } from "@/pages/ContactsPage";
+import { ContactDetailPage } from "@/pages/ContactDetailPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
@@ -46,6 +47,7 @@ function App() {
           element={<AutomationEditorPage />}
         />
         <Route path="contactos" element={<ContactsPage />} />
+        <Route path="contactos/:contactId" element={<ContactDetailPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

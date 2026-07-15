@@ -1,5 +1,15 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Boxes, Check, Copy, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  Boxes,
+  Check,
+  Copy,
+  ImageIcon,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { contactsApi, ordersApi, packagesApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -342,7 +352,8 @@ export function PackagesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Rastreo</TableHead>
+                  <TableHead className="w-14 pl-6">Foto</TableHead>
+                  <TableHead>Rastreo</TableHead>
                   <TableHead>Descripción</TableHead>
                   <TableHead className="hidden md:table-cell">
                     Destinatario
@@ -364,7 +375,15 @@ export function PackagesPage() {
 
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="pl-6 whitespace-nowrap">
+                      <TableCell className="pl-6">
+                        <span
+                          className="flex size-10 items-center justify-center rounded-md border bg-muted text-muted-foreground"
+                          aria-label="Sin foto del paquete"
+                        >
+                          <ImageIcon className="size-4" aria-hidden="true" />
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
                         <TrackingCode code={item.tracking_code} />
                       </TableCell>
                       <TableCell className="max-w-52">
@@ -374,14 +393,17 @@ export function PackagesPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {contact ? (
-                          <div className="grid gap-0.5">
-                            <span>
+                          <Link
+                            to={`/admin/contactos/${contact.id}`}
+                            className="grid gap-0.5 rounded-sm outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            <span className="font-medium underline-offset-4 hover:underline">
                               {contact.first_name} {contact.last_name}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {userById.get(contact.user_id)?.email ?? ""}
                             </span>
-                          </div>
+                          </Link>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}

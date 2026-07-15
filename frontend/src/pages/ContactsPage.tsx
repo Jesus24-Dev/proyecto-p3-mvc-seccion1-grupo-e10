@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { BookUser, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { contactsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -279,7 +280,12 @@ export function ContactsPage() {
                   return (
                     <TableRow key={contact.id}>
                       <TableCell className="pl-6 font-medium">
-                        {contact.first_name} {contact.last_name}
+                        <Link
+                          to={`/admin/contactos/${contact.id}`}
+                          className="rounded-sm underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          {contact.first_name} {contact.last_name}
+                        </Link>
                       </TableCell>
                       <TableCell>{owner?.email ?? "—"}</TableCell>
                       <TableCell className="hidden max-w-64 truncate text-muted-foreground md:table-cell">

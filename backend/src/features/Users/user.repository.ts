@@ -29,14 +29,18 @@ export class UserRepository {
 
   async update(
     id: string,
-    body: { email: string; password: string },
+    body: { email: string; password?: string },
   ): Promise<UserEntity> {
+    // Si no llega una contraseña nueva, se conserva la actual.
+    const data: { email: string; password?: string } = { email: body.email };
+
+    if (body.password) {
+      data.password = await bcrypt.hash(body.password, 10);
+    }
+
     return await prisma.users.update({
       where: { id: id },
-      data: {
-        email: body.email,
-        password: await bcrypt.hash(body.password, 10),
-      },
+      data,
     });
   }
 

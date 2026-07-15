@@ -25,7 +25,7 @@ export class UserService {
     }
   }
 
-  async updateUser(id: string, body: { email: string; password: string }) {
+  async updateUser(id: string, body: { email: string; password?: string }) {
     try {
       return await this.userRepository.update(id, body);
     } catch (e) {

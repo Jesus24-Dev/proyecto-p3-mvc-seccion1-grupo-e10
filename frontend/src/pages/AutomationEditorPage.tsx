@@ -11,7 +11,7 @@ import {
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
 import { ApiRequestError, automationsApi } from "@/api";
 import { useAuth } from "@/context/AuthContext";
 import { useMutationHandler } from "@/hooks/usePageData";
@@ -38,9 +38,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AutomationDefinition } from "@/types";
+import type { Automation, AutomationDefinition } from "@/types";
+
+/** `folder` aún no está declarado en los tipos compartidos; se anota localmente. */
 
 const nodeTypes = { step: StepNodeComponent };
+
+const WEBHOOK_METHODS = [
+  { value: "POST", label: "POST" },
+  { value: "GET", label: "GET" },
+] as const;
 
 const initialNodes: StepNode[] = [
   {
@@ -61,9 +68,11 @@ export function AutomationEditorPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<StepNode>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [name, setName] = useState("Nueva automatización");
+  const [folder, setFolder] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -84,6 +93,7 @@ export function AutomationEditorPage() {
           return;
         }
         setName(automation.name);
+        setFolder(automation.folder ?? "");
         setIsActive(automation.is_active);
         setNodes(automation.definition.nodes as unknown as StepNode[]);
         setEdges(automation.definition.edges as unknown as Edge[]);
@@ -128,6 +138,10 @@ export function AutomationEditorPage() {
     () => nodes.find((node) => node.id === selectedNodeId) ?? null,
     [nodes, selectedNodeId],
   );
+
+  const incomingWebhookUrl = isNew
+    ? ""
+    : `${window.location.origin}/hooks/automations/${automationId}`;
 
   function addStep(kind: StepKind) {
     const id = `n${Date.now().toString(36)}`;
@@ -188,7 +202,12 @@ export function AutomationEditorPage() {
       edges: edges as unknown as AutomationDefinition["edges"],
     };
 
-    const payload = { name, is_active: isActive, definition };
+    const payload = {
+      name,
+      folder: folder.trim() || undefined,
+      is_active: isActive,
+      definition,
+    };
 
     const failure = await runMutation(async () => {
       if (isNew) {
@@ -207,12 +226,55 @@ export function AutomationEditorPage() {
     );
   }
 
+  async function handleTestTrigger() {
+    if (isNew) {
+      return;
+    }
+
+    setIsTesting(true);
+    setNotice(null);
+
+    try {
+      const result = await automationsApi.triggerWebhook(automationId!, {
+        source: "manual_test",
+      });
+      const stepLabels = (result.steps ?? [])
+        .map((step) => {
+          if (!step.kind) {
+            return null;
+          }
+          return step.kind in STEP_META
+            ? STEP_META[step.kind as StepKind].label
+            : step.kind;
+        })
+        .filter((label): label is string => Boolean(label));
+
+      setNotice({
+        text:
+          stepLabels.length > 0
+            ? `Disparador ejecutado (${result.status ?? "en cola"}): ${stepLabels.join(" → ")}`
+            : `Disparador ejecutado: ${result.status ?? "en cola"}.`,
+        tone: "success",
+      });
+    } catch (caughtError) {
+      setNotice({
+        text:
+          caughtError instanceof Error
+            ? caughtError.message
+            : "No se pudo probar el disparador.",
+        tone: "danger",
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  }
+
   if (isLoading) {
     return <Skeleton className="h-[70vh] rounded-xl" />;
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="ghost"
@@ -229,6 +291,13 @@ export function AutomationEditorPage() {
           aria-label="Nombre de la automatización"
           className="h-9 max-w-xs font-medium"
         />
+        <Input
+          value={folder}
+          onChange={(event) => setFolder(event.target.value)}
+          aria-label="Carpeta"
+          placeholder="Carpeta"
+          className="h-9 max-w-[11rem]"
+        />
         <Button
           variant="outline"
           size="sm"
@@ -237,6 +306,16 @@ export function AutomationEditorPage() {
           {isActive ? "Activa" : "Pausada"}
         </Button>
         <div className="ms-auto flex items-center gap-2">
+          {!isNew && (
+            <Button
+              variant="outline"
+              onClick={() => void handleTestTrigger()}
+              disabled={isTesting}
+            >
+              <Play data-icon="inline-start" aria-hidden="true" />
+              {isTesting ? "Probando…" : "Probar disparador"}
+            </Button>
+          )}
           <Button onClick={() => void handleSave()} disabled={isSaving}>
             <Save data-icon="inline-start" aria-hidden="true" />
             {isSaving ? "Guardando…" : "Guardar"}
@@ -268,9 +347,9 @@ export function AutomationEditorPage() {
         })}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_18rem]">
-        <Card className="overflow-hidden p-0">
-          <div className="h-[56vh] min-h-[420px]">
+      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[1fr_18rem]">
+        <Card className="min-h-0 overflow-hidden p-0">
+          <div className="h-full min-h-[460px]">
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -303,30 +382,66 @@ export function AutomationEditorPage() {
                 </p>
 
                 {selectedNode.data.kind === "trigger" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="step-trigger">Evento</Label>
-                    <Select
-                      items={TRIGGER_OPTIONS.map((option) => ({
-                        value: option.value,
-                        label: option.label,
-                      }))}
-                      value={selectedNode.data.trigger ?? "contact_created"}
-                      onValueChange={(value) =>
-                        updateSelectedNode({ trigger: value as string })
-                      }
-                    >
-                      <SelectTrigger id="step-trigger" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TRIGGER_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="step-trigger">Evento</Label>
+                      <Select
+                        items={TRIGGER_OPTIONS.map((option) => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
+                        value={selectedNode.data.trigger ?? "contact_created"}
+                        onValueChange={(value) =>
+                          updateSelectedNode({ trigger: value as string })
+                        }
+                      >
+                        <SelectTrigger id="step-trigger" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TRIGGER_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedNode.data.trigger === "webhook_received" && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="incoming-webhook-url">
+                          URL del webhook entrante
+                        </Label>
+                        {isNew ? (
+                          <p className="text-sm text-muted-foreground">
+                            Guarda la automatización para generar la URL
+                          </p>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="incoming-webhook-url"
+                              readOnly
+                              value={incomingWebhookUrl}
+                              className="flex-1 font-mono text-xs"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon-sm"
+                              aria-label="Copiar URL del webhook"
+                              onClick={() =>
+                                void navigator.clipboard.writeText(
+                                  incomingWebhookUrl,
+                                )
+                              }
+                            >
+                              <Copy aria-hidden="true" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {selectedNode.data.kind === "wait" && (
@@ -417,6 +532,49 @@ export function AutomationEditorPage() {
                         rows={4}
                         className="rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       />
+                    </div>
+                  </>
+                )}
+
+                {selectedNode.data.kind === "send_webhook" && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="step-url">URL de destino</Label>
+                      <Input
+                        id="step-url"
+                        type="url"
+                        value={selectedNode.data.url ?? ""}
+                        onChange={(event) =>
+                          updateSelectedNode({ url: event.target.value })
+                        }
+                        placeholder="https://api.ejemplo.com/hooks"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="step-method">Método</Label>
+                      <Select
+                        items={WEBHOOK_METHODS.map((option) => ({
+                          value: option.value,
+                          label: option.label,
+                        }))}
+                        value={selectedNode.data.method ?? "POST"}
+                        onValueChange={(value) =>
+                          updateSelectedNode({
+                            method: value as StepData["method"],
+                          })
+                        }
+                      >
+                        <SelectTrigger id="step-method" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WEBHOOK_METHODS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )}

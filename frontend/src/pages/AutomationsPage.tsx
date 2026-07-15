@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Pencil, Plus, Trash2, Workflow, Zap } from "lucide-react";
+import { Folder, Pencil, Plus, Trash2, Workflow, Zap } from "lucide-react";
 import { automationsApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -22,6 +22,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
 import { STEP_META, type StepData } from "@/lib/automationSteps";
 import type { Automation } from "@/types";
+
+function folderOf(automation: Automation): string {
+  return (automation.folder ?? "").trim();
+}
 
 function stepSummary(automation: Automation): string {
   const kinds = automation.definition.nodes
@@ -46,16 +50,43 @@ export function AutomationsPage() {
     tone: "success" | "danger";
   } | null>(null);
 
+  const folderGroups = useMemo(() => {
+    const groups = new Map<string, Automation[]>();
+
+    for (const automation of automations ?? []) {
+      const key = folderOf(automation);
+      const bucket = groups.get(key);
+      if (bucket) {
+        bucket.push(automation);
+      } else {
+        groups.set(key, [automation]);
+      }
+    }
+
+    return Array.from(groups.entries()).sort(([first], [second]) => {
+      if (!first) {
+        return 1;
+      }
+      if (!second) {
+        return -1;
+      }
+      return first.localeCompare(second, "es");
+    });
+  }, [automations]);
+
   async function handleToggleActive(automation: Automation) {
     setNotice(null);
 
+    const payload = {
+      name: automation.name,
+      description: automation.description,
+      folder: folderOf(automation),
+      is_active: !automation.is_active,
+      definition: automation.definition,
+    };
+
     const failure = await runMutation(async () => {
-      await automationsApi.update(automation.id, {
-        name: automation.name,
-        description: automation.description,
-        is_active: !automation.is_active,
-        definition: automation.definition,
-      });
+      await automationsApi.update(automation.id, payload);
     });
 
     if (failure) {
@@ -138,60 +169,70 @@ export function AutomationsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {(automations ?? []).map((automation) => (
-            <Card key={automation.id} className="py-4">
-              <CardContent className="flex flex-wrap items-center gap-4 px-5">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Zap className="size-5" aria-hidden="true" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{automation.name}</p>
-                    <Badge
-                      className={
-                        automation.is_active
-                          ? "bg-emerald-100 text-emerald-900"
-                          : "bg-muted text-muted-foreground"
-                      }
-                    >
-                      {automation.is_active ? "Activa" : "Pausada"}
-                    </Badge>
-                  </div>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {stepSummary(automation)}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleToggleActive(automation)}
-                  >
-                    {automation.is_active ? "Pausar" : "Activar"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Editar ${automation.name}`}
-                    onClick={() =>
-                      navigate(`/admin/automatizaciones/${automation.id}`)
-                    }
-                  >
-                    <Pencil aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Eliminar ${automation.name}`}
-                    onClick={() => setAutomationToDelete(automation)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid gap-6">
+          {folderGroups.map(([folderName, group]) => (
+            <section key={folderName || "__sin_carpeta__"} className="grid gap-3">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Folder className="size-4" aria-hidden="true" />
+                {folderName || "Sin carpeta"}
+              </h2>
+              <div className="grid gap-4">
+                {group.map((automation) => (
+                  <Card key={automation.id} className="py-4">
+                    <CardContent className="flex flex-wrap items-center gap-4 px-5">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Zap className="size-5" aria-hidden="true" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{automation.name}</p>
+                          <Badge
+                            className={
+                              automation.is_active
+                                ? "bg-emerald-100 text-emerald-900"
+                                : "bg-muted text-muted-foreground"
+                            }
+                          >
+                            {automation.is_active ? "Activa" : "Pausada"}
+                          </Badge>
+                        </div>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {stepSummary(automation)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void handleToggleActive(automation)}
+                        >
+                          {automation.is_active ? "Pausar" : "Activar"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Editar ${automation.name}`}
+                          onClick={() =>
+                            navigate(`/admin/automatizaciones/${automation.id}`)
+                          }
+                        >
+                          <Pencil aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Eliminar ${automation.name}`}
+                          onClick={() => setAutomationToDelete(automation)}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

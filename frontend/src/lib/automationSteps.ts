@@ -3,6 +3,7 @@ import {
   Mail,
   MessageCircle,
   Tag,
+  Webhook,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -12,7 +13,8 @@ export type StepKind =
   | "wait"
   | "send_whatsapp"
   | "send_email"
-  | "add_tag";
+  | "add_tag"
+  | "send_webhook";
 
 export type StepData = {
   kind: StepKind;
@@ -28,6 +30,9 @@ export type StepData = {
   body?: string;
   /** add_tag */
   tag?: string;
+  /** send_webhook */
+  url?: string;
+  method?: "POST" | "GET";
   [key: string]: unknown;
 };
 
@@ -36,6 +41,7 @@ export const TRIGGER_OPTIONS = [
   { value: "tag_added", label: "Etiqueta agregada a un contacto" },
   { value: "package_delivered", label: "Paquete entregado" },
   { value: "order_completed", label: "Envío completado" },
+  { value: "webhook_received", label: "Webhook recibido" },
 ] as const;
 
 export const WAIT_UNITS = [
@@ -85,6 +91,21 @@ export const STEP_META: Record<StepKind, StepMeta> = {
     icon: Tag,
     summary: (data) => (data.tag ? `#${data.tag}` : "Elige la etiqueta"),
   },
+  send_webhook: {
+    label: "Enviar webhook",
+    icon: Webhook,
+    summary: (data) => {
+      if (!data.url) {
+        return "Define la URL de destino";
+      }
+      const method = data.method ?? "POST";
+      try {
+        return `${method} ${new URL(data.url).host}`;
+      } catch {
+        return `${method} ${data.url.slice(0, 32)}`;
+      }
+    },
+  },
 };
 
 export const ADDABLE_STEPS: StepKind[] = [
@@ -92,6 +113,7 @@ export const ADDABLE_STEPS: StepKind[] = [
   "send_whatsapp",
   "send_email",
   "add_tag",
+  "send_webhook",
 ];
 
 export function defaultDataFor(kind: StepKind): StepData {
@@ -106,5 +128,7 @@ export function defaultDataFor(kind: StepKind): StepData {
       return { kind, subject: "", body: "" };
     case "add_tag":
       return { kind, tag: "" };
+    case "send_webhook":
+      return { kind, url: "", method: "POST" };
   }
 }

@@ -8,6 +8,9 @@ import { OrdersPage } from "@/pages/OrdersPage";
 import { ContactsPage } from "@/pages/ContactsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
+import { ConversationsPage } from "@/pages/ConversationsPage";
+import { AutomationsPage } from "@/pages/AutomationsPage";
+import { AutomationEditorPage } from "@/pages/AutomationEditorPage";
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -36,6 +39,12 @@ function App() {
         <Route path="agencias" element={<AgenciesPage />} />
         <Route path="envios" element={<OrdersPage />} />
         <Route path="paquetes" element={<PackagesPage />} />
+        <Route path="conversaciones" element={<ConversationsPage />} />
+        <Route path="automatizaciones" element={<AutomationsPage />} />
+        <Route
+          path="automatizaciones/:automationId"
+          element={<AutomationEditorPage />}
+        />
         <Route path="contactos" element={<ContactsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -7,8 +7,10 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   Package,
   Users,
+  Workflow,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +26,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { roleLabel } from "@/lib/roles";
+import { AgencySwitcher } from "@/components/layout/AgencySwitcher";
 
 const navigationItems = [
   { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true },
@@ -32,6 +35,8 @@ const navigationItems = [
   { to: "/admin/envios", label: "Envíos", icon: Package },
   { to: "/admin/paquetes", label: "Paquetes", icon: Boxes },
   { to: "/admin/contactos", label: "Contactos", icon: BookUser },
+  { to: "/admin/conversaciones", label: "Conversaciones", icon: MessageCircle },
+  { to: "/admin/automatizaciones", label: "Automatizaciones", icon: Workflow },
 ];
 
 function BrandMark() {
@@ -127,6 +132,9 @@ export function AppLayout() {
             <h1 className="truncate text-lg font-medium tracking-tight md:sr-only">
               {currentItem?.label ?? "Panel"}
             </h1>
+            <div className="hidden md:block">
+              <AgencySwitcher />
+            </div>
           </div>
 
           <DropdownMenu>

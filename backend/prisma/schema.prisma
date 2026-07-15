@@ -18,6 +18,15 @@ enum roles {
   DISTRIBUTOR
 }
 
+enum package_status {
+  RECEIVED         // Recibido en la agencia de origen.
+  IN_TRANSIT       // Viajando entre agencias.
+  IN_WAREHOUSE     // En almacén de la agencia destino.
+  OUT_FOR_DELIVERY // En reparto de última milla.
+  DELIVERED        // Entregado al destinatario.
+  RETURNED         // Devuelto al remitente.
+}
+
 enum transfer_status {
   CREATED         // El usuario creó la orden pero no ha pagado.
   PENDING_PAYMENT // Esperando depósito bancario o confirmación de tarjeta.
@@ -50,6 +59,8 @@ model users_information {
 
   user_id String @unique
   user users @relation(fields: [user_id], references: [id])
+
+  packages packages[]
 }
 
 model agencies {
@@ -83,4 +94,24 @@ model orders {
   
   destination_agency_id String
   destination_agency agencies @relation("DestinationAgency", fields: [destination_agency_id], references: [id])
+
+  packages packages[]
+}
+
+model packages {
+  id String @id @default(uuid())
+  // Código de rastreo generado por el servidor (p. ej. DRL-2026-9F3A21B0).
+  tracking_code String @unique
+  description String
+  weight_kg Float
+  status package_status @default(RECEIVED)
+  created_at DateTime @default(now())
+
+  // Contacto (destinatario) al que pertenece el paquete.
+  contact_id String
+  contact users_information @relation(fields: [contact_id], references: [id])
+
+  // Envío (orden) que transporta el paquete; opcional hasta que se despacha.
+  order_id String?
+  order orders? @relation(fields: [order_id], references: [id])
 }

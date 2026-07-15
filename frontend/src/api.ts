@@ -22,6 +22,29 @@ export class ApiRequestError extends Error {
   }
 }
 
+const FALLBACK_STATUS_MESSAGES: Record<number, string> = {
+  400: "La solicitud tiene datos inválidos. Revisa los campos e intenta de nuevo.",
+  401: "Credenciales inválidas o sesión expirada. Inicia sesión de nuevo.",
+  403: "Tu cuenta no tiene permisos para esta acción.",
+  404: "El recurso solicitado no existe en el servidor.",
+  409: "El registro entra en conflicto con uno existente.",
+};
+
+function buildErrorMessage(
+  status: number,
+  serverMessage: string | null,
+): string {
+  if (status >= 500) {
+    return `Error del servidor (${status}). Intenta de nuevo en unos minutos.`;
+  }
+
+  return (
+    serverMessage ||
+    FALLBACK_STATUS_MESSAGES[status] ||
+    `La solicitud falló con el código ${status}.`
+  );
+}
+
 function isAuthSession(value: unknown): value is AuthSession {
   if (!value || typeof value !== "object") {
     return false;
@@ -99,10 +122,19 @@ async function request<T>(
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiRequestError(
+      "No se pudo conectar con el servidor. Verifica tu conexión y que la API esté disponible.",
+      0,
+    );
+  }
 
   if (response.status === 204) {
     return undefined as T;
@@ -112,11 +144,14 @@ async function request<T>(
 
   if (!response.ok) {
     const error = data as ApiErrorResponse | null;
-    const message =
+    const serverMessage =
       error?.errors?.map((item) => item.message).join("\n") ||
       error?.message ||
-      "Request failed";
-    throw new ApiRequestError(message, response.status);
+      null;
+    throw new ApiRequestError(
+      buildErrorMessage(response.status, serverMessage),
+      response.status,
+    );
   }
 
   return data as T;

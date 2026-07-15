@@ -162,16 +162,16 @@ El logo es una caja de paquete blanca sobre un cuadrado rojo redondeado; el mism
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** gastar el rojo solo en acción primaria, navegación activa, foco y sello de marca.
-- **Do** usar los tokens (`bg-background`, `text-muted-foreground`, `border-border`) — nunca hex sueltos en las páginas.
-- **Do** dar a todo estado no feliz un tratamiento diseñado: skeletons al cargar, EmptyState con icono y acción, Alert con el mensaje real de la API.
-- **Do** usar AlertDialog (no Dialog) para confirmar acciones destructivas.
-- **Do** mantener `tabular-nums` en cifras y montos.
+- **Do** spend the red only on the primary action, active navigation, focus rings, and the brand mark.
+- **Do** build every surface from tokens (`bg-background`, `text-muted-foreground`, `border-border`) — never loose hex values inside pages.
+- **Do** give every non-happy state a designed treatment: skeletons while loading, EmptyState with icon and action, Alert carrying the real API message.
+- **Do** use AlertDialog (never Dialog) to confirm destructive actions.
+- **Do** keep `tabular-nums` on every dynamic figure and amount.
 
 ### Don't:
-- **Don't** usar la plantilla AI/SaaS genérica: degradados morado-azul, rejillas de tarjetas idénticas, métricas-héroe con acento degradado (anti-referencia de PRODUCT.md).
-- **Don't** caer en el gris corporativo sin vida estilo SAP/Oracle antiguo (anti-referencia de PRODUCT.md).
-- **Don't** deslizarse a la informalidad de app de consumo: nada de pasteles, emojis ni decoración (anti-referencia de PRODUCT.md).
-- **Don't** usar `border-left` mayor a 1px como franja de acento, texto degradado ni glassmorphism.
-- **Don't** anidar tarjetas dentro de tarjetas ni mezclar radios arbitrarios.
-- **Don't** comunicar estado solo con color: toda píldora lleva su etiqueta.
+- **Don't** use the generic AI/SaaS template: purple-blue gradients, identical card grids, hero-metric cards with gradient accents (PRODUCT.md anti-reference).
+- **Don't** slide into lifeless corporate gray, old SAP/Oracle style (PRODUCT.md anti-reference).
+- **Don't** drift into consumer-app playfulness: no pastels, emoji, or decoration (PRODUCT.md anti-reference).
+- **Don't** use `border-left` thicker than 1px as an accent stripe, gradient text, or glassmorphism.
+- **Don't** nest cards inside cards or mix arbitrary radii.
+- **Don't** communicate state with color alone: every pill carries its text label.

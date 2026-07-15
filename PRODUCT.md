@@ -16,6 +16,8 @@ Administradores de operaciones de una red courier venezolana (el mundo de Domesa
 
 Panel administrativo de Dr-Logistics CA: gestionar usuarios (admins, operadores, distribuidores) y agencias (sucursales con responsable y ubicación) de una red de encomiendas nacional. Es el frontend de un proyecto universitario que demuestra una arquitectura MVC/por capas (Express + Prisma + PostgreSQL detrás, React + Vite delante). Éxito significa que un administrador complete altas, ediciones y búsquedas sin fricción, y que el proyecto se evalúe como un sistema creíble y bien construido.
 
+El sistema completo (según el mapa mental del proyecto, "Sistema de Gestión Logística, Pagos y Clientes") interactúa con cuatro actores: Clientes (datos, solicitudes, notificaciones de estado del paquete), Mercado Libre (datos de paquetes enviados y confirmación de recepción), Banco Mercantil (validación y confirmación de pagos) y Personal Administrativo (registro, consultas, gestión de paquetes y reportes). El panel actual implementa la rebanada del Personal Administrativo; los módulos de clientes, pagos e integración marketplace son extensiones futuras y el diseño debe dejarles espacio (por ejemplo, estados de paquete y reportes).
+
 ## Positioning
 
 Un centro de operaciones creíble para una red courier venezolana: guías, agencias y cobertura nacional, contado en su propio vernáculo, no un SaaS logístico genérico.

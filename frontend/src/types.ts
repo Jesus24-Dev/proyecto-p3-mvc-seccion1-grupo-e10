@@ -105,6 +105,33 @@ export type UpdateUserInformationPayload = Omit<
   "user_id"
 >;
 
+export type PackageStatus =
+  | "RECEIVED"
+  | "IN_TRANSIT"
+  | "IN_WAREHOUSE"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "RETURNED";
+
+export interface Package {
+  id: string;
+  tracking_code: string;
+  description: string;
+  weight_kg: number;
+  status: PackageStatus;
+  created_at: string;
+  contact_id: string;
+  order_id: string | null;
+}
+
+export interface CreatePackagePayload {
+  description: string;
+  weight_kg: number;
+  contact_id: string;
+  order_id?: string;
+  status?: PackageStatus;
+}
+
 export interface ApiFieldError {
   field: string;
   message: string;

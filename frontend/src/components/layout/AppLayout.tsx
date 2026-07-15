@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   BookUser,
+  Boxes,
   Building2,
   LayoutDashboard,
   LogOut,
@@ -29,6 +30,7 @@ const navigationItems = [
   { to: "/admin/usuarios", label: "Usuarios", icon: Users },
   { to: "/admin/agencias", label: "Agencias", icon: Building2 },
   { to: "/admin/envios", label: "Envíos", icon: Package },
+  { to: "/admin/paquetes", label: "Paquetes", icon: Boxes },
   { to: "/admin/contactos", label: "Contactos", icon: BookUser },
 ];
 

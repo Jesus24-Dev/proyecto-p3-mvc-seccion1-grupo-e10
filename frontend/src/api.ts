@@ -4,10 +4,12 @@ import type {
   AuthSession,
   CreateAgencyPayload,
   CreateOrderPayload,
+  CreatePackagePayload,
   CreateUserInformationPayload,
   CreateUserPayload,
   LoginPayload,
   Order,
+  Package,
   UpdateAgencyPayload,
   UpdateUserInformationPayload,
   UpdateUserPayload,
@@ -225,6 +227,24 @@ export const ordersApi = {
     }),
   remove: (id: string) =>
     request<void>(`/orders/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const packagesApi = {
+  list: () => request<Package[]>("/packages"),
+  create: (payload: CreatePackagePayload) =>
+    request<Package>("/packages", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: CreatePackagePayload) =>
+    request<Package>(`/packages/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/packages/${id}`, {
       method: "DELETE",
     }),
 };

@@ -1,7 +1,14 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Building2, DollarSign, Package, Users } from "lucide-react";
-import { agenciesApi, ordersApi, usersApi } from "@/api";
+import {
+  ArrowRight,
+  Boxes,
+  Building2,
+  DollarSign,
+  Package,
+  Users,
+} from "lucide-react";
+import { agenciesApi, ordersApi, packagesApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { OrderStatusPill } from "@/components/shared/pills";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -57,9 +64,14 @@ function StatTile({ icon: Icon, label, value, detail }: StatTileProps) {
 
 export function DashboardPage() {
   const { data, isLoading, error } = usePageData(() =>
-    Promise.all([usersApi.list(), agenciesApi.list(), ordersApi.list()]),
+    Promise.all([
+      usersApi.list(),
+      agenciesApi.list(),
+      ordersApi.list(),
+      packagesApi.list(),
+    ]),
   );
-  const [users, agencies, orders] = data ?? [[], [], []];
+  const [users, agencies, orders, packages] = data ?? [[], [], [], []];
 
   const stats = useMemo(() => {
     const activeAgencies = agencies.filter((agency) => agency.is_active);
@@ -118,8 +130,8 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {Array.from({ length: 5 }, (_, index) => (
           <Skeleton key={index} className="h-32 rounded-xl" />
         ))}
       </div>
@@ -139,7 +151,7 @@ export function DashboardPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatTile
           icon={Users}
           label="Usuarios"
@@ -157,6 +169,12 @@ export function DashboardPage() {
           label="Envíos"
           value={String(orders.length)}
           detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
+        />
+        <StatTile
+          icon={Boxes}
+          label="Paquetes"
+          value={String(packages.length)}
+          detail={`${packages.filter((item) => item.status === "DELIVERED").length === 1 ? "1 entregado" : `${packages.filter((item) => item.status === "DELIVERED").length} entregados`}`}
         />
         <StatTile
           icon={DollarSign}

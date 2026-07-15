@@ -1,4 +1,4 @@
-import type { TransferStatus } from "../types";
+import type { PackageStatus, TransferStatus } from "../types";
 
 // Las fechas se guardan como medianoche UTC; formatear en UTC evita
 // que la zona local (VET, UTC-4) las corra un día hacia atrás.
@@ -72,6 +72,43 @@ export function orderStatusTone(
     case "REFUNDED":
       return "danger";
     case "CREATED":
+      return "neutral";
+    default:
+      return "pending";
+  }
+}
+
+export const PACKAGE_STATUSES: PackageStatus[] = [
+  "RECEIVED",
+  "IN_TRANSIT",
+  "IN_WAREHOUSE",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "RETURNED",
+];
+
+export function packageStatusLabel(status: PackageStatus): string {
+  const labels: Record<PackageStatus, string> = {
+    RECEIVED: "Recibido",
+    IN_TRANSIT: "En tránsito",
+    IN_WAREHOUSE: "En almacén",
+    OUT_FOR_DELIVERY: "En reparto",
+    DELIVERED: "Entregado",
+    RETURNED: "Devuelto",
+  };
+
+  return labels[status];
+}
+
+export function packageStatusTone(
+  status: PackageStatus,
+): "neutral" | "pending" | "success" | "danger" {
+  switch (status) {
+    case "DELIVERED":
+      return "success";
+    case "RETURNED":
+      return "danger";
+    case "RECEIVED":
       return "neutral";
     default:
       return "pending";

@@ -1,8 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { roleLabel } from "@/lib/roles";
-import { orderStatusLabel, orderStatusTone } from "@/lib/format";
-import type { TransferStatus, UserRole } from "@/types";
+import {
+  orderStatusLabel,
+  orderStatusTone,
+  packageStatusLabel,
+  packageStatusTone,
+} from "@/lib/format";
+import type { PackageStatus, TransferStatus, UserRole } from "@/types";
 
 const toneClasses = {
   neutral: "bg-muted text-muted-foreground",
@@ -35,6 +40,14 @@ export function OrderStatusPill({ status }: { status: TransferStatus }) {
   return (
     <Badge className={toneClasses[orderStatusTone(status)]}>
       {orderStatusLabel(status)}
+    </Badge>
+  );
+}
+
+export function PackageStatusPill({ status }: { status: PackageStatus }) {
+  return (
+    <Badge className={toneClasses[packageStatusTone(status)]}>
+      {packageStatusLabel(status)}
     </Badge>
   );
 }

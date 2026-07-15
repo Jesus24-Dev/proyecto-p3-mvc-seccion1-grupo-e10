@@ -13,7 +13,7 @@ Aplicación dividida en dos partes:
 
 El equipo optó por la alternativa de **proyecto mínimo/funcional aplicando MVC**: en lugar de refactorizar un sistema existente, se desarrolló desde cero un sistema operativo completo. El mapa mental del sistema contempla cuatro actores (Clientes, Mercado Libre, Banco Mercantil y Personal Administrativo); esta entrega implementa la rebanada del **Personal Administrativo**: autenticación, gestión de usuarios, agencias, órdenes de envío e información de contacto.
 
-Los módulos desarrollados bajo MVC/capas son: **Auth**, **Users**, **UsersInformation**, **Agencies** y **Orders**.
+Los módulos desarrollados bajo MVC/capas son: **Auth**, **Users**, **UsersInformation**, **Agencies**, **Orders** y **Packages**.
 
 ## Arquitectura MVC aplicada
 
@@ -106,6 +106,7 @@ Admin123*
 - **Usuarios**: CRUD de cuentas (Administrador, Distribuidor, Cliente).
 - **Agencias**: CRUD de sucursales con responsable, ubicación y estado.
 - **Envíos**: CRUD de órdenes con ruta origen→destino, cliente, monto y los nueve estados del ciclo de vida de una transferencia.
+- **Paquetes**: registro de paquetes físicos con código de rastreo único generado por el servidor (DRL-AÑO-XXXXXXXX), destinatario (contacto), peso, estado físico (recibido → en tránsito → en almacén → en reparto → entregado / devuelto) y envío asignado.
 - **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento).
 
 ## API
@@ -119,6 +120,7 @@ Endpoints principales (todos los módulos de datos requieren un Bearer token con
 | GET/POST/PUT/DELETE | `/users` | CRUD de usuarios (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/agencies` | CRUD de agencias (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/orders` | CRUD de órdenes (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/packages` | CRUD de paquetes con tracking generado (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/info` | CRUD de información de contacto (solo ADMIN) |
 
 Notas de seguridad:

@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { seedAgencies } from "../../features/Agencies/agency.seeder.js";
 import { seedOrders } from "../../features/Orders/order.seeder.js";
+import { seedPackages } from "../../features/Packages/package.seeder.js";
 import { seedUsers } from "../../features/Users/user.seeder.js";
 import { seedUsersInformation } from "../../features/UsersInformation/userInformation.seeder.js";
 
@@ -25,6 +26,7 @@ async function main() {
   summary.push(await runSeeder("Agencies", seedAgencies));
   summary.push(await runSeeder("UsersInformation", seedUsersInformation));
   summary.push(await runSeeder("Orders", seedOrders));
+  summary.push(await runSeeder("Packages", seedPackages));
 
   console.log("Database seed completed successfully.");
   console.table(summary);

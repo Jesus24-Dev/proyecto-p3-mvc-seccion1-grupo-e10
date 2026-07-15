@@ -1,4 +1,8 @@
-import { roles, transfer_status } from "../../generated/prisma/enums";
+import {
+  package_status,
+  roles,
+  transfer_status,
+} from "../../generated/prisma/enums";
 
 export const userSeedData = [
   {
@@ -83,5 +87,32 @@ export const orderSeedData = [
     description: "Documentos mercantiles a Maracaibo",
     amount: 320.5,
     status: transfer_status.COMPLETED,
+  },
+] as const;
+
+export const packageSeedData = [
+  {
+    tracking_code: "DRL-2026-SEED0001",
+    description: "Caja mediana con repuestos de moto",
+    weight_kg: 8.4,
+    status: package_status.IN_TRANSIT,
+    contactUserEmail: "user@drlogistics.local",
+    orderDescription: "Caja de repuestos para Valencia",
+  },
+  {
+    tracking_code: "DRL-2026-SEED0002",
+    description: "Sobre con documentos mercantiles",
+    weight_kg: 0.3,
+    status: package_status.DELIVERED,
+    contactUserEmail: "admin@drlogistics.local",
+    orderDescription: "Documentos mercantiles a Maracaibo",
+  },
+  {
+    tracking_code: "DRL-2026-SEED0003",
+    description: "Electrodoméstico pequeño (licuadora)",
+    weight_kg: 3.1,
+    status: package_status.RECEIVED,
+    contactUserEmail: "distributor@drlogistics.local",
+    orderDescription: null,
   },
 ] as const;

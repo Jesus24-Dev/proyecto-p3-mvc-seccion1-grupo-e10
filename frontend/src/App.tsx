@@ -2,11 +2,11 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/context/AuthContext";
 import { LoginPage } from "@/pages/LoginPage";
-import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { AgenciesPage } from "@/pages/AgenciesPage";
 import { OrdersPage } from "@/pages/OrdersPage";
 import { ContactsPage } from "@/pages/ContactsPage";
+import { DashboardPage } from "@/pages/DashboardPage";
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -30,7 +30,7 @@ function App() {
           </RequireAdmin>
         }
       >
-        <Route index element={<PlaceholderPage title="Dashboard" />} />
+        <Route index element={<DashboardPage />} />
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="agencias" element={<AgenciesPage />} />
         <Route path="envios" element={<OrdersPage />} />

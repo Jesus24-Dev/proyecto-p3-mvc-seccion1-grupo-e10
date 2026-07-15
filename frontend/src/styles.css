@@ -95,10 +95,10 @@ button:disabled {
 .stat-card,
 .session-banner,
 .cta-card {
-  border: 1px solid rgba(13, 47, 87, 0.1);
-  border-radius: 0;
-  background: rgba(255, 250, 243, 0.94);
-  box-shadow: 0 20px 60px rgba(24, 37, 59, 0.1);
+  border: 1px solid var(--domesa-line-soft);
+  border-radius: var(--radius-card);
+  background: var(--domesa-paper);
+  box-shadow: var(--shadow-card);
 }
 
 .login-story,
@@ -111,9 +111,8 @@ button:disabled {
   display: grid;
   gap: 24px;
   padding: 40px;
-  background:
-    linear-gradient(135deg, rgba(13, 47, 87, 0.98), rgba(18, 70, 124, 0.94)),
-    linear-gradient(135deg, rgba(207, 35, 56, 0.34), transparent 60%);
+  border-color: rgba(13, 47, 87, 0.4);
+  background: linear-gradient(150deg, #0d2f57 0%, #123c6b 60%, #164272 100%);
   color: #fef4e8;
 }
 
@@ -125,7 +124,7 @@ button:disabled {
   width: 260px;
   height: 260px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(207, 35, 56, 0.26), transparent 72%);
+  background: radial-gradient(circle, rgba(207, 35, 56, 0.18), transparent 72%);
 }
 
 .brand-stamp,
@@ -212,9 +211,9 @@ h3 {
 
 .login-credential-card {
   width: min(360px, 100%);
-  border: 1px solid rgba(255, 209, 215, 0.42);
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.14);
+  border: 1px dashed rgba(255, 209, 215, 0.5);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.08);
   padding: 22px;
 }
 
@@ -249,13 +248,11 @@ h3 {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
   gap: 24px;
   padding: 32px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(255, 250, 243, 0.96),
-      rgba(245, 233, 216, 0.9)
-    ),
-    linear-gradient(90deg, rgba(207, 35, 56, 0.1), transparent 52%);
+  background: linear-gradient(
+    135deg,
+    var(--domesa-paper),
+    rgba(246, 236, 221, 0.92)
+  );
 }
 
 .admin-hero-copy {
@@ -312,11 +309,7 @@ h3 {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 24px;
-  background: linear-gradient(
-    90deg,
-    rgba(13, 47, 87, 0.06),
-    rgba(207, 35, 56, 0.08)
-  );
+  border-left: 3px solid var(--domesa-orange);
 }
 
 .session-meta {
@@ -336,20 +329,24 @@ h3 {
 }
 
 .stat-card {
-  padding: 20px;
+  padding: 20px 22px;
 }
 
 .stat-card span {
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   color: var(--domesa-muted);
-  font-size: 0.9rem;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .stat-card strong {
   color: var(--domesa-navy);
   font-size: 2.25rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .cta-grid {
@@ -365,19 +362,13 @@ h3 {
 }
 
 .cta-card-users {
-  background: linear-gradient(
-    135deg,
-    rgba(13, 47, 87, 0.98),
-    rgba(26, 74, 123, 0.96)
-  );
+  border-color: rgba(13, 47, 87, 0.4);
+  background: linear-gradient(135deg, #0d2f57, #12406f);
 }
 
 .cta-card-agencies {
-  background: linear-gradient(
-    135deg,
-    rgba(207, 35, 56, 0.96),
-    rgba(226, 74, 93, 0.96)
-  );
+  border-color: rgba(159, 24, 40, 0.4);
+  background: linear-gradient(135deg, #b81f32, #cf2338);
 }
 
 .cta-card .eyebrow,
@@ -434,26 +425,12 @@ h3 {
   grid-template-columns: minmax(0, 1fr);
 }
 
-.form-card,
-.auth-card,
-.helper-card {
-  background: linear-gradient(
-    180deg,
-    rgba(255, 250, 243, 0.98),
-    rgba(251, 242, 231, 0.96)
-  );
-}
-
-.helper-card {
-  border: 1px solid rgba(13, 47, 87, 0.08);
-}
-
 .helper-note {
   display: grid;
   gap: 8px;
   margin-top: 18px;
-  border-radius: 0;
-  background: rgba(13, 47, 87, 0.06);
+  border-radius: var(--radius-control);
+  background: rgba(13, 47, 87, 0.05);
   padding: 16px;
 }
 

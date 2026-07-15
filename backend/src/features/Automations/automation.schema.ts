@@ -14,6 +14,7 @@ export const CreateAutomationSchema = z.object({
       message: "Dale un nombre a la automatización (mínimo 3 caracteres).",
     }),
     description: z.optional(z.string()),
+    folder: z.optional(z.string()),
     is_active: z.optional(z.boolean()),
     definition: DefinitionSchema,
   }),

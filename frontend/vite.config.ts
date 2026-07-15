@@ -49,6 +49,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/hooks": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

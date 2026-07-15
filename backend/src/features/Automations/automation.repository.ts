@@ -21,6 +21,7 @@ export class AutomationRepository {
       data: {
         name: body.name,
         description: body.description ?? "",
+        folder: body.folder ?? "",
         is_active: body.is_active ?? false,
         definition: body.definition as Prisma.InputJsonValue,
       },
@@ -36,6 +37,7 @@ export class AutomationRepository {
       data: {
         name: body.name,
         description: body.description ?? "",
+        folder: body.folder ?? "",
         is_active: body.is_active ?? false,
         definition: body.definition as Prisma.InputJsonValue,
       },

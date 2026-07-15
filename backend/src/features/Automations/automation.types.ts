@@ -6,6 +6,7 @@ export interface AutomationResponse {
   id: string;
   name: string;
   description: string;
+  folder: string;
   is_active: boolean;
   definition: unknown;
   created_at: Date;

@@ -23,3 +23,11 @@ router.put('/:id', validate(UpdateAutomationSchema), controller.updateAutomation
 router.delete('/:id', controller.deleteAutomation);
 
 export const AutomationRoutes = router;
+
+// Router PÚBLICO para webhooks entrantes: los sistemas externos disparan
+// una automatización sin token de administrador. Solo acepta POST al
+// identificador exacto del flujo, que actúa como secreto compartido.
+const hookRouter = Router();
+hookRouter.post('/automations/:id', controller.triggerAutomation);
+
+export const AutomationHookRoutes = hookRouter;

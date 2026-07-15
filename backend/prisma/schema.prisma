@@ -110,6 +110,8 @@ model automations {
   id String @id @default(uuid())
   name String
   description String @default("")
+  // Carpeta para organizar los flujos en el panel ("" = sin carpeta).
+  folder String @default("")
   is_active Boolean @default(false)
   definition Json
   created_at DateTime @default(now())

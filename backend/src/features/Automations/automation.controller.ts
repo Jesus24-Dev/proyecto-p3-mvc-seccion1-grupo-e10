@@ -48,6 +48,19 @@ export class AutomationController {
         }
     }
 
+    public triggerAutomation = async (req: Request<{id: string}>, res: Response) => {
+        try {
+            const {id} = req.params;
+            const result = await this.automationService.triggerAutomation(id, req.body);
+            return res.status(202).json(result);
+        } catch (error) {
+            if (error instanceof AutomationServiceError) {
+                return res.status(error.statusCode).json({"status": "error", "message": error.message})
+            }
+            return res.status(500).json({"status": "error", "message": "No se pudo disparar la automatización."})
+        }
+    }
+
     public deleteAutomation = async (req: Request<{id: string}, {}>, res: Response<ErrorResponse>) => {
         try {
             const {id} = req.params;

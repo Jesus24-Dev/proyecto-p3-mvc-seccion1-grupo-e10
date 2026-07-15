@@ -438,6 +438,17 @@ h3 {
   gap: 20px;
 }
 
+.auth-card {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.auth-card .card-heading,
+.auth-card .alert {
+  margin-bottom: 0;
+}
+
 .form-route-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);

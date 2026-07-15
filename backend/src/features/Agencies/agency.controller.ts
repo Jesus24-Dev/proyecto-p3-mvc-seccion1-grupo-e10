@@ -48,6 +48,16 @@ export class AgencyController {
         }
     }
     
+    public updateAgencyTheme = async (req: Request<{id: string}, {}>, res: Response<AgencyResponse | ErrorResponse>) => {
+        try {
+            const {id} = req.params;
+            const agency = await this.agencyService.updateAgencyTheme(id, req.body?.theme ?? null);
+            return res.status(200).json(agency);
+        } catch (error){
+            return res.status(400).json({"status": "error", "message": "No se pudo guardar el tema de la agencia."})
+        }
+    }
+
     public deleteAgency = async (req: Request<{id: string}, {}>, res: Response<ErrorResponse>) => {
         try {
             const {id} = req.params;

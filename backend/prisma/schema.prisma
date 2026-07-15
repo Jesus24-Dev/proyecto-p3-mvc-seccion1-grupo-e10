@@ -83,6 +83,8 @@ model agencies {
 
   user_id String
   user users @relation(fields: [user_id], references: [id])
+  // Configuración de apariencia de la subcuenta (acento, radio).
+  theme Json?
 
   origin_orders orders[] @relation("OriginAgency")
   destination_orders orders[] @relation("DestinationAgency")

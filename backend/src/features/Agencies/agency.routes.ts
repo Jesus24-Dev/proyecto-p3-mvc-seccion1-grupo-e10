@@ -17,6 +17,7 @@ router.get("/", controller.getAgencies);
 router.get("/:id", controller.getAgencyById);
 router.post("/", validate(CreateAgencySchema), controller.createAgency);
 router.put("/:id", controller.updateAgency);
+router.put("/:id/theme", controller.updateAgencyTheme);
 router.delete("/:id", controller.deleteAgency);
 
 export const AgencyRoutes = router;

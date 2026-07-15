@@ -28,12 +28,20 @@ export interface UpdateUserPayload {
   password?: string;
 }
 
+export interface AgencyTheme {
+  /** Nombre del preset de acento (ver lib/themes). */
+  accent: string;
+  /** Radio base en rem. */
+  radius: number;
+}
+
 export interface Agency {
   id: string;
   name: string;
   location: string;
   is_active: boolean;
   user_id: string;
+  theme: AgencyTheme | null;
 }
 
 export interface CreateAgencyPayload {
@@ -90,6 +98,7 @@ export interface UserInformation {
   last_name: string;
   address: string;
   birthday: string;
+  tags: string[];
 }
 
 export interface CreateUserInformationPayload {
@@ -157,6 +166,7 @@ export interface Automation {
   id: string;
   name: string;
   description: string;
+  folder: string;
   is_active: boolean;
   definition: AutomationDefinition;
   created_at: string;
@@ -166,6 +176,7 @@ export interface Automation {
 export interface SaveAutomationPayload {
   name: string;
   description?: string;
+  folder?: string;
   is_active?: boolean;
   definition: AutomationDefinition;
 }

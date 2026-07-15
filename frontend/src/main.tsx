@@ -4,16 +4,21 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { AgencyProvider } from "./context/AgencyContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { AgencyThemeBridge } from "./context/AgencyThemeBridge";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <AgencyProvider>
-          <App />
-        </AgencyProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AgencyProvider>
+            <AgencyThemeBridge />
+            <App />
+          </AgencyProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>,
 );

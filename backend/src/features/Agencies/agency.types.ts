@@ -20,4 +20,5 @@ export interface AgencyResponse {
     location: string;
     is_active: boolean;
     user_id: string;
+    theme: unknown;
 }

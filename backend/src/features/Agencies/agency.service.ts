@@ -40,4 +40,8 @@ export class AgencyService {
       }
     }
   }
+
+  async updateAgencyTheme(id: string, theme: unknown) {
+    return await this.agencyRepository.updateTheme(id, theme);
+  }
 }

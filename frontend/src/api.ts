@@ -3,6 +3,7 @@ import type {
   AgencyRole,
   ApiErrorResponse,
   AuthSession,
+  AgencyTheme,
   Automation,
   CreateAgencyPayload,
   CreateMembershipPayload,
@@ -212,6 +213,11 @@ export const agenciesApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  updateTheme: (id: string, theme: AgencyTheme | null) =>
+    request<Agency>(`/agencies/${id}/theme`, {
+      method: "PUT",
+      body: JSON.stringify({ theme }),
+    }),
   remove: (id: string) =>
     request<void>(`/agencies/${id}`, {
       method: "DELETE",
@@ -310,4 +316,13 @@ export const automationsApi = {
     request<void>(`/automations/${id}`, {
       method: "DELETE",
     }),
+  triggerWebhook: (id: string, payload?: unknown) =>
+    request<{ status?: string; steps?: Array<{ kind?: string }> }>(
+      `/hooks/automations/${id}`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload ?? {}),
+      },
+      false,
+    ),
 };

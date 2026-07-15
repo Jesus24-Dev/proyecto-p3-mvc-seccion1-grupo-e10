@@ -1,4 +1,5 @@
 import {
+  agency_role,
   package_status,
   roles,
   transfer_status,
@@ -90,6 +91,69 @@ export const orderSeedData = [
   },
 ] as const;
 
+export const extraOrderSeedData = [
+  {
+    userEmail: "user@drlogistics.local",
+    originAgencyName: "Caracas Central",
+    destinationAgencyName: "Maracaibo Norte",
+    date_arrived: new Date("2026-02-12T14:00:00.000Z"),
+    date_received: new Date("2026-02-10T09:00:00.000Z"),
+    description: "Ropa y calzado para Maracaibo",
+    amount: 85,
+    status: transfer_status.COMPLETED,
+  },
+  {
+    userEmail: "distributor@drlogistics.local",
+    originAgencyName: "Valencia Centro",
+    destinationAgencyName: "Caracas Central",
+    date_arrived: new Date("2026-03-05T14:00:00.000Z"),
+    date_received: new Date("2026-03-03T10:30:00.000Z"),
+    description: "Repuestos electrónicos a Caracas",
+    amount: 210.75,
+    status: transfer_status.COMPLETED,
+  },
+  {
+    userEmail: "user@drlogistics.local",
+    originAgencyName: "Maracaibo Norte",
+    destinationAgencyName: "Valencia Centro",
+    date_arrived: new Date("2026-03-28T14:00:00.000Z"),
+    date_received: new Date("2026-03-26T11:00:00.000Z"),
+    description: "Medicinas refrigeradas",
+    amount: 145.2,
+    status: transfer_status.COMPLETED,
+  },
+  {
+    userEmail: "admin@drlogistics.local",
+    originAgencyName: "Caracas Central",
+    destinationAgencyName: "Valencia Centro",
+    date_arrived: new Date("2026-05-14T14:00:00.000Z"),
+    date_received: new Date("2026-05-12T08:45:00.000Z"),
+    description: "Material de oficina corporativo",
+    amount: 96.4,
+    status: transfer_status.COMPLETED,
+  },
+  {
+    userEmail: "distributor@drlogistics.local",
+    originAgencyName: "Valencia Centro",
+    destinationAgencyName: "Maracaibo Norte",
+    date_arrived: new Date("2026-06-09T14:00:00.000Z"),
+    date_received: new Date("2026-06-07T13:20:00.000Z"),
+    description: "Herramientas industriales",
+    amount: 430,
+    status: transfer_status.READY_FOR_PICKUP,
+  },
+  {
+    userEmail: "user@drlogistics.local",
+    originAgencyName: "Caracas Central",
+    destinationAgencyName: "Maracaibo Norte",
+    date_arrived: new Date("2026-07-08T14:00:00.000Z"),
+    date_received: new Date("2026-07-06T15:10:00.000Z"),
+    description: "Juguetes y artículos del hogar",
+    amount: 120.9,
+    status: transfer_status.PENDING_PAYMENT,
+  },
+] as const;
+
 export const packageSeedData = [
   {
     tracking_code: "DRL-2026-SEED0001",
@@ -114,5 +178,89 @@ export const packageSeedData = [
     status: package_status.RECEIVED,
     contactUserEmail: "distributor@drlogistics.local",
     orderDescription: null,
+  },
+  {
+    tracking_code: "DRL-2026-SEED0004",
+    description: "Bulto de ropa y calzado",
+    weight_kg: 12.5,
+    status: package_status.DELIVERED,
+    contactUserEmail: "user@drlogistics.local",
+    orderDescription: "Ropa y calzado para Maracaibo",
+    created_at: new Date("2026-02-10T10:00:00.000Z"),
+  },
+  {
+    tracking_code: "DRL-2026-SEED0005",
+    description: "Caja de repuestos electrónicos",
+    weight_kg: 6.2,
+    status: package_status.DELIVERED,
+    contactUserEmail: "distributor@drlogistics.local",
+    orderDescription: "Repuestos electrónicos a Caracas",
+    created_at: new Date("2026-03-03T11:00:00.000Z"),
+  },
+  {
+    tracking_code: "DRL-2026-SEED0006",
+    description: "Cava con medicinas refrigeradas",
+    weight_kg: 4.8,
+    status: package_status.DELIVERED,
+    contactUserEmail: "user@drlogistics.local",
+    orderDescription: "Medicinas refrigeradas",
+    created_at: new Date("2026-03-26T12:00:00.000Z"),
+  },
+  {
+    tracking_code: "DRL-2026-SEED0007",
+    description: "Resmas y material de oficina",
+    weight_kg: 9.9,
+    status: package_status.DELIVERED,
+    contactUserEmail: "admin@drlogistics.local",
+    orderDescription: "Material de oficina corporativo",
+    created_at: new Date("2026-05-12T09:30:00.000Z"),
+  },
+  {
+    tracking_code: "DRL-2026-SEED0008",
+    description: "Taladros y herramientas",
+    weight_kg: 15.3,
+    status: package_status.IN_WAREHOUSE,
+    contactUserEmail: "distributor@drlogistics.local",
+    orderDescription: "Herramientas industriales",
+    created_at: new Date("2026-06-07T14:00:00.000Z"),
+  },
+  {
+    tracking_code: "DRL-2026-SEED0009",
+    description: "Caja de juguetes surtidos",
+    weight_kg: 7.7,
+    status: package_status.OUT_FOR_DELIVERY,
+    contactUserEmail: "user@drlogistics.local",
+    orderDescription: "Juguetes y artículos del hogar",
+    created_at: new Date("2026-07-06T16:00:00.000Z"),
+  },
+] as const;
+
+export const membershipSeedData = [
+  { agencyName: "Caracas Central", userEmail: "admin@drlogistics.local", role: agency_role.OWNER },
+  { agencyName: "Caracas Central", userEmail: "distributor@drlogistics.local", role: agency_role.MANAGER },
+  { agencyName: "Valencia Centro", userEmail: "distributor@drlogistics.local", role: agency_role.OWNER },
+  { agencyName: "Valencia Centro", userEmail: "user@drlogistics.local", role: agency_role.VIEWER },
+  { agencyName: "Maracaibo Norte", userEmail: "user@drlogistics.local", role: agency_role.OWNER },
+] as const;
+
+export const automationSeedData = [
+  {
+    name: "Bienvenida a nuevos contactos",
+    description:
+      "Cuando se registra un contacto, espera un día, le da la bienvenida por WhatsApp y lo etiqueta.",
+    is_active: true,
+    definition: {
+      nodes: [
+        { id: "n1", type: "step", position: { x: 40, y: 160 }, data: { kind: "trigger", trigger: "contact_created" } },
+        { id: "n2", type: "step", position: { x: 320, y: 160 }, data: { kind: "wait", amount: 1, unit: "days" } },
+        { id: "n3", type: "step", position: { x: 600, y: 160 }, data: { kind: "send_whatsapp", message: "¡Hola! Bienvenido a Dr Logistics. Guarda este chat para rastrear tus paquetes." } },
+        { id: "n4", type: "step", position: { x: 880, y: 160 }, data: { kind: "add_tag", tag: "bienvenida" } },
+      ],
+      edges: [
+        { id: "e1", source: "n1", target: "n2" },
+        { id: "e2", source: "n2", target: "n3" },
+        { id: "e3", source: "n3", target: "n4" },
+      ],
+    },
   },
 ] as const;

@@ -31,6 +31,7 @@ export async function seedPackages() {
         status: seedPackage.status,
         contact_id: contact.id,
         order_id: order?.id ?? null,
+        ...("created_at" in seedPackage ? { created_at: seedPackage.created_at } : {}),
       },
       create: {
         tracking_code: seedPackage.tracking_code,
@@ -39,6 +40,7 @@ export async function seedPackages() {
         status: seedPackage.status,
         contact_id: contact.id,
         order_id: order?.id ?? null,
+        ...("created_at" in seedPackage ? { created_at: seedPackage.created_at } : {}),
       },
       select: {
         id: true,

@@ -1,13 +1,17 @@
 import { prisma } from "../../database/prisma";
-import { orderSeedData } from "../../database/seeders/fixtures.js";
+import {
+  extraOrderSeedData,
+  orderSeedData,
+} from "../../database/seeders/fixtures.js";
 
 export async function seedOrders() {
+  const allOrderSeedData = [...orderSeedData, ...extraOrderSeedData];
   const userEmails = [
-    ...new Set(orderSeedData.map((order) => order.userEmail)),
+    ...new Set(allOrderSeedData.map((order) => order.userEmail)),
   ];
   const agencyNames = [
     ...new Set(
-      orderSeedData.flatMap((order) => [
+      allOrderSeedData.flatMap((order) => [
         order.originAgencyName,
         order.destinationAgencyName,
       ]),
@@ -45,7 +49,7 @@ export async function seedOrders() {
   );
   const seededOrders = [];
 
-  for (const order of orderSeedData) {
+  for (const order of allOrderSeedData) {
     const userId = userByEmail.get(order.userEmail);
     const originAgencyId = agencyByName.get(order.originAgencyName);
     const destinationAgencyId = agencyByName.get(order.destinationAgencyName);

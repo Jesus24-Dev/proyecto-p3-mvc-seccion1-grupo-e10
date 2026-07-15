@@ -110,8 +110,9 @@ Admin123*
 - **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento) con etiquetas de segmentación.
 - **Subcuentas de agencia**: selector de agencia activa en la barra superior (estilo GHL) que acota los datos del panel; cada agencia gestiona sus miembros con roles internos (Propietario, Gerente, Operador, Lector) y permisos descritos.
 - **Conversaciones**: bandeja estilo WhatsApp sobre los contactos reales, con estados de entrega (enviado/entregado/leído) y sincronización simulada de alta fidelidad.
-- **Automatizaciones**: editor visual de flujos (React Flow) organizados en carpetas, con disparadores (incluido "webhook recibido"), pasos de esperar, enviar WhatsApp, enviar email, agregar etiqueta y enviar webhook, y disparo manual de prueba. Los flujos se guardan en la base de datos y pueden dispararse por webhook (`POST /hooks/automations/:id`); el motor de ejecución queda fuera del alcance de esta entrega.
+- **Automatizaciones**: editor visual de flujos (React Flow) organizados en carpetas, con lienzo vertical y catálogo de acciones buscable; disparadores (incluido "webhook recibido"), pasos de esperar, enviar WhatsApp, enviar email, agregar etiqueta, enviar webhook y lógica de ramificación (condición Sí/No y switch), organizados en carpetas, con resaltado de variables y disparo manual de prueba. Los flujos se guardan en la base de datos y pueden dispararse por webhook (`POST /hooks/automations/:id`); el motor de ejecución queda fuera del alcance de esta entrega.
 - **Apariencia**: modo claro/oscuro global y un configurador de tema por subcuenta (color de acento y forma) que se aplica al activar la agencia.
+- **Interacción**: barra lateral colapsable y tablas ordenables por columna en todos los módulos.
 
 ## API
 

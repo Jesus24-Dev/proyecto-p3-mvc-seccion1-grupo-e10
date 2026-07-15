@@ -22,6 +22,14 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/orders": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/info": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

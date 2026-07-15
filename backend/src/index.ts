@@ -8,6 +8,8 @@ import { UserInformationRoutes } from "./features/UsersInformation";
 import { AgencyRoutes } from "./features/Agencies";
 import { OrderRoutes } from "./features/Orders";
 import { PackageRoutes } from "./features/Packages";
+import { MembershipRoutes } from "./features/Memberships";
+import { AutomationRoutes } from "./features/Automations";
 
 dotenv.config();
 
@@ -26,6 +28,8 @@ app.use("/info", UserInformationRoutes);
 app.use("/agencies", AgencyRoutes);
 app.use("/orders", OrderRoutes);
 app.use("/packages", PackageRoutes);
+app.use("/memberships", MembershipRoutes);
+app.use("/automations", AutomationRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

@@ -5,21 +5,21 @@ import type { UsersInformationEntity } from "./userInformation.types.js";
 export class UserInformationRepository{
     async findAll(): Promise<UsersInformationEntity[]>{
         return await prisma.users_information.findMany({
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
         });
     }
 
     async findById(id: string): Promise<UsersInformationEntity | null>{
         return await prisma.users_information.findUnique({
             where: {id: id},
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
         });
     }
     
     async findByUserId(userId: string): Promise<UsersInformationEntity | null>{
         return await prisma.users_information.findUnique({
             where: {user_id: userId},
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
         });
     }
     

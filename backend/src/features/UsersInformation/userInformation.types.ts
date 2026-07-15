@@ -22,4 +22,5 @@ export interface UserInformationResponse {
     last_name: string;
     address: string;
     birthday: Date;
+    tags: string[];
 }

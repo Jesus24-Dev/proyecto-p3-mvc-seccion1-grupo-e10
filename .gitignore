@@ -4,3 +4,6 @@ node_modules/
 /dist
 *.tsbuildinfo
 generated
+
+# Estado local de herramientas de diseño
+.impeccable/

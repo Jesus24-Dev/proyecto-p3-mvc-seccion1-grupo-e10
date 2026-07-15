@@ -561,9 +561,9 @@ select:focus {
 
 .alert,
 .empty-state {
-  border-radius: 0;
+  border-radius: var(--radius-control);
   padding: 14px 16px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .alert {
@@ -573,21 +573,24 @@ select:focus {
 
 .success {
   border: 1px solid rgba(24, 121, 78, 0.2);
-  background: rgba(24, 121, 78, 0.08);
+  border-left: 3px solid var(--domesa-success);
+  background: rgba(24, 121, 78, 0.07);
   color: var(--domesa-success);
 }
 
 .error {
-  border: 1px solid rgba(191, 62, 62, 0.18);
-  background: rgba(191, 62, 62, 0.08);
+  border: 1px solid rgba(178, 52, 52, 0.2);
+  border-left: 3px solid var(--domesa-danger);
+  background: rgba(178, 52, 52, 0.07);
   color: var(--domesa-danger);
 }
 
 .empty-state {
-  border: 1px dashed rgba(13, 47, 87, 0.18);
-  background: rgba(13, 47, 87, 0.04);
+  border: 1px dashed rgba(13, 47, 87, 0.2);
+  background: rgba(13, 47, 87, 0.03);
   color: var(--domesa-muted);
   text-align: center;
+  font-weight: 500;
 }
 
 .table-wrapper {
@@ -601,23 +604,31 @@ select:focus {
 
 .data-table th,
 .data-table td {
-  padding: 14px 12px;
-  border-bottom: 1px solid rgba(13, 47, 87, 0.08);
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--domesa-line-soft);
   text-align: left;
   vertical-align: middle;
 }
 
 .data-table th {
   color: var(--domesa-muted);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
 .data-table td {
   color: var(--domesa-ink);
-  font-weight: 700;
+}
+
+.data-table td strong {
+  color: var(--domesa-navy);
+  font-weight: 600;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(13, 47, 87, 0.025);
 }
 
 .muted-cell,

@@ -13,7 +13,7 @@ Aplicación dividida en dos partes:
 
 El equipo optó por la alternativa de **proyecto mínimo/funcional aplicando MVC**: en lugar de refactorizar un sistema existente, se desarrolló desde cero un sistema operativo completo. El mapa mental del sistema contempla cuatro actores (Clientes, Mercado Libre, Banco Mercantil y Personal Administrativo); esta entrega implementa la rebanada del **Personal Administrativo**: autenticación, gestión de usuarios, agencias, órdenes de envío e información de contacto.
 
-Los módulos desarrollados bajo MVC/capas son: **Auth**, **Users**, **UsersInformation**, **Agencies**, **Orders** y **Packages**.
+Los módulos desarrollados bajo MVC/capas son: **Auth**, **Users**, **UsersInformation**, **Agencies**, **Orders**, **Packages**, **Memberships** y **Automations**.
 
 ## Arquitectura MVC aplicada
 
@@ -107,7 +107,10 @@ Admin123*
 - **Agencias**: CRUD de sucursales con responsable, ubicación y estado.
 - **Envíos**: CRUD de órdenes con ruta origen→destino, cliente, monto y los nueve estados del ciclo de vida de una transferencia.
 - **Paquetes**: registro de paquetes físicos con código de rastreo único generado por el servidor (DRL-AÑO-XXXXXXXX), destinatario (contacto), peso, estado físico (recibido → en tránsito → en almacén → en reparto → entregado / devuelto) y envío asignado.
-- **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento).
+- **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento) con etiquetas de segmentación.
+- **Subcuentas de agencia**: selector de agencia activa en la barra superior (estilo GHL) que acota los datos del panel; cada agencia gestiona sus miembros con roles internos (Propietario, Gerente, Operador, Lector) y permisos descritos.
+- **Conversaciones**: bandeja estilo WhatsApp sobre los contactos reales, con estados de entrega (enviado/entregado/leído) y sincronización simulada de alta fidelidad.
+- **Automatizaciones**: editor visual de flujos (React Flow) con disparadores y pasos de esperar, enviar WhatsApp, enviar email y agregar etiqueta; los flujos se guardan en la base de datos (el motor de ejecución queda fuera del alcance de esta entrega).
 
 ## API
 
@@ -122,6 +125,8 @@ Endpoints principales (todos los módulos de datos requieren un Bearer token con
 | GET/POST/PUT/DELETE | `/orders` | CRUD de órdenes (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/packages` | CRUD de paquetes con tracking generado (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/info` | CRUD de información de contacto (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/memberships` | Miembros por agencia con rol interno (solo ADMIN) |
+| GET/POST/PUT/DELETE | `/automations` | Flujos del editor de automatizaciones (solo ADMIN) |
 
 Notas de seguridad:
 

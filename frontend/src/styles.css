@@ -1,6 +1,6 @@
 :root {
-  --domesa-orange: #cf2338;
-  --domesa-orange-dark: #9f1828;
+  --domesa-red: #cf2338;
+  --domesa-red-dark: #9f1828;
   --domesa-navy: #0d2f57;
   --domesa-blue: #1d4e89;
   --domesa-cream: #f4eee2;
@@ -68,7 +68,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--domesa-orange);
+  outline: 2px solid var(--domesa-red);
   outline-offset: 2px;
 }
 
@@ -161,7 +161,7 @@ select:focus-visible {
   flex: none;
   width: 18px;
   height: 2px;
-  background: var(--domesa-orange);
+  background: var(--domesa-red);
 }
 
 .brand-stamp {
@@ -314,8 +314,8 @@ h3 {
 }
 
 .route-link-active {
-  border-color: var(--domesa-orange-dark);
-  background: var(--domesa-orange);
+  border-color: var(--domesa-red-dark);
+  background: var(--domesa-red);
   color: #fff8ef;
   font-weight: 700;
 }
@@ -333,7 +333,7 @@ h3 {
   justify-content: space-between;
   gap: 16px;
   padding: 18px 24px;
-  border-left: 3px solid var(--domesa-orange);
+  border-left: 3px solid var(--domesa-red);
 }
 
 .session-meta {
@@ -504,7 +504,7 @@ input::placeholder {
 
 input:focus,
 select:focus {
-  border-color: var(--domesa-orange);
+  border-color: var(--domesa-red);
   box-shadow: var(--focus-ring);
 }
 
@@ -532,13 +532,13 @@ select:focus {
 }
 
 .primary-button {
-  background: var(--domesa-orange);
+  background: var(--domesa-red);
   color: #fff7ef;
   box-shadow: 0 6px 16px rgba(207, 35, 56, 0.22);
 }
 
 .primary-button:hover:not(:disabled) {
-  background: var(--domesa-orange-dark);
+  background: var(--domesa-red-dark);
 }
 
 .primary-button-inline {
@@ -685,7 +685,7 @@ select:focus {
 
 .role-admin {
   background: rgba(207, 35, 56, 0.12);
-  color: var(--domesa-orange-dark);
+  color: var(--domesa-red-dark);
 }
 
 .role-distributor,

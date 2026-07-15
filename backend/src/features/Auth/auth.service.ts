@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt, { type SignOptions } from "jsonwebtoken";
-import { Prisma } from "../../generated/prisma/client.js";
+import { Prisma, roles } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
 import type { AuthRepository } from "./auth.repository.js";
@@ -34,7 +34,7 @@ export class AuthService {
 		const secret = process.env.JWT_SECRET?.trim();
 
 		if (!secret) {
-			throw new AuthServiceError("JWT_SECRET is not configured", 500);
+			throw new AuthServiceError("El servidor no está configurado correctamente.", 500);
 		}
 
 		return this.buildAuthResponse({
@@ -46,7 +46,9 @@ export class AuthService {
 
 	async register(body: RegisterBody): Promise<LoginResponse> {
 		try {
-			const user = await this.authRepository.createUser(body.email, await bcrypt.hash(body.password, 10), body.role);
+			// El registro público siempre crea cuentas USER; los roles con
+			// privilegios se asignan desde el panel por un ADMIN autenticado.
+			const user = await this.authRepository.createUser(body.email, await bcrypt.hash(body.password, 10), roles.USER);
 
 			return this.buildAuthResponse(user);
 		} catch (error) {
@@ -65,7 +67,7 @@ export class AuthService {
 		const secret = process.env.JWT_SECRET?.trim();
 
 		if (!secret) {
-			throw new AuthServiceError("JWT_SECRET is not configured", 500);
+			throw new AuthServiceError("El servidor no está configurado correctamente.", 500);
 		}
 
 		const expiresIn = (process.env.JWT_EXPIRES_IN ?? "1d") as NonNullable<

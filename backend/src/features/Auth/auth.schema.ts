@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { roles } from "../../generated/prisma/browser";
 
 export const LoginSchema = z.object({
   body: z.object({
@@ -8,15 +7,14 @@ export const LoginSchema = z.object({
   }),
 });
 
+// El registro público NO acepta rol: siempre crea cuentas USER.
+// Las cuentas con privilegios se crean desde el panel (POST /users, solo ADMIN).
 export const RegisterSchema = z.object({
   body: z.object({
     email: z.email("Formato de email inválido."),
     password: z.string().regex(/^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/, {
       message:
         "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
-    }),
-    role: z.enum(roles, {
-      error: () => ({ message: "El rol seleccionado no es válido." }),
     }),
   }),
 });

@@ -110,7 +110,8 @@ Admin123*
 - **Contactos**: ficha personal 1:1 por usuario (nombre, dirección, nacimiento) con etiquetas de segmentación.
 - **Subcuentas de agencia**: selector de agencia activa en la barra superior (estilo GHL) que acota los datos del panel; cada agencia gestiona sus miembros con roles internos (Propietario, Gerente, Operador, Lector) y permisos descritos.
 - **Conversaciones**: bandeja estilo WhatsApp sobre los contactos reales, con estados de entrega (enviado/entregado/leído) y sincronización simulada de alta fidelidad.
-- **Automatizaciones**: editor visual de flujos (React Flow) con disparadores y pasos de esperar, enviar WhatsApp, enviar email y agregar etiqueta; los flujos se guardan en la base de datos (el motor de ejecución queda fuera del alcance de esta entrega).
+- **Automatizaciones**: editor visual de flujos (React Flow) organizados en carpetas, con disparadores (incluido "webhook recibido"), pasos de esperar, enviar WhatsApp, enviar email, agregar etiqueta y enviar webhook, y disparo manual de prueba. Los flujos se guardan en la base de datos y pueden dispararse por webhook (`POST /hooks/automations/:id`); el motor de ejecución queda fuera del alcance de esta entrega.
+- **Apariencia**: modo claro/oscuro global y un configurador de tema por subcuenta (color de acento y forma) que se aplica al activar la agencia.
 
 ## API
 
@@ -127,6 +128,8 @@ Endpoints principales (todos los módulos de datos requieren un Bearer token con
 | GET/POST/PUT/DELETE | `/info` | CRUD de información de contacto (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/memberships` | Miembros por agencia con rol interno (solo ADMIN) |
 | GET/POST/PUT/DELETE | `/automations` | Flujos del editor de automatizaciones (solo ADMIN) |
+| PUT | `/agencies/:id/theme` | Apariencia (acento/forma) de la subcuenta (solo ADMIN) |
+| POST | `/hooks/automations/:id` | Disparo público de una automatización por webhook |
 
 Notas de seguridad:
 

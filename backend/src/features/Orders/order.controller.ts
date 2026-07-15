@@ -19,7 +19,7 @@ export class OrderController {
         if(order){
             return res.status(200).json(order);
         } else {
-            return res.status(404).json({"status": "error", "message": "order not founded"})
+            return res.status(404).json({"status": "error", "message": "La orden solicitada no existe."})
         }       
     }
 
@@ -37,7 +37,7 @@ export class OrderController {
             });
             return res.status(201).json(order);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "An error occurred"})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo crear la orden. Revisa los datos enviados."})
         }
     }
 
@@ -47,7 +47,7 @@ export class OrderController {
             const order = await this.orderService.updateOrder(id, req.body);
             return res.status(200).json(order);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": "No se pudo actualizar la orden. Revisa los datos enviados."})
         }
     }
     
@@ -57,7 +57,7 @@ export class OrderController {
             await this.orderService.deleteOrder(id);
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "order not founded"})
+            return res.status(404).json({"status": "error", "message": "La orden solicitada no existe."})
         }
     }
 }

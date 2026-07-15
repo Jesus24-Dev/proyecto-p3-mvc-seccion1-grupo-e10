@@ -38,7 +38,7 @@ export function requireAdmin(
   if (!secret) {
     return response.status(500).json({
       status: "error",
-      message: "JWT_SECRET is not configured",
+      message: "El servidor no está configurado correctamente.",
     });
   }
 

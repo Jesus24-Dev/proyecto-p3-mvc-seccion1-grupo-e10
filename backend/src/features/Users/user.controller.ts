@@ -37,7 +37,7 @@ export class UserController {
             const user = await this.userService.updateUser(id, req.body);
             return res.status(200).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "No se pudo actualizar: el email ya está registrado por otro usuario."})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo actualizar el usuario. Revisa los datos enviados."})
         }
     }
     

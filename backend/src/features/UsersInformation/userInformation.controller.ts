@@ -19,8 +19,8 @@ export class UserInformationController {
         if(userInformation){
             return res.status(200).json(userInformation);
         } else {
-            return res.status(404).json({"status": "error", "message": "User not founded"})
-        }       
+            return res.status(404).json({"status": "error", "message": "La información solicitada no existe."})
+        }
     }
 
     public getUserInformationByUserId = async(req: Request<{user_id: string}>, res: Response<UserInformationResponse | ErrorResponse>) => {
@@ -30,8 +30,8 @@ export class UserInformationController {
         if(userInformation){
             return res.status(200).json(userInformation);
         } else {
-            return res.status(404).json({"status": "error", "message": "User not founded"})
-        }       
+            return res.status(404).json({"status": "error", "message": "El usuario indicado no tiene información de contacto registrada."})
+        }
     }
 
     public createUserInformation = async (req: Request<{}, {}, CreateUserInformationBody>, res: Response<UserInformationResponse | ErrorResponse>) => {
@@ -39,7 +39,7 @@ export class UserInformationController {
             const userInformation = await this.userInformationService.createUserInformation(req.body);
             return res.status(201).json(userInformation);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "An error occurred"})
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo guardar la información de contacto. Revisa los datos enviados."})
         }
     }
 
@@ -49,7 +49,7 @@ export class UserInformationController {
             const user = await this.userInformationService.updateUserInformation(id, req.body);
             return res.status(200).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": "No se pudo actualizar la información de contacto. Revisa los datos enviados."})
         }
     }
 
@@ -59,7 +59,7 @@ export class UserInformationController {
             const user = await this.userInformationService.updateUserInformationUsingUserId(user_id, req.body);
             return res.status(200).json(user);
         } catch (error){
-            return res.status(400).json({"status": "error", "message": "Email already registered"})
+            return res.status(400).json({"status": "error", "message": "No se pudo actualizar la información de contacto. Revisa los datos enviados."})
         }
     }
     
@@ -69,7 +69,7 @@ export class UserInformationController {
             await this.userInformationService.deleteUserInformation(id);
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "User not founded"})
+            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el registro no existe o ya fue eliminado."})
         }
     }
 
@@ -79,7 +79,7 @@ export class UserInformationController {
             await this.userInformationService.deleteUserInformationUsingUserId(user_id);
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "User not founded"})
+            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el registro no existe o ya fue eliminado."})
         }
     }
 }

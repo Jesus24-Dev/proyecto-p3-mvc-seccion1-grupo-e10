@@ -6,6 +6,7 @@ import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { AgenciesPage } from "@/pages/AgenciesPage";
 import { OrdersPage } from "@/pages/OrdersPage";
+import { ContactsPage } from "@/pages/ContactsPage";
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -33,10 +34,7 @@ function App() {
         <Route path="usuarios" element={<UsersPage />} />
         <Route path="agencias" element={<AgenciesPage />} />
         <Route path="envios" element={<OrdersPage />} />
-        <Route
-          path="contactos"
-          element={<PlaceholderPage title="Contactos" />}
-        />
+        <Route path="contactos" element={<ContactsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -36,6 +36,7 @@ import {
   formatAmount,
   formatDate,
   orderStatusLabel,
+  packageStatusLabel,
 } from "@/lib/format";
 import type { LucideIcon } from "lucide-react";
 
@@ -199,16 +200,165 @@ function ChartEmptyMessage({ children }: { children: string }) {
   );
 }
 
+type DonutSlice = { label: string; value: number; color: string };
+
+/** Dona SVG para repartos parte-de-todo (paquetes por estado). */
+function DonutChart({ slices }: { slices: DonutSlice[] }) {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+  const size = 168;
+  const stroke = 26;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  return (
+    <div className="flex flex-wrap items-center gap-6">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        role="img"
+        aria-label={`Paquetes por estado, ${total} en total`}
+      >
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          {slices.map((slice) => {
+            const length = (slice.value / total) * circumference;
+            const segment = (
+              <circle
+                key={slice.label}
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke={slice.color}
+                strokeWidth={stroke}
+                strokeDasharray={`${length} ${circumference - length}`}
+                strokeDashoffset={-offset}
+              >
+                <title>
+                  {slice.label}: {slice.value}
+                </title>
+              </circle>
+            );
+            offset += length;
+            return segment;
+          })}
+        </g>
+        <text
+          x="50%"
+          y="47%"
+          textAnchor="middle"
+          className="fill-foreground text-2xl font-medium tabular-nums"
+        >
+          {total}
+        </text>
+        <text
+          x="50%"
+          y="60%"
+          textAnchor="middle"
+          className="fill-muted-foreground text-[0.7rem]"
+        >
+          paquetes
+        </text>
+      </svg>
+      <ul className="grid gap-1.5">
+        {slices.map((slice) => (
+          <li
+            key={slice.label}
+            className="flex items-center gap-2 text-sm"
+          >
+            <span
+              aria-hidden="true"
+              className="size-2.5 rounded-full"
+              style={{ backgroundColor: slice.color }}
+            />
+            <span className="flex-1">{slice.label}</span>
+            <span className="font-medium tabular-nums">{slice.value}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Línea de tendencia SVG (ingresos mes a mes) con área bajo la curva. */
+function TrendLineChart({
+  labels,
+  values,
+  formatTitleValue,
+}: {
+  labels: string[];
+  values: number[];
+  formatTitleValue: (value: number) => string;
+}) {
+  const width = 460;
+  const height = 200;
+  const padX = 32;
+  const padY = 24;
+  const max = Math.max(...values, 1);
+  const stepX =
+    values.length > 1 ? (width - padX * 2) / (values.length - 1) : 0;
+
+  const points = values.map((value, index) => ({
+    x: padX + index * stepX,
+    y: height - padY - (value / max) * (height - padY * 2),
+  }));
+  const line = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+  const area = `${line} L ${points[points.length - 1].x} ${height - padY} L ${points[0].x} ${height - padY} Z`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full"
+      role="img"
+      aria-label="Tendencia de ingresos por mes"
+    >
+      <line
+        x1={padX}
+        y1={height - padY}
+        x2={width - padX}
+        y2={height - padY}
+        className="stroke-border"
+        strokeWidth={1}
+      />
+      <path d={area} fill={CHART_NAVY} opacity={0.12} />
+      <path
+        d={line}
+        fill="none"
+        stroke={CHART_NAVY}
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {points.map((point, index) => (
+        <circle key={index} cx={point.x} cy={point.y} r={4} fill={CHART_NAVY}>
+          <title>
+            {labels[index]}: {formatTitleValue(values[index])}
+          </title>
+        </circle>
+      ))}
+      {points.map((point, index) => (
+        <text
+          key={`l-${index}`}
+          x={point.x}
+          y={height - padY + 16}
+          textAnchor="middle"
+          className="fill-muted-foreground text-[0.7rem]"
+        >
+          {labels[index]}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
 // Los meses se derivan en UTC porque las fechas se guardan como medianoche UTC
 // (ver src/lib/format.ts): la zona local correría los cortes de mes.
 const monthLabelFormatter = new Intl.DateTimeFormat("es-VE", {
   month: "short",
   timeZone: "UTC",
-});
-
-const compactNumberFormatter = new Intl.NumberFormat("es-VE", {
-  notation: "compact",
-  maximumFractionDigits: 1,
 });
 
 const integerFormatter = new Intl.NumberFormat("es-VE", {
@@ -312,6 +462,27 @@ export function DashboardPage() {
       }),
     );
   }, [scopedOrders]);
+
+  // Reparto de paquetes por estado físico, para la dona.
+  const packageDonut = useMemo(() => {
+    const tones: Record<string, string> = {
+      RECEIVED: "oklch(0.7 0.03 260)",
+      IN_TRANSIT: "oklch(0.62 0.09 255)",
+      IN_WAREHOUSE: "oklch(0.5 0.1 255)",
+      OUT_FOR_DELIVERY: "oklch(0.68 0.14 65)",
+      DELIVERED: "oklch(0.6 0.13 158)",
+      RETURNED: "oklch(0.55 0.16 25)",
+    };
+    const counts = new Map<string, number>();
+    for (const item of scopedPackages) {
+      counts.set(item.status, (counts.get(item.status) ?? 0) + 1);
+    }
+    return [...counts.entries()].map(([status, value]) => ({
+      label: packageStatusLabel(status as (typeof scopedPackages)[number]["status"]),
+      value,
+      color: tones[status] ?? CHART_NAVY,
+    }));
+  }, [scopedPackages]);
 
   // Últimos 6 meses (incluido el actual), en UTC.
   const monthBuckets = useMemo(() => {
@@ -470,22 +641,32 @@ export function DashboardPage() {
           </CardHeader>
           <CardContent>
             {hasRevenue ? (
-              <MonthlyBarChart
+              <TrendLineChart
                 labels={monthBuckets.map((bucket) => bucket.label)}
-                series={[
-                  {
-                    name: "Ingresos",
-                    color: CHART_NAVY,
-                    values: monthlyRevenue,
-                  },
-                ]}
-                ariaLabel="Ingresos por mes de los últimos 6 meses, en dólares"
-                formatValue={(value) => compactNumberFormatter.format(value)}
+                values={monthlyRevenue}
                 formatTitleValue={formatAmount}
               />
             ) : (
               <ChartEmptyMessage>
                 Sin ingresos registrados en los últimos 6 meses.
+              </ChartEmptyMessage>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Paquetes por estado</CardTitle>
+            <CardDescription>
+              Reparto del ciclo físico de los paquetes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {packageDonut.length > 0 ? (
+              <DonutChart slices={packageDonut} />
+            ) : (
+              <ChartEmptyMessage>
+                Aún no hay paquetes registrados.
               </ChartEmptyMessage>
             )}
           </CardContent>

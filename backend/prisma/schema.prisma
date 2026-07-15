@@ -18,6 +18,15 @@ enum roles {
   DISTRIBUTOR
 }
 
+// Rol de un usuario DENTRO de una agencia (subcuenta), estilo GHL:
+// define qué puede hacer en esa agencia, independiente de su rol global.
+enum agency_role {
+  OWNER    // Propietario: control total de la subcuenta.
+  MANAGER  // Gerente: gestiona miembros, envíos y paquetes.
+  OPERATOR // Operador: registra y actualiza envíos y paquetes.
+  VIEWER   // Lector: solo lectura.
+}
+
 enum package_status {
   RECEIVED         // Recibido en la agencia de origen.
   IN_TRANSIT       // Viajando entre agencias.
@@ -43,11 +52,12 @@ model users {
   id String @id @default(uuid())
   email String @unique
   password String
-  role roles 
-  
+  role roles
+
   user_information users_information?
   orders_by_user orders[]
   agencies_by_user agencies[]
+  memberships agency_members[]
 }
 
 model users_information {
@@ -56,6 +66,8 @@ model users_information {
   last_name String
   address String
   birthday DateTime @db.Date
+  // Etiquetas de segmentación (usadas por las automatizaciones).
+  tags String[] @default([])
 
   user_id String @unique
   user users @relation(fields: [user_id], references: [id])
@@ -74,6 +86,34 @@ model agencies {
 
   origin_orders orders[] @relation("OriginAgency")
   destination_orders orders[] @relation("DestinationAgency")
+  members agency_members[]
+}
+
+// Membresía de un usuario en una agencia (subcuenta) con su rol interno.
+model agency_members {
+  id String @id @default(uuid())
+  role agency_role @default(OPERATOR)
+  created_at DateTime @default(now())
+
+  agency_id String
+  agency agencies @relation(fields: [agency_id], references: [id], onDelete: Cascade)
+
+  user_id String
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([agency_id, user_id])
+}
+
+// Flujos de automatización creados en el editor visual; la definición
+// guarda los nodos y conexiones del lienzo (formato React Flow).
+model automations {
+  id String @id @default(uuid())
+  name String
+  description String @default("")
+  is_active Boolean @default(false)
+  definition Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model orders {

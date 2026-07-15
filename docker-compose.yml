@@ -37,6 +37,9 @@ services:
       # regenera al arrancar (rápido: los binarios ya están en la imagen) y
       # de paso queda disponible en el host para el editor.
       - ./backend/src:/app/src
+      # El esquema y las migraciones también se montan para que el contenedor
+      # siempre use la versión del repositorio (nuevas migraciones incluidas).
+      - ./backend/prisma:/app/prisma
     command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run db:seed && npm run dev"
 
 volumes:

@@ -41,6 +41,14 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/memberships": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/automations": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

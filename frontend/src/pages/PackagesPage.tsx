@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { useActiveAgency } from "@/context/AgencyContext";
 import { PACKAGE_STATUSES, packageStatusLabel } from "@/lib/format";
 import type { Package, PackageStatus } from "@/types";
 
@@ -106,8 +107,31 @@ export function PackagesPage() {
       usersApi.list(),
     ]),
   );
-  const [packages, contacts, orders, users] = data ?? [[], [], [], []];
+  const [allPackages, contacts, orders, users] = data ?? [[], [], [], []];
   const runMutation = useMutationHandler();
+  const { activeAgencyId } = useActiveAgency();
+
+  // Alcance de subcuenta: paquetes cuyo envío toca la agencia activa.
+  // Los paquetes sin envío pertenecen a la red y solo se ven en "Todas".
+  const packages = useMemo(() => {
+    if (!activeAgencyId) {
+      return allPackages;
+    }
+
+    const scopedOrderIds = new Set(
+      orders
+        .filter(
+          (order) =>
+            order.origin_agency_id === activeAgencyId ||
+            order.destination_agency_id === activeAgencyId,
+        )
+        .map((order) => order.id),
+    );
+
+    return allPackages.filter(
+      (item) => item.order_id !== null && scopedOrderIds.has(item.order_id),
+    );
+  }, [allPackages, orders, activeAgencyId]);
 
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);

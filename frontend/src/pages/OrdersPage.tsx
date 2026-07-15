@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { useActiveAgency } from "@/context/AgencyContext";
 import {
   ORDER_STATUSES,
   formatAmount,
@@ -79,8 +80,22 @@ export function OrdersPage() {
   const { data, isLoading, error, reload } = usePageData(() =>
     Promise.all([ordersApi.list(), usersApi.list(), agenciesApi.list()]),
   );
-  const [orders, users, agencies] = data ?? [[], [], []];
+  const [allOrders, users, agencies] = data ?? [[], [], []];
   const runMutation = useMutationHandler();
+  const { activeAgencyId } = useActiveAgency();
+
+  // Alcance de subcuenta: solo los envíos que tocan la agencia activa.
+  const orders = useMemo(
+    () =>
+      activeAgencyId
+        ? allOrders.filter(
+            (order) =>
+              order.origin_agency_id === activeAgencyId ||
+              order.destination_agency_id === activeAgencyId,
+          )
+        : allOrders,
+    [allOrders, activeAgencyId],
+  );
 
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);

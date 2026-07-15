@@ -132,6 +132,44 @@ export interface CreatePackagePayload {
   status?: PackageStatus;
 }
 
+export type AgencyRole = "OWNER" | "MANAGER" | "OPERATOR" | "VIEWER";
+
+export interface Membership {
+  id: string;
+  agency_id: string;
+  user_id: string;
+  role: AgencyRole;
+  created_at: string;
+}
+
+export interface CreateMembershipPayload {
+  agency_id: string;
+  user_id: string;
+  role?: AgencyRole;
+}
+
+export interface AutomationDefinition {
+  nodes: Array<Record<string, unknown>>;
+  edges: Array<Record<string, unknown>>;
+}
+
+export interface Automation {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  definition: AutomationDefinition;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveAutomationPayload {
+  name: string;
+  description?: string;
+  is_active?: boolean;
+  definition: AutomationDefinition;
+}
+
 export interface ApiFieldError {
   field: string;
   message: string;

@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Building2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Building2, Pencil, Plus, Search, Trash2, Users2 } from "lucide-react";
 import { agenciesApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ActivePill } from "@/components/shared/pills";
+import { AgencyMembersDialog } from "@/components/agencies/AgencyMembersDialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -75,6 +76,9 @@ export function AgenciesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [agencyToDelete, setAgencyToDelete] = useState<Agency | null>(null);
+  const [agencyForMembers, setAgencyForMembers] = useState<Agency | null>(
+    null,
+  );
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -287,6 +291,14 @@ export function AgenciesPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            aria-label={`Miembros de ${agency.name}`}
+                            onClick={() => setAgencyForMembers(agency)}
+                          >
+                            <Users2 aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             aria-label={`Editar ${agency.name}`}
                             onClick={() => openEdit(agency)}
                           >
@@ -433,6 +445,12 @@ export function AgenciesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AgencyMembersDialog
+        agency={agencyForMembers}
+        users={users}
+        onClose={() => setAgencyForMembers(null)}
+      />
 
       <AlertDialog
         open={Boolean(agencyToDelete)}

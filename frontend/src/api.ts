@@ -1,15 +1,20 @@
 import type {
   Agency,
+  AgencyRole,
   ApiErrorResponse,
   AuthSession,
+  Automation,
   CreateAgencyPayload,
+  CreateMembershipPayload,
   CreateOrderPayload,
   CreatePackagePayload,
   CreateUserInformationPayload,
   CreateUserPayload,
   LoginPayload,
+  Membership,
   Order,
   Package,
+  SaveAutomationPayload,
   UpdateAgencyPayload,
   UpdateUserInformationPayload,
   UpdateUserPayload,
@@ -263,6 +268,46 @@ export const contactsApi = {
     }),
   remove: (userId: string) =>
     request<void>(`/info/${userId}`, {
+      method: "DELETE",
+    }),
+};
+
+export const membershipsApi = {
+  list: (agencyId?: string) =>
+    request<Membership[]>(
+      agencyId ? `/memberships?agency_id=${agencyId}` : "/memberships",
+    ),
+  create: (payload: CreateMembershipPayload) =>
+    request<Membership>("/memberships", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateRole: (id: string, role: AgencyRole) =>
+    request<Membership>(`/memberships/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ role }),
+    }),
+  remove: (id: string) =>
+    request<void>(`/memberships/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const automationsApi = {
+  list: () => request<Automation[]>("/automations"),
+  get: (id: string) => request<Automation>(`/automations/${id}`),
+  create: (payload: SaveAutomationPayload) =>
+    request<Automation>("/automations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: SaveAutomationPayload) =>
+    request<Automation>(`/automations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/automations/${id}`, {
       method: "DELETE",
     }),
 };

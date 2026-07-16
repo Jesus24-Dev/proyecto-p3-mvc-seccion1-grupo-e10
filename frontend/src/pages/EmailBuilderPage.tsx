@@ -225,8 +225,8 @@ export function EmailBuilderPage() {
                         className={cn(
                           "ms-1",
                           domain.status === "VERIFIED"
-                            ? "bg-emerald-100 text-emerald-900"
-                            : "bg-amber-100 text-amber-900",
+                            ? "bg-success text-success-foreground"
+                            : "bg-warning text-warning-foreground",
                         )}
                       >
                         {domain.status === "VERIFIED"

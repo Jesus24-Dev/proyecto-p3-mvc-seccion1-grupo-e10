@@ -406,7 +406,7 @@ export function ContactDetailPage() {
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {automation.name}
                   </span>
-                  <Badge className="bg-emerald-100 text-emerald-900">
+                  <Badge className="bg-success text-success-foreground">
                     Activa
                   </Badge>
                 </Link>

@@ -539,7 +539,7 @@ function AutomationRow({
             <Badge
               className={
                 automation.is_active
-                  ? "bg-emerald-100 text-emerald-900"
+                  ? "bg-success text-success-foreground"
                   : "bg-muted text-muted-foreground"
               }
             >

@@ -29,6 +29,12 @@
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
     --color-muted: var(--muted);
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
     --color-secondary-foreground: var(--secondary-foreground);
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
@@ -61,10 +67,17 @@
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.5 0.01 260);
+    --muted-foreground: oklch(0.46 0.012 260);
     --accent: oklch(0.96 0.005 260);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.505 0.14 25);
+    /* Colores semánticos de estado (par fondo + texto) */
+    --success: oklch(0.94 0.05 158);
+    --success-foreground: oklch(0.42 0.11 156);
+    --warning: oklch(0.94 0.07 84);
+    --warning-foreground: oklch(0.44 0.09 66);
+    --info: oklch(0.93 0.05 256);
+    --info-foreground: oklch(0.43 0.15 262);
     --border: oklch(0.922 0.003 260);
     --input: oklch(0.87 0.005 260);
     --ring: oklch(0.55 0.2 21);
@@ -100,6 +113,13 @@
     --accent: oklch(0.269 0 0);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
+    /* Estado en oscuro: fondo tintado translúcido + texto claro */
+    --success: oklch(0.7 0.15 158 / 20%);
+    --success-foreground: oklch(0.86 0.15 162);
+    --warning: oklch(0.78 0.14 82 / 22%);
+    --warning-foreground: oklch(0.88 0.12 88);
+    --info: oklch(0.7 0.15 258 / 22%);
+    --info-foreground: oklch(0.85 0.12 256);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.556 0 0);

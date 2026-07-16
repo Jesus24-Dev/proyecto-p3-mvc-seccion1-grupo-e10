@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import { Building2, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
 import { usersApi } from "@/api";
+import { UserAccessDialog } from "@/components/users/UserAccessDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { RolePill } from "@/components/shared/pills";
@@ -67,6 +68,7 @@ export function UsersPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [accessUser, setAccessUser] = useState<User | null>(null);
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -252,7 +254,7 @@ export function UsersPage() {
                     />
                   </TableHead>
                   <TableHead className="hidden md:table-cell">ID</TableHead>
-                  <TableHead className="w-24 pr-6 text-right">
+                  <TableHead className="w-32 pr-6 text-right">
                     Acciones
                   </TableHead>
                 </TableRow>
@@ -271,6 +273,14 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell className="pr-6 text-right">
                       <div className="inline-flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Accesos a subcuentas de ${user.email}`}
+                          onClick={() => setAccessUser(user)}
+                        >
+                          <Building2 aria-hidden="true" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -409,6 +419,8 @@ export function UsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <UserAccessDialog user={accessUser} onClose={() => setAccessUser(null)} />
 
       <AlertDialog
         open={Boolean(userToDelete)}

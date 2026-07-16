@@ -768,7 +768,7 @@ export function AutomationEditorPage() {
       };
       if (isNew) {
         const created = await automationsApi.create(payload);
-        navigate(`/admin/automations/${created.id}`, { replace: true });
+        navigate(`/admin/automations/editor/${created.id}`, { replace: true });
       } else {
         await automationsApi.update(automationId!, payload);
       }

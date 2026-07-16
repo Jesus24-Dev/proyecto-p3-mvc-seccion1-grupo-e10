@@ -1,21 +1,9 @@
 import { useMemo, useState, type FormEvent } from "react";
-import {
-  Check,
-  Globe,
-  LayoutGrid,
-  Mail,
-  Pencil,
-  Plus,
-  Sparkles,
-  Trash2,
-  Type,
-} from "lucide-react";
-import { aiApi, emailDomainsApi, emailTemplatesApi } from "@/api";
+import { Link } from "react-router-dom";
+import { Check, Globe, Mail, Pencil, Plus, Trash2 } from "lucide-react";
+import { emailDomainsApi, emailTemplatesApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { RichEmailEditor } from "@/components/email/RichEmailEditor";
-import { BlockEmailBuilder } from "@/components/email/BlockEmailBuilder";
-import { isBlockEmail } from "@/components/email/blockEmail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -36,45 +24,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveAgency } from "@/context/AgencyContext";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
-import { AI_BUTTON_CLASS, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { EmailTemplate } from "@/types";
-
-// Valores de ejemplo para previsualizar las variables del correo.
-const SAMPLE_VALUES: Record<string, string> = {
-  nombre: "María",
-  apellido: "Cliente",
-  email: "maria@correo.com",
-  telefono: "+58 412 555 1234",
-  agencia: "Caracas Central",
-  tracking: "DRL-2026-9F3A21B0",
-  paquete: "Caja mediana con repuestos",
-  estado_paquete: "En tránsito",
-  estado_envio: "Procesando",
-};
-
-/** Envuelve texto plano heredado en HTML para previsualizar/renderizar. */
-function toBodyHtml(value: string): string {
-  if (!value || value.includes("<")) {
-    return value;
-  }
-  return value
-    .split(/\n{2,}/)
-    .map((block) => `<p>${block.replace(/\n/g, "<br>")}</p>`)
-    .join("");
-}
 
 /** Convierte HTML a texto plano para vistas compactas (tarjetas). */
 function htmlToText(html: string): string {
@@ -84,12 +39,6 @@ function htmlToText(html: string): string {
     .replace(/<[^>]+>/g, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function renderPreview(text: string): string {
-  return text.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_match, token: string) =>
-    SAMPLE_VALUES[token] ?? `{{${token}}}`,
-  );
 }
 
 export function EmailBuilderPage() {
@@ -166,99 +115,7 @@ export function EmailBuilderPage() {
   }
 
   // --- Plantillas ---
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editing, setEditing] = useState<EmailTemplate | null>(null);
-  const [form, setForm] = useState({ name: "", subject: "", body: "" });
-  const [bodyMode, setBodyMode] = useState<"rich" | "blocks">("blocks");
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [toDelete, setToDelete] = useState<EmailTemplate | null>(null);
-
-  // Generación con IA del contenido de la plantilla.
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
-  async function generateWithAi() {
-    if (!aiPrompt.trim()) {
-      return;
-    }
-    setAiLoading(true);
-    setAiError(null);
-    const failure = await runMutation(async () => {
-      const result = await aiApi.email(aiPrompt.trim());
-      setForm((current) => ({
-        ...current,
-        subject: result.subject || current.subject,
-        body: result.body || current.body,
-      }));
-    });
-    setAiLoading(false);
-    if (failure) {
-      setAiError(failure);
-    }
-  }
-
-  function openCreate() {
-    setEditing(null);
-    setForm({ name: "", subject: "", body: "" });
-    setBodyMode("blocks");
-    setFormError(null);
-    setIsFormOpen(true);
-  }
-
-  function openEdit(template: EmailTemplate) {
-    setEditing(template);
-    setForm({
-      name: template.name,
-      subject: template.subject,
-      body: template.body,
-    });
-    setBodyMode(isBlockEmail(template.body) ? "blocks" : "rich");
-    setFormError(null);
-    setIsFormOpen(true);
-  }
-
-  async function saveTemplate(event: FormEvent) {
-    event.preventDefault();
-    if (!editing && !activeAgencyId) {
-      setFormError("Elige una subcuenta activa para crear plantillas.");
-      return;
-    }
-    if (!form.name.trim()) {
-      setFormError("Dale un nombre a la plantilla.");
-      return;
-    }
-    setIsSaving(true);
-    setFormError(null);
-    const failure = await runMutation(async () => {
-      if (editing) {
-        await emailTemplatesApi.update(editing.id, {
-          name: form.name.trim(),
-          subject: form.subject,
-          body: form.body,
-        });
-      } else {
-        await emailTemplatesApi.create({
-          name: form.name.trim(),
-          subject: form.subject,
-          body: form.body,
-          agency_id: activeAgencyId!,
-        });
-      }
-    });
-    setIsSaving(false);
-    if (failure) {
-      setFormError(failure);
-      return;
-    }
-    setIsFormOpen(false);
-    setNotice({
-      text: editing ? "Plantilla actualizada." : "Plantilla creada.",
-      tone: "success",
-    });
-    void reload();
-  }
 
   async function deleteTemplate() {
     if (!toDelete) {
@@ -280,7 +137,13 @@ export function EmailBuilderPage() {
         title="Plantillas de correo"
         description="Diseña plantillas de email de la subcuenta y gestiona los dominios de envío. Se usan como acción en las automatizaciones."
       >
-        <Button onClick={openCreate} disabled={!activeAgencyId}>
+        <Button
+          disabled={!activeAgencyId}
+          nativeButton={!activeAgencyId}
+          render={
+            activeAgencyId ? <Link to="/admin/templates/editor/new" /> : undefined
+          }
+        >
           <Plus data-icon="inline-start" aria-hidden="true" />
           Nueva plantilla
         </Button>
@@ -408,8 +271,13 @@ export function EmailBuilderPage() {
                   action={
                     <Button
                       variant="outline"
-                      onClick={openCreate}
                       disabled={!activeAgencyId}
+                      nativeButton={!activeAgencyId}
+                      render={
+                        activeAgencyId ? (
+                          <Link to="/admin/templates/editor/new" />
+                        ) : undefined
+                      }
                     >
                       <Plus data-icon="inline-start" aria-hidden="true" />
                       Nueva plantilla
@@ -424,7 +292,10 @@ export function EmailBuilderPage() {
                 <Card key={template.id} className="py-4">
                   <CardContent className="grid gap-2 px-5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
+                      <Link
+                        to={`/admin/templates/editor/${template.id}`}
+                        className="min-w-0 rounded-md outline-none focus-visible:outline-2 focus-visible:outline-ring"
+                      >
                         <p className="flex items-center gap-2 font-medium">
                           <Mail
                             className="size-4 shrink-0 text-muted-foreground"
@@ -435,13 +306,16 @@ export function EmailBuilderPage() {
                         <p className="truncate text-sm text-muted-foreground">
                           {template.subject || "Sin asunto"}
                         </p>
-                      </div>
+                      </Link>
                       <div className="flex shrink-0 items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon-sm"
                           aria-label={`Editar ${template.name}`}
-                          onClick={() => openEdit(template)}
+                          nativeButton={false}
+                          render={
+                            <Link to={`/admin/templates/editor/${template.id}`} />
+                          }
                         >
                           <Pencil aria-hidden="true" />
                         </Button>
@@ -466,187 +340,6 @@ export function EmailBuilderPage() {
           )}
         </div>
       )}
-
-      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent
-          className={cn(
-            "sm:max-w-2xl",
-            bodyMode === "blocks" && "sm:max-w-5xl",
-          )}
-        >
-          <form
-            onSubmit={saveTemplate}
-            className="grid max-h-[85vh] gap-4 overflow-y-auto pr-1"
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {editing ? "Editar plantilla" : "Nueva plantilla"}
-              </DialogTitle>
-              <DialogDescription>
-                Usa variables como{" "}
-                <code className="rounded bg-primary/15 px-1 font-medium text-primary">
-                  {"{{nombre}}"}
-                </code>
-                ; a la derecha ves una previsualización con datos de ejemplo.
-              </DialogDescription>
-            </DialogHeader>
-            {formError && (
-              <Alert variant="destructive">
-                <AlertDescription>{formError}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="grid gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 p-3">
-              <Label
-                htmlFor="tpl-ai"
-                className="flex items-center gap-1.5 text-primary"
-              >
-                <Sparkles className="size-4" aria-hidden="true" />
-                Generar con IA
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="tpl-ai"
-                  value={aiPrompt}
-                  onChange={(event) => setAiPrompt(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      void generateWithAi();
-                    }
-                  }}
-                  placeholder="Describe el correo, p. ej. 'bienvenida cálida para nuevos clientes'"
-                />
-                <Button
-                  type="button"
-                  className={AI_BUTTON_CLASS}
-                  onClick={() => void generateWithAi()}
-                  disabled={aiLoading || !aiPrompt.trim()}
-                >
-                  <Sparkles data-icon="inline-start" aria-hidden="true" />
-                  {aiLoading ? "Generando…" : "Generar"}
-                </Button>
-              </div>
-              {aiError && (
-                <p className="text-xs text-destructive">{aiError}</p>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-name">Nombre</Label>
-                <Input
-                  id="tpl-name"
-                  value={form.name}
-                  onChange={(event) =>
-                    setForm((c) => ({ ...c, name: event.target.value }))
-                  }
-                  placeholder="p. ej. Bienvenida"
-                  autoFocus
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="tpl-subject">Asunto</Label>
-                <Input
-                  id="tpl-subject"
-                  value={form.subject}
-                  onChange={(event) =>
-                    setForm((c) => ({ ...c, subject: event.target.value }))
-                  }
-                  placeholder="¡Hola {{nombre}}!"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Cuerpo</Label>
-                <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
-                  <button
-                    type="button"
-                    aria-pressed={bodyMode === "blocks"}
-                    onClick={() => setBodyMode("blocks")}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      bodyMode === "blocks"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <LayoutGrid className="size-3.5" aria-hidden="true" />
-                    Bloques
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={bodyMode === "rich"}
-                    onClick={() => setBodyMode("rich")}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                      bodyMode === "rich"
-                        ? "bg-background text-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Type className="size-3.5" aria-hidden="true" />
-                    Texto enriquecido
-                  </button>
-                </div>
-              </div>
-
-              {bodyMode === "blocks" ? (
-                <BlockEmailBuilder
-                  value={form.body}
-                  onChange={(html) => setForm((c) => ({ ...c, body: html }))}
-                />
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  <RichEmailEditor
-                    value={form.body}
-                    onChange={(html) => setForm((c) => ({ ...c, body: html }))}
-                    placeholder="Hola {{nombre}}, …"
-                  />
-                  <div className="grid gap-2">
-                    <Label>Previsualización</Label>
-                    <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                      <p className="font-medium">
-                        {renderPreview(form.subject) || "Sin asunto"}
-                      </p>
-                      <div
-                        className={cn(
-                          "border-t pt-2 text-muted-foreground",
-                          "[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-foreground",
-                          "[&_h2]:mb-1.5 [&_h2]:text-lg [&_h2]:font-medium [&_h2]:text-foreground",
-                          "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
-                          "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
-                          "[&_a]:font-medium [&_a]:text-primary [&_a]:underline",
-                          "[&_blockquote]:border-l [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic",
-                          "[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md",
-                        )}
-                        dangerouslySetInnerHTML={{
-                          __html:
-                            renderPreview(toBodyHtml(form.body)) || "Sin contenido",
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsFormOpen(false)}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Guardando…" : editing ? "Guardar" : "Crear"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog
         open={Boolean(toDelete)}

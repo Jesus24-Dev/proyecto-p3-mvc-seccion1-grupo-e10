@@ -12,6 +12,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
 import { TagsPage } from "@/pages/TagsPage";
 import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
+import { EmailTemplateEditorPage } from "@/pages/EmailTemplateEditorPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
 import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
@@ -61,13 +62,23 @@ function App() {
         <Route path="contacts/:contactId" element={<ContactDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
-      {/* Editor de automatizaciones: pantalla completa, sin el marco del panel. */}
+      {/* Editores a pantalla completa, sin el marco del panel. */}
       <Route
-        path="/admin/automations/:automationId"
+        path="/admin/automations/editor/:automationId"
         element={
           <RequireAdmin>
             <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
               <AutomationEditorPage />
+            </div>
+          </RequireAdmin>
+        }
+      />
+      <Route
+        path="/admin/templates/editor/:templateId"
+        element={
+          <RequireAdmin>
+            <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
+              <EmailTemplateEditorPage />
             </div>
           </RequireAdmin>
         }

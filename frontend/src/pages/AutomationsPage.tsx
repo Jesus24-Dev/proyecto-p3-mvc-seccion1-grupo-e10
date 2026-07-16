@@ -278,7 +278,7 @@ export function AutomationsPage() {
         </Button>
         <Button
           nativeButton={false}
-          render={<Link to="/admin/automations/new" />}
+          render={<Link to="/admin/automations/editor/new" />}
         >
           <Plus data-icon="inline-start" aria-hidden="true" />
           Nueva automatización
@@ -315,7 +315,7 @@ export function AutomationsPage() {
                 <Button
                   variant="outline"
                   nativeButton={false}
-                  render={<Link to="/admin/automations/new" />}
+                  render={<Link to="/admin/automations/editor/new" />}
                 >
                   <Plus data-icon="inline-start" aria-hidden="true" />
                   Nueva automatización
@@ -352,7 +352,7 @@ export function AutomationsPage() {
                         currentFolder={folderName}
                         onToggleActive={() => void handleToggleActive(automation)}
                         onEdit={() =>
-                          navigate(`/admin/automations/${automation.id}`)
+                          navigate(`/admin/automations/editor/${automation.id}`)
                         }
                         onDelete={() => setAutomationToDelete(automation)}
                         onMove={(folder) => void moveAutomation(automation, folder)}
@@ -462,7 +462,7 @@ function FolderSection({
             nativeButton={false}
             render={
               <Link
-                to={`/admin/automations/new?folder=${encodeURIComponent(folderName)}`}
+                to={`/admin/automations/editor/new?folder=${encodeURIComponent(folderName)}`}
               />
             }
           >

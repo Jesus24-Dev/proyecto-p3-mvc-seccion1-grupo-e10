@@ -80,15 +80,74 @@ model agencies {
   name String
   location String
   is_active Boolean
+  // Coordenadas de la agencia (para el mapa de rastreo de paquetes).
+  latitude Float?
+  longitude Float?
 
   user_id String
   user users @relation(fields: [user_id], references: [id])
   // Configuración de apariencia de la subcuenta (acento, radio).
   theme Json?
+  // Distribución de widgets del panel guardada por el usuario (editable).
+  dashboard_layout Json?
 
   origin_orders orders[] @relation("OriginAgency")
   destination_orders orders[] @relation("DestinationAgency")
   members agency_members[]
+  package_events package_events[]
+  tags tags[]
+  email_templates email_templates[]
+  email_domains email_domains[]
+}
+
+// Plantillas de correo de una subcuenta (agencia). El cuerpo admite variables
+// {{token}} igual que los mensajes de las automatizaciones.
+model email_templates {
+  id String @id @default(uuid())
+  name String
+  subject String @default("")
+  body String @default("")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  agency_id String
+  agency agencies @relation(fields: [agency_id], references: [id], onDelete: Cascade)
+
+  @@unique([agency_id, name])
+}
+
+enum email_domain_status {
+  PENDING  // Agregado, pendiente de verificación.
+  VERIFIED // Verificado; se puede enviar desde este dominio.
+}
+
+// Dominios de envío configurados a nivel de subcuenta (agencia).
+model email_domains {
+  id String @id @default(uuid())
+  domain String
+  status email_domain_status @default(PENDING)
+  created_at DateTime @default(now())
+
+  agency_id String
+  agency agencies @relation(fields: [agency_id], references: [id], onDelete: Cascade)
+
+  @@unique([agency_id, domain])
+}
+
+// Catálogo de etiquetas de una subcuenta (agencia), estilo GHL: se aplican
+// por nombre a los contactos (users_information.tags) y las usan las
+// automatizaciones.
+model tags {
+  id String @id @default(uuid())
+  name String
+  // Color del preset (ver NODE_COLORS en el frontend); "" = neutro.
+  color String @default("")
+  created_at DateTime @default(now())
+
+  agency_id String
+  agency agencies @relation(fields: [agency_id], references: [id], onDelete: Cascade)
+
+  @@unique([agency_id, name])
 }
 
 // Membresía de un usuario en una agencia (subcuenta) con su rol interno.
@@ -158,4 +217,23 @@ model packages {
   // Envío (orden) que transporta el paquete; opcional hasta que se despacha.
   order_id String?
   order orders? @relation(fields: [order_id], references: [id])
+
+  // Historial de movimientos (checkpoints) del paquete.
+  events package_events[]
+}
+
+// Cada movimiento registrado de un paquete: su estado en un momento dado,
+// opcionalmente la agencia donde ocurrió, para reconstruir su recorrido.
+model package_events {
+  id String @id @default(uuid())
+  status package_status
+  note String @default("")
+  created_at DateTime @default(now())
+
+  package_id String
+  package packages @relation(fields: [package_id], references: [id], onDelete: Cascade)
+
+  // Agencia (ubicación) del checkpoint; opcional para eventos sin sede.
+  agency_id String?
+  agency agencies? @relation(fields: [agency_id], references: [id])
 }

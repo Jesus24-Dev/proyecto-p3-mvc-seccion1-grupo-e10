@@ -1,18 +1,27 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Boxes,
   Building2,
+  CalendarRange,
+  Check,
   DollarSign,
+  LayoutGrid,
   Package,
+  Pencil,
+  Plus,
   Users,
 } from "lucide-react";
 import { agenciesApi, ordersApi, packagesApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { OrderStatusPill } from "@/components/shared/pills";
+import {
+  DashboardGrid,
+  type WidgetDescriptor,
+} from "@/components/dashboard/DashboardGrid";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,6 +29,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import type { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -30,7 +62,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useActiveAgency } from "@/context/AgencyContext";
-import { usePageData } from "@/hooks/usePageData";
+import { usePageData, useMutationHandler } from "@/hooks/usePageData";
 import {
   ORDER_STATUSES,
   formatAmount,
@@ -38,7 +70,45 @@ import {
   orderStatusLabel,
   packageStatusLabel,
 } from "@/lib/format";
+import type { DashboardWidgetLayout } from "@/types";
 import type { LucideIcon } from "lucide-react";
+
+// Distribución por defecto de los widgets del panel (grid de 12 columnas).
+const WIDGET_DEFAULTS: DashboardWidgetLayout[] = [
+  { id: "kpis", colSpan: 12, rowSpan: 1, order: 0, hidden: false },
+  { id: "revenue", colSpan: 6, rowSpan: 2, order: 1, hidden: false },
+  { id: "packages-donut", colSpan: 6, rowSpan: 2, order: 2, hidden: false },
+  { id: "activity", colSpan: 6, rowSpan: 2, order: 3, hidden: false },
+  { id: "orders-status", colSpan: 6, rowSpan: 2, order: 4, hidden: false },
+  { id: "recent-orders", colSpan: 12, rowSpan: 2, order: 5, hidden: false },
+];
+
+const DASHBOARD_STORAGE_KEY = "dr-logistics-dashboard-layout";
+
+/** Une la distribución guardada con los valores por defecto del registro. */
+function mergeLayout(
+  saved: DashboardWidgetLayout[] | null | undefined,
+): DashboardWidgetLayout[] {
+  const savedById = new Map((saved ?? []).map((entry) => [entry.id, entry]));
+  let nextOrder = (saved ?? []).reduce(
+    (max, entry) => Math.max(max, entry.order),
+    WIDGET_DEFAULTS.length - 1,
+  );
+  return WIDGET_DEFAULTS.map((def) => {
+    const existing = savedById.get(def.id);
+    return existing ? { ...def, ...existing } : { ...def, order: ++nextOrder };
+  });
+}
+
+/** Lee la distribución local (usada cuando no hay agencia activa). */
+function readLocalLayout(): DashboardWidgetLayout[] | null {
+  try {
+    const raw = window.localStorage.getItem(DASHBOARD_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as DashboardWidgetLayout[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 type StatTileProps = {
   icon: LucideIcon;
@@ -256,7 +326,7 @@ function DonutChart({ slices }: { slices: DonutSlice[] }) {
           x="50%"
           y="60%"
           textAnchor="middle"
-          className="fill-muted-foreground text-[0.7rem]"
+          className="fill-muted-foreground text-xs"
         >
           paquetes
         </text>
@@ -345,7 +415,7 @@ function TrendLineChart({
           x={point.x}
           y={height - padY + 16}
           textAnchor="middle"
-          className="fill-muted-foreground text-[0.7rem]"
+          className="fill-muted-foreground text-xs"
         >
           {labels[index]}
         </text>
@@ -373,6 +443,40 @@ function monthKeyOf(isoDate: string): string | null {
     : `${parsed.getUTCFullYear()}-${parsed.getUTCMonth()}`;
 }
 
+type RangePreset = "30d" | "90d" | "6m" | "12m" | "custom";
+
+const RANGE_OPTIONS: Array<{ value: RangePreset; label: string }> = [
+  { value: "30d", label: "Últimos 30 días" },
+  { value: "90d", label: "Últimos 90 días" },
+  { value: "6m", label: "Últimos 6 meses" },
+  { value: "12m", label: "Últimos 12 meses" },
+  { value: "custom", label: "Rango personalizado" },
+];
+
+/** Resuelve el preset (o rango custom) a milisegundos [from, to]. */
+function resolveRange(
+  preset: RangePreset,
+  customFrom: string,
+  customTo: string,
+): { from: number; to: number } {
+  const now = Date.now();
+  if (preset === "custom") {
+    const from = customFrom ? new Date(customFrom).getTime() : 0;
+    const toBase = customTo ? new Date(customTo).getTime() : now;
+    // Incluye todo el día final.
+    const to = customTo ? toBase + 24 * 60 * 60 * 1000 - 1 : now;
+    return { from: Number.isNaN(from) ? 0 : from, to: Number.isNaN(to) ? now : to };
+  }
+  const days = preset === "30d" ? 30 : preset === "90d" ? 90 : 0;
+  if (days) {
+    return { from: now - days * 24 * 60 * 60 * 1000, to: now };
+  }
+  const months = preset === "12m" ? 12 : 6;
+  const d = new Date();
+  const from = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - (months - 1), 1);
+  return { from, to: now };
+}
+
 export function DashboardPage() {
   const { activeAgencyId } = useActiveAgency();
   const { data, isLoading, error } = usePageData(() =>
@@ -393,14 +497,84 @@ export function DashboardPage() {
   const activeAgency =
     (activeAgencyId ? agencyById.get(activeAgencyId) : undefined) ?? null;
 
-  // Alcance por agencia: órdenes donde participa como origen o destino, y
-  // paquetes cuya orden pertenece a ese conjunto. Los paquetes sin orden solo
-  // se muestran cuando no hay agencia activa.
-  const scopedOrders = useMemo(() => {
+  const runMutation = useMutationHandler();
+  const [editing, setEditing] = useState(false);
+  const [layout, setLayout] = useState<DashboardWidgetLayout[]>(() =>
+    mergeLayout(null),
+  );
+  const [layoutKey, setLayoutKey] = useState<string | null>(null);
+
+  // Clave de la fuente de la distribución. Al cambiar (otra agencia activa, o
+  // sin agencia), recarga la distribución guardada. Es el patrón de React de
+  // "ajustar estado al cambiar una prop" (durante el render, no en un efecto).
+  const sourceKey = activeAgencyId
+    ? activeAgency
+      ? `agency:${activeAgency.id}`
+      : null // agencias aún cargando: esperamos
+    : "local";
+
+  if (sourceKey && sourceKey !== layoutKey) {
+    setLayoutKey(sourceKey);
+    const saved = activeAgency
+      ? (activeAgency.dashboard_layout ?? null)
+      : readLocalLayout();
+    setLayout(mergeLayout(saved));
+  }
+
+  async function persistLayout(next: DashboardWidgetLayout[]) {
+    if (activeAgencyId) {
+      await runMutation(async () => {
+        await agenciesApi.updateDashboard(activeAgencyId, next);
+      });
+    } else {
+      try {
+        window.localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // El almacenamiento local puede no estar disponible.
+      }
+    }
+  }
+
+  function toggleEdit() {
+    if (editing) {
+      void persistLayout(layout);
+    }
+    setEditing((current) => !current);
+  }
+
+  function showWidget(id: string) {
+    setLayout((current) => {
+      const maxOrder = current.reduce((max, entry) => Math.max(max, entry.order), -1);
+      return current.map((entry) =>
+        entry.id === id
+          ? { ...entry, hidden: false, order: maxOrder + 1 }
+          : entry,
+      );
+    });
+  }
+
+  const hiddenWidgets = layout.filter((entry) => entry.hidden);
+
+  // Rango de fechas seleccionado (por defecto: últimos 6 meses).
+  const [rangePreset, setRangePreset] = useState<RangePreset>("6m");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const range = useMemo(
+    () => resolveRange(rangePreset, customFrom, customTo),
+    [rangePreset, customFrom, customTo],
+  );
+  const inRange = (iso: string) => {
+    const t = new Date(iso).getTime();
+    return !Number.isNaN(t) && t >= range.from && t <= range.to;
+  };
+
+  // Alcance por agencia (sin rango): órdenes donde participa como origen o
+  // destino, y paquetes cuya orden pertenece a ese conjunto. Los paquetes sin
+  // orden solo se muestran cuando no hay agencia activa.
+  const agencyOrders = useMemo(() => {
     if (!activeAgencyId) {
       return orders;
     }
-
     return orders.filter(
       (order) =>
         order.origin_agency_id === activeAgencyId ||
@@ -408,17 +582,28 @@ export function DashboardPage() {
     );
   }, [orders, activeAgencyId]);
 
-  const scopedPackages = useMemo(() => {
+  const agencyPackages = useMemo(() => {
     if (!activeAgencyId) {
       return packages;
     }
-
-    const scopedOrderIds = new Set(scopedOrders.map((order) => order.id));
-
+    const agencyOrderIds = new Set(agencyOrders.map((order) => order.id));
     return packages.filter(
-      (item) => item.order_id !== null && scopedOrderIds.has(item.order_id),
+      (item) => item.order_id !== null && agencyOrderIds.has(item.order_id),
     );
-  }, [packages, scopedOrders, activeAgencyId]);
+  }, [packages, agencyOrders, activeAgencyId]);
+
+  // Alcance final: agencia + rango de fechas (por fecha de recepción / creación).
+  const scopedOrders = useMemo(
+    () => agencyOrders.filter((order) => inRange(order.date_received)),
+    // inRange depende de range; agencyOrders del alcance por agencia.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [agencyOrders, range],
+  );
+  const scopedPackages = useMemo(
+    () => agencyPackages.filter((item) => inRange(item.created_at)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [agencyPackages, range],
+  );
 
   const stats = useMemo(() => {
     const activeAgencies = agencies.filter((agency) => agency.is_active);
@@ -484,21 +669,41 @@ export function DashboardPage() {
     }));
   }, [scopedPackages]);
 
-  // Últimos 6 meses (incluido el actual), en UTC.
+  // Meses que abarca el rango seleccionado (en UTC), máximo 12 barras.
   const monthBuckets = useMemo(() => {
-    const now = new Date();
-
-    return Array.from({ length: 6 }, (_, index) => {
-      const date = new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (5 - index), 1),
-      );
-
-      return {
+    const start = new Date(range.from);
+    const end = new Date(range.to);
+    const buckets: Array<{ key: string; label: string }> = [];
+    let year = start.getUTCFullYear();
+    let month = start.getUTCMonth();
+    const endYear = end.getUTCFullYear();
+    const endMonth = end.getUTCMonth();
+    while (year < endYear || (year === endYear && month <= endMonth)) {
+      const date = new Date(Date.UTC(year, month, 1));
+      buckets.push({
         key: `${date.getUTCFullYear()}-${date.getUTCMonth()}`,
         label: monthLabelFormatter.format(date),
-      };
-    });
-  }, []);
+      });
+      month += 1;
+      if (month > 11) {
+        month = 0;
+        year += 1;
+      }
+    }
+    // Nunca vacío; como máximo las últimas 12 barras.
+    if (buckets.length === 0) {
+      const d = new Date(range.to);
+      buckets.push({
+        key: `${d.getUTCFullYear()}-${d.getUTCMonth()}`,
+        label: monthLabelFormatter.format(d),
+      });
+    }
+    return buckets.slice(-12);
+  }, [range]);
+
+  const rangeLabel =
+    RANGE_OPTIONS.find((option) => option.value === rangePreset)?.label ??
+    "rango seleccionado";
 
   const monthlyRevenue = useMemo(() => {
     const sums = new Map(monthBuckets.map((bucket) => [bucket.key, 0]));
@@ -577,66 +782,58 @@ export function DashboardPage() {
     );
   }
 
-  return (
-    <>
-      <PageHeader
-        title="Resumen de operaciones"
-        description={
-          activeAgency
-            ? `El estado de la red de un vistazo: cuentas, cobertura y movimiento de envíos. Mostrando solo la agencia ${activeAgency.name}.`
-            : "El estado de la red de un vistazo: cuentas, cobertura y movimiento de envíos."
-        }
-      />
-
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatTile
-          icon={Users}
-          label="Usuarios"
-          value={String(users.length)}
-          detail={`${stats.admins} admin · ${stats.distributors} ${stats.distributors === 1 ? "distribuidor" : "distribuidores"}`}
-        />
-        <StatTile
-          icon={Building2}
-          label="Agencias"
-          value={String(agencies.length)}
-          detail={`${stats.activeAgencies} ${stats.activeAgencies === 1 ? "activa" : "activas"}`}
-        />
-        <StatTile
-          icon={Package}
-          label="Envíos"
-          value={String(scopedOrders.length)}
-          detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
-        />
-        <StatTile
-          icon={Boxes}
-          label="Paquetes"
-          value={String(scopedPackages.length)}
-          detail={`${stats.deliveredPackages} ${stats.deliveredPackages === 1 ? "entregado" : "entregados"}`}
-        />
-        <StatTile
-          icon={DollarSign}
-          label="Monto en envíos"
-          value={formatAmount(stats.totalAmount)}
-          detail={
-            activeAgency
-              ? "Suma de las órdenes de la agencia activa"
-              : "Suma de todas las órdenes registradas"
-          }
-        />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+  const widgets: WidgetDescriptor[] = [
+    {
+      id: "kpis",
+      title: "Indicadores",
+      content: (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <StatTile
+            icon={Users}
+            label="Usuarios"
+            value={String(users.length)}
+            detail={`${stats.admins} admin · ${stats.distributors} ${stats.distributors === 1 ? "distribuidor" : "distribuidores"}`}
+          />
+          <StatTile
+            icon={Building2}
+            label="Agencias"
+            value={String(agencies.length)}
+            detail={`${stats.activeAgencies} ${stats.activeAgencies === 1 ? "activa" : "activas"}`}
+          />
+          <StatTile
+            icon={Package}
+            label="Envíos"
+            value={String(scopedOrders.length)}
+            detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
+          />
+          <StatTile
+            icon={Boxes}
+            label="Paquetes"
+            value={String(scopedPackages.length)}
+            detail={`${stats.deliveredPackages} ${stats.deliveredPackages === 1 ? "entregado" : "entregados"}`}
+          />
+          <StatTile
+            icon={DollarSign}
+            label="Monto en envíos"
+            value={formatAmount(stats.totalAmount)}
+            detail={
+              activeAgency
+                ? "Suma de las órdenes de la agencia activa"
+                : "Suma de todas las órdenes registradas"
+            }
+          />
+        </div>
+      ),
+    },
+    {
+      id: "revenue",
+      title: "Ingresos por mes",
+      content: (
         <Card>
           <CardHeader>
             <CardTitle>Ingresos por mes</CardTitle>
             <CardDescription>
-              Montos (USD) de órdenes por mes de recepción, últimos 6 meses.
+              Montos (USD) de órdenes por mes de recepción · {rangeLabel.toLowerCase()}.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -653,7 +850,12 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-
+      ),
+    },
+    {
+      id: "packages-donut",
+      title: "Paquetes por estado",
+      content: (
         <Card>
           <CardHeader>
             <CardTitle>Paquetes por estado</CardTitle>
@@ -671,12 +873,17 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-
+      ),
+    },
+    {
+      id: "activity",
+      title: "Actividad mensual",
+      content: (
         <Card>
           <CardHeader>
             <CardTitle>Actividad mensual</CardTitle>
             <CardDescription>
-              Envíos y paquetes registrados por mes, últimos 6 meses.
+              Envíos y paquetes registrados por mes · {rangeLabel.toLowerCase()}.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-4">
@@ -725,10 +932,13 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
+      ),
+    },
+    {
+      id: "orders-status",
+      title: "Envíos por estado",
+      content: (
+        <Card>
           <CardHeader>
             <CardTitle>Envíos por estado</CardTitle>
             <CardDescription>
@@ -768,8 +978,13 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-
-        <Card className="py-0 lg:col-span-3">
+      ),
+    },
+    {
+      id: "recent-orders",
+      title: "Envíos recientes",
+      content: (
+        <Card className="py-0">
           <CardHeader className="pt-6">
             <div className="flex items-start justify-between gap-4">
               <div className="grid gap-1.5">
@@ -782,7 +997,7 @@ export function DashboardPage() {
                 variant="ghost"
                 size="sm"
                 nativeButton={false}
-                render={<Link to="/admin/envios" />}
+                render={<Link to="/admin/orders" />}
               >
                 Ver todos
                 <ArrowRight data-icon="inline-end" aria-hidden="true" />
@@ -834,7 +1049,162 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      ),
+    },
+  ];
+
+  const widgetTitleById = new Map(
+    widgets.map((widget) => [widget.id, widget.title]),
+  );
+
+  return (
+    <>
+      <PageHeader
+        title="Resumen de operaciones"
+        description={
+          activeAgency
+            ? `El estado de la red de un vistazo: cuentas, cobertura y movimiento de envíos. Mostrando solo la agencia ${activeAgency.name}.`
+            : "El estado de la red de un vistazo: cuentas, cobertura y movimiento de envíos."
+        }
+      >
+        {editing && hiddenWidgets.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button type="button" className={buttonVariants({ variant: "outline" })}>
+                  <Plus data-icon="inline-start" aria-hidden="true" />
+                  Agregar widget
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end">
+              {hiddenWidgets.map((entry) => (
+                <DropdownMenuItem
+                  key={entry.id}
+                  onClick={() => showWidget(entry.id)}
+                >
+                  {widgetTitleById.get(entry.id) ?? entry.id}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        <Button
+          variant={editing ? "default" : "outline"}
+          onClick={toggleEdit}
+        >
+          {editing ? (
+            <>
+              <Check data-icon="inline-start" aria-hidden="true" />
+              Listo
+            </>
+          ) : (
+            <>
+              <Pencil data-icon="inline-start" aria-hidden="true" />
+              Editar panel
+            </>
+          )}
+        </Button>
+      </PageHeader>
+
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <CalendarRange
+          className="size-4 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <span className="text-sm text-muted-foreground">Periodo:</span>
+        <Select
+          items={RANGE_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+          value={rangePreset}
+          onValueChange={(value) => setRangePreset(value as RangePreset)}
+        >
+          <SelectTrigger className="w-52" aria-label="Rango de fechas">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {RANGE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {rangePreset === "custom" &&
+          (() => {
+            const parse = (value: string) =>
+              value ? new Date(`${value}T00:00:00`) : undefined;
+            const selectedRange: DateRange | undefined =
+              customFrom || customTo
+                ? { from: parse(customFrom), to: parse(customTo) }
+                : undefined;
+            const label =
+              selectedRange?.from && selectedRange.to
+                ? `${format(selectedRange.from, "d MMM yyyy", { locale: es })} – ${format(selectedRange.to, "d MMM yyyy", { locale: es })}`
+                : selectedRange?.from
+                  ? `Desde ${format(selectedRange.from, "d MMM yyyy", { locale: es })}`
+                  : "Elige un rango";
+            return (
+              <Popover>
+                <PopoverTrigger
+                  render={
+                    <button
+                      type="button"
+                      className={cn(
+                        buttonVariants({ variant: "outline" }),
+                        "justify-start font-normal",
+                      )}
+                    >
+                      <CalendarRange
+                        data-icon="inline-start"
+                        aria-hidden="true"
+                      />
+                      {label}
+                    </button>
+                  }
+                />
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="range"
+                    numberOfMonths={2}
+                    defaultMonth={selectedRange?.from}
+                    selected={selectedRange}
+                    onSelect={(next) => {
+                      setCustomFrom(
+                        next?.from ? format(next.from, "yyyy-MM-dd") : "",
+                      );
+                      setCustomTo(next?.to ? format(next.to, "yyyy-MM-dd") : "");
+                    }}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+            );
+          })()}
       </div>
+
+      {editing && (
+        <p className="mb-4 flex items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+          <LayoutGrid className="size-4 text-primary" aria-hidden="true" />
+          Arrastra por el asa para reordenar, tira de la esquina para
+          redimensionar y usa la × para ocultar un widget.
+        </p>
+      )}
+
+      <DashboardGrid
+        widgets={widgets}
+        layout={layout}
+        editing={editing}
+        onLayoutChange={setLayout}
+      />
     </>
   );
 }

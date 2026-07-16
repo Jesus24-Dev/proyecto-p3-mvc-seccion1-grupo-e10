@@ -1,6 +1,8 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/context/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LoginPage } from "@/pages/LoginPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { AgenciesPage } from "@/pages/AgenciesPage";
@@ -12,13 +14,33 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
 import { TagsPage } from "@/pages/TagsPage";
 import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
-import { EmailTemplateEditorPage } from "@/pages/EmailTemplateEditorPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
 import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
 import { AutomationsPage } from "@/pages/AutomationsPage";
-import { AutomationEditorPage } from "@/pages/AutomationEditorPage";
+
+// Editores pesados (TipTap, React Flow): se cargan bajo demanda para no
+// inflar el bundle inicial de las vistas de tablas.
+const EmailTemplateEditorPage = lazy(() =>
+  import("@/pages/EmailTemplateEditorPage").then((m) => ({
+    default: m.EmailTemplateEditorPage,
+  })),
+);
+const AutomationEditorPage = lazy(() =>
+  import("@/pages/AutomationEditorPage").then((m) => ({
+    default: m.AutomationEditorPage,
+  })),
+);
+
+function EditorFallback() {
+  return (
+    <div className="flex h-svh flex-col gap-4 bg-background px-4 py-4 md:px-6 md:py-5">
+      <Skeleton className="h-10 w-full max-w-md rounded-lg" />
+      <Skeleton className="flex-1 rounded-xl" />
+    </div>
+  );
+}
 
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -67,9 +89,11 @@ function App() {
         path="/admin/automations/editor/:automationId"
         element={
           <RequireAdmin>
-            <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
-              <AutomationEditorPage />
-            </div>
+            <Suspense fallback={<EditorFallback />}>
+              <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
+                <AutomationEditorPage />
+              </div>
+            </Suspense>
           </RequireAdmin>
         }
       />
@@ -77,9 +101,11 @@ function App() {
         path="/admin/templates/editor/:templateId"
         element={
           <RequireAdmin>
-            <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
-              <EmailTemplateEditorPage />
-            </div>
+            <Suspense fallback={<EditorFallback />}>
+              <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
+                <EmailTemplateEditorPage />
+              </div>
+            </Suspense>
           </RequireAdmin>
         }
       />

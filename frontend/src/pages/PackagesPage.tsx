@@ -92,7 +92,13 @@ function TrackingCode({ code }: { code: string }) {
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <code className="font-mono text-xs font-medium">{code}</code>
+      <Link
+        to={`/admin/packages/${encodeURIComponent(code)}`}
+        className="font-mono text-xs font-medium underline-offset-2 hover:text-primary hover:underline"
+        aria-label={`Ver recorrido de ${code}`}
+      >
+        {code}
+      </Link>
       <Button
         variant="ghost"
         size="icon-xs"
@@ -155,6 +161,65 @@ export function PackagesPage() {
     text: string;
     tone: "success" | "danger";
   } | null>(null);
+
+  // Alta rápida de contacto dentro del diálogo de paquete.
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [contactSaving, setContactSaving] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [newContact, setNewContact] = useState({
+    user_id: "",
+    first_name: "",
+    last_name: "",
+    address: "",
+    birthday: "",
+  });
+
+  // Cuentas sin ficha de contacto (relación 1 a 1 con users_information).
+  const usersWithoutContact = useMemo(() => {
+    const withContact = new Set(contacts.map((contact) => contact.user_id));
+    return users.filter((user) => !withContact.has(user.id));
+  }, [contacts, users]);
+
+  async function submitNewContact() {
+    if (
+      !newContact.user_id ||
+      !newContact.first_name.trim() ||
+      !newContact.last_name.trim()
+    ) {
+      setContactError("Elige una cuenta e ingresa nombre y apellido.");
+      return;
+    }
+    setContactSaving(true);
+    setContactError(null);
+    let createdId: string | null = null;
+    const failure = await runMutation(async () => {
+      const created = await contactsApi.create({
+        user_id: newContact.user_id,
+        first_name: newContact.first_name.trim(),
+        last_name: newContact.last_name.trim(),
+        address: newContact.address.trim(),
+        birthday: newContact.birthday,
+      });
+      createdId = created.id;
+    });
+    setContactSaving(false);
+    if (failure) {
+      setContactError(failure);
+      return;
+    }
+    await reload();
+    if (createdId) {
+      setForm((current) => ({ ...current, contact_id: createdId! }));
+    }
+    setShowNewContact(false);
+    setNewContact({
+      user_id: "",
+      first_name: "",
+      last_name: "",
+      address: "",
+      birthday: "",
+    });
+  }
 
   const contactById = useMemo(
     () => new Map(contacts.map((contact) => [contact.id, contact])),
@@ -456,7 +521,7 @@ export function PackagesPage() {
                       <TableCell className="hidden md:table-cell">
                         {contact ? (
                           <Link
-                            to={`/admin/contactos/${contact.id}`}
+                            to={`/admin/contacts/${contact.id}`}
                             className="grid gap-0.5 rounded-sm outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
                           >
                             <span className="font-medium underline-offset-4 hover:underline">
@@ -585,7 +650,21 @@ export function PackagesPage() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="package-contact">Contacto destinatario</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="package-contact">Contacto destinatario</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowNewContact((open) => !open);
+                    setContactError(null);
+                  }}
+                >
+                  <Plus data-icon="inline-start" aria-hidden="true" />
+                  {showNewContact ? "Cancelar" : "Crear contacto"}
+                </Button>
+              </div>
               <Select
                 items={contacts.map((contact) => ({
                   value: contact.id,
@@ -610,6 +689,114 @@ export function PackagesPage() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {showNewContact && (
+                <div className="mt-1 grid gap-3 rounded-lg border border-dashed p-3">
+                  {contactError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{contactError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="new-contact-account">Cuenta</Label>
+                    <Select
+                      items={usersWithoutContact.map((user) => ({
+                        value: user.id,
+                        label: user.email,
+                      }))}
+                      value={newContact.user_id}
+                      onValueChange={(value) =>
+                        setNewContact((current) => ({
+                          ...current,
+                          user_id: value as string,
+                        }))
+                      }
+                    >
+                      <SelectTrigger id="new-contact-account" className="w-full">
+                        <SelectValue placeholder="Elige una cuenta sin ficha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {usersWithoutContact.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {usersWithoutContact.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Todas las cuentas ya tienen ficha de contacto.
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-contact-first">Nombre</Label>
+                      <Input
+                        id="new-contact-first"
+                        value={newContact.first_name}
+                        onChange={(event) =>
+                          setNewContact((current) => ({
+                            ...current,
+                            first_name: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-contact-last">Apellido</Label>
+                      <Input
+                        id="new-contact-last"
+                        value={newContact.last_name}
+                        onChange={(event) =>
+                          setNewContact((current) => ({
+                            ...current,
+                            last_name: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-contact-address">Dirección</Label>
+                      <Input
+                        id="new-contact-address"
+                        value={newContact.address}
+                        onChange={(event) =>
+                          setNewContact((current) => ({
+                            ...current,
+                            address: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new-contact-birthday">Nacimiento</Label>
+                      <Input
+                        id="new-contact-birthday"
+                        type="date"
+                        value={newContact.birthday}
+                        onChange={(event) =>
+                          setNewContact((current) => ({
+                            ...current,
+                            birthday: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="justify-self-start"
+                    onClick={() => void submitNewContact()}
+                    disabled={contactSaving || usersWithoutContact.length === 0}
+                  >
+                    {contactSaving ? "Guardando…" : "Guardar contacto"}
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="package-order">Envío asignado</Label>

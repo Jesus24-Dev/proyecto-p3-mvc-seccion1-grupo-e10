@@ -1,5 +1,14 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { ArrowRight, Package, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  ArrowRight,
+  Eye,
+  Package,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { agenciesApi, ordersApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -405,6 +414,15 @@ export function OrdersPage() {
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <div className="inline-flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            nativeButton={false}
+                            aria-label={`Ver envío ${order.description}`}
+                            render={<Link to={`/admin/orders/${order.id}`} />}
+                          >
+                            <Eye aria-hidden="true" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon-sm"

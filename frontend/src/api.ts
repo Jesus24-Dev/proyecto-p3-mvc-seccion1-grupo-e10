@@ -1,22 +1,35 @@
 import type {
+  AddCheckpointPayload,
   Agency,
   AgencyRole,
   ApiErrorResponse,
   AuthSession,
   AgencyTheme,
   Automation,
+  AutomationDefinition,
   CreateAgencyPayload,
   CreateMembershipPayload,
   CreateOrderPayload,
   CreatePackagePayload,
+  CreateEmailDomainPayload,
+  CreateEmailTemplatePayload,
+  CreateTagPayload,
   CreateUserInformationPayload,
   CreateUserPayload,
+  DashboardWidgetLayout,
+  EmailDomain,
+  EmailTemplate,
   LoginPayload,
   Membership,
   Order,
   Package,
+  PublicTracking,
   SaveAutomationPayload,
+  Tag,
+  TrackingResponse,
   UpdateAgencyPayload,
+  UpdateEmailTemplatePayload,
+  UpdateTagPayload,
   UpdateUserInformationPayload,
   UpdateUserPayload,
   User,
@@ -218,6 +231,11 @@ export const agenciesApi = {
       method: "PUT",
       body: JSON.stringify({ theme }),
     }),
+  updateDashboard: (id: string, layout: DashboardWidgetLayout[] | null) =>
+    request<Agency>(`/agencies/${id}/dashboard`, {
+      method: "PUT",
+      body: JSON.stringify({ layout }),
+    }),
   remove: (id: string) =>
     request<void>(`/agencies/${id}`, {
       method: "DELETE",
@@ -254,8 +272,85 @@ export const packagesApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  getByTracking: (code: string) =>
+    request<TrackingResponse>(`/packages/tracking/${encodeURIComponent(code)}`),
+  addEvent: (id: string, payload: AddCheckpointPayload) =>
+    request<TrackingResponse>(`/packages/${id}/events`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   remove: (id: string) =>
     request<void>(`/packages/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Rastreo público: sin token de administrador (includeAuth = false).
+export const trackingApi = {
+  get: (code: string) =>
+    request<PublicTracking>(
+      `/tracking/${encodeURIComponent(code)}`,
+      undefined,
+      false,
+    ),
+};
+
+export const aiApi = {
+  email: (prompt: string) =>
+    request<{ subject: string; body: string }>("/ai/email", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    }),
+  workflow: (prompt: string) =>
+    request<{ name: string; definition: AutomationDefinition }>("/ai/workflow", {
+      method: "POST",
+      body: JSON.stringify({ prompt }),
+    }),
+};
+
+export const emailTemplatesApi = {
+  list: () => request<EmailTemplate[]>("/email-templates"),
+  create: (payload: CreateEmailTemplatePayload) =>
+    request<EmailTemplate>("/email-templates", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateEmailTemplatePayload) =>
+    request<EmailTemplate>(`/email-templates/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/email-templates/${id}`, { method: "DELETE" }),
+};
+
+export const emailDomainsApi = {
+  list: () => request<EmailDomain[]>("/email-domains"),
+  create: (payload: CreateEmailDomainPayload) =>
+    request<EmailDomain>("/email-domains", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  verify: (id: string) =>
+    request<EmailDomain>(`/email-domains/${id}/verify`, { method: "POST" }),
+  remove: (id: string) =>
+    request<void>(`/email-domains/${id}`, { method: "DELETE" }),
+};
+
+export const tagsApi = {
+  list: () => request<Tag[]>("/tags"),
+  create: (payload: CreateTagPayload) =>
+    request<Tag>("/tags", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateTagPayload) =>
+    request<Tag>(`/tags/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/tags/${id}`, {
       method: "DELETE",
     }),
 };

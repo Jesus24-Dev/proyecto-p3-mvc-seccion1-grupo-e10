@@ -41,7 +41,19 @@ export interface Agency {
   location: string;
   is_active: boolean;
   user_id: string;
+  latitude: number | null;
+  longitude: number | null;
   theme: AgencyTheme | null;
+  dashboard_layout: DashboardWidgetLayout[] | null;
+}
+
+/** Posición/tamaño de un widget en el panel editable. */
+export interface DashboardWidgetLayout {
+  id: string;
+  colSpan: number;
+  rowSpan: number;
+  order: number;
+  hidden: boolean;
 }
 
 export interface CreateAgencyPayload {
@@ -141,6 +153,112 @@ export interface CreatePackagePayload {
   status?: PackageStatus;
 }
 
+/** Agencia (ubicación) resumida de un checkpoint. */
+export interface TrackingAgency {
+  id: string;
+  name: string;
+  location: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/** Un movimiento del paquete en su recorrido. */
+export interface PackageEvent {
+  id: string;
+  status: PackageStatus;
+  note: string;
+  created_at: string;
+  agency: TrackingAgency | null;
+}
+
+/** Rastreo completo (admin): paquete + contacto + recorrido. */
+export interface TrackingResponse {
+  id: string;
+  tracking_code: string;
+  description: string;
+  weight_kg: number;
+  status: PackageStatus;
+  created_at: string;
+  contact_id: string;
+  order_id: string | null;
+  contact: { id: string; first_name: string; last_name: string } | null;
+  events: PackageEvent[];
+}
+
+/** Rastreo público: sin datos del contacto. */
+export interface PublicTracking {
+  tracking_code: string;
+  description: string;
+  weight_kg: number;
+  status: PackageStatus;
+  created_at: string;
+  events: PackageEvent[];
+}
+
+/** Registrar un movimiento manual en el recorrido. */
+export interface AddCheckpointPayload {
+  status: PackageStatus;
+  agency_id?: string;
+  note?: string;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  agency_id: string;
+  created_at: string;
+}
+
+export interface CreateTagPayload {
+  name: string;
+  color?: string;
+  agency_id: string;
+}
+
+export interface UpdateTagPayload {
+  name: string;
+  color?: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  agency_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateEmailTemplatePayload {
+  name: string;
+  subject?: string;
+  body?: string;
+  agency_id: string;
+}
+
+export interface UpdateEmailTemplatePayload {
+  name: string;
+  subject?: string;
+  body?: string;
+}
+
+export type EmailDomainStatus = "PENDING" | "VERIFIED";
+
+export interface EmailDomain {
+  id: string;
+  domain: string;
+  status: EmailDomainStatus;
+  agency_id: string;
+  created_at: string;
+}
+
+export interface CreateEmailDomainPayload {
+  domain: string;
+  agency_id: string;
+}
+
 export type AgencyRole = "OWNER" | "MANAGER" | "OPERATOR" | "VIEWER";
 
 export interface Membership {
@@ -160,6 +278,13 @@ export interface CreateMembershipPayload {
 export interface AutomationDefinition {
   nodes: Array<Record<string, unknown>>;
   edges: Array<Record<string, unknown>>;
+  /** Variables personalizadas del flujo, insertables como {{token}}. */
+  variables?: string[];
+  /** Ajustes globales del flujo (dominio de envío, número de WhatsApp). */
+  settings?: {
+    email_from_domain?: string;
+    whatsapp_from?: string;
+  };
 }
 
 export interface Automation {

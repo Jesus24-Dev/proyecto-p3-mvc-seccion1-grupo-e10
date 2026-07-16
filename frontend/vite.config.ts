@@ -53,6 +53,26 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/tags": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/email-templates": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/email-domains": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/tracking": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/ai": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

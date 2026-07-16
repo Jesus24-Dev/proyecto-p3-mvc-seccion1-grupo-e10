@@ -1,9 +1,21 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Check, Globe, Mail, Pencil, Plus, Sparkles, Trash2 } from "lucide-react";
+import {
+  Check,
+  Globe,
+  LayoutGrid,
+  Mail,
+  Pencil,
+  Plus,
+  Sparkles,
+  Trash2,
+  Type,
+} from "lucide-react";
 import { aiApi, emailDomainsApi, emailTemplatesApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { RichEmailEditor } from "@/components/email/RichEmailEditor";
+import { BlockEmailBuilder } from "@/components/email/BlockEmailBuilder";
+import { isBlockEmail } from "@/components/email/blockEmail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -157,6 +169,7 @@ export function EmailBuilderPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<EmailTemplate | null>(null);
   const [form, setForm] = useState({ name: "", subject: "", body: "" });
+  const [bodyMode, setBodyMode] = useState<"rich" | "blocks">("blocks");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [toDelete, setToDelete] = useState<EmailTemplate | null>(null);
@@ -189,6 +202,7 @@ export function EmailBuilderPage() {
   function openCreate() {
     setEditing(null);
     setForm({ name: "", subject: "", body: "" });
+    setBodyMode("blocks");
     setFormError(null);
     setIsFormOpen(true);
   }
@@ -200,6 +214,7 @@ export function EmailBuilderPage() {
       subject: template.subject,
       body: template.body,
     });
+    setBodyMode(isBlockEmail(template.body) ? "blocks" : "rich");
     setFormError(null);
     setIsFormOpen(true);
   }
@@ -453,8 +468,16 @@ export function EmailBuilderPage() {
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <form onSubmit={saveTemplate} className="grid gap-4">
+        <DialogContent
+          className={cn(
+            "sm:max-w-2xl",
+            bodyMode === "blocks" && "sm:max-w-5xl",
+          )}
+        >
+          <form
+            onSubmit={saveTemplate}
+            className="grid max-h-[85vh] gap-4 overflow-y-auto pr-1"
+          >
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Editar plantilla" : "Nueva plantilla"}
@@ -509,63 +532,105 @@ export function EmailBuilderPage() {
               )}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="tpl-name">Nombre</Label>
-                  <Input
-                    id="tpl-name"
-                    value={form.name}
-                    onChange={(event) =>
-                      setForm((c) => ({ ...c, name: event.target.value }))
-                    }
-                    placeholder="p. ej. Bienvenida"
-                    autoFocus
-                  />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="tpl-name">Nombre</Label>
+                <Input
+                  id="tpl-name"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm((c) => ({ ...c, name: event.target.value }))
+                  }
+                  placeholder="p. ej. Bienvenida"
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="tpl-subject">Asunto</Label>
+                <Input
+                  id="tpl-subject"
+                  value={form.subject}
+                  onChange={(event) =>
+                    setForm((c) => ({ ...c, subject: event.target.value }))
+                  }
+                  placeholder="¡Hola {{nombre}}!"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Cuerpo</Label>
+                <div className="inline-flex rounded-lg border bg-muted/40 p-0.5">
+                  <button
+                    type="button"
+                    aria-pressed={bodyMode === "blocks"}
+                    onClick={() => setBodyMode("blocks")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      bodyMode === "blocks"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <LayoutGrid className="size-3.5" aria-hidden="true" />
+                    Bloques
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={bodyMode === "rich"}
+                    onClick={() => setBodyMode("rich")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                      bodyMode === "rich"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Type className="size-3.5" aria-hidden="true" />
+                    Texto enriquecido
+                  </button>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="tpl-subject">Asunto</Label>
-                  <Input
-                    id="tpl-subject"
-                    value={form.subject}
-                    onChange={(event) =>
-                      setForm((c) => ({ ...c, subject: event.target.value }))
-                    }
-                    placeholder="¡Hola {{nombre}}!"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="tpl-body">Cuerpo</Label>
+              </div>
+
+              {bodyMode === "blocks" ? (
+                <BlockEmailBuilder
+                  value={form.body}
+                  onChange={(html) => setForm((c) => ({ ...c, body: html }))}
+                />
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
                   <RichEmailEditor
                     value={form.body}
                     onChange={(html) => setForm((c) => ({ ...c, body: html }))}
                     placeholder="Hola {{nombre}}, …"
                   />
+                  <div className="grid gap-2">
+                    <Label>Previsualización</Label>
+                    <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                      <p className="font-medium">
+                        {renderPreview(form.subject) || "Sin asunto"}
+                      </p>
+                      <div
+                        className={cn(
+                          "border-t pt-2 text-muted-foreground",
+                          "[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-foreground",
+                          "[&_h2]:mb-1.5 [&_h2]:text-lg [&_h2]:font-medium [&_h2]:text-foreground",
+                          "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
+                          "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
+                          "[&_a]:font-medium [&_a]:text-primary [&_a]:underline",
+                          "[&_blockquote]:border-l [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic",
+                          "[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md",
+                        )}
+                        dangerouslySetInnerHTML={{
+                          __html:
+                            renderPreview(toBodyHtml(form.body)) || "Sin contenido",
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Previsualización</Label>
-                <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                  <p className="font-medium">
-                    {renderPreview(form.subject) || "Sin asunto"}
-                  </p>
-                  <div
-                    className={cn(
-                      "border-t pt-2 text-muted-foreground",
-                      "[&_h1]:mb-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-foreground",
-                      "[&_h2]:mb-1.5 [&_h2]:text-lg [&_h2]:font-medium [&_h2]:text-foreground",
-                      "[&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
-                      "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
-                      "[&_a]:font-medium [&_a]:text-primary [&_a]:underline",
-                      "[&_blockquote]:border-l [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic",
-                      "[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md",
-                    )}
-                    dangerouslySetInnerHTML={{
-                      __html: renderPreview(toBodyHtml(form.body)) || "Sin contenido",
-                    }}
-                  />
-                </div>
-              </div>
+              )}
             </div>
             <DialogFooter>
               <Button

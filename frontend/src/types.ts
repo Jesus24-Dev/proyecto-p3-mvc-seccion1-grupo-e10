@@ -213,6 +213,17 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface AuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  entity_id: string | null;
+  detail: string;
+  user_id: string | null;
+  user_email: string;
+  created_at: string;
+}
+
 export type PaymentStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 export interface Payment {

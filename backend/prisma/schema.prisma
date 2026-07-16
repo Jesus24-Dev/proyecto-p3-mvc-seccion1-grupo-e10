@@ -255,6 +255,23 @@ model package_events {
   agency agencies? @relation(fields: [agency_id], references: [id])
 }
 
+// Bitácora de auditoría: registra acciones críticas del personal.
+model audit_logs {
+  id String @id @default(uuid())
+  // p. ej. "user.create", "package.status_change", "payment.validate".
+  action String
+  // Entidad afectada: "user", "client", "package", "payment", ...
+  entity String
+  entity_id String?
+  detail String @default("")
+  // Usuario que ejecutó la acción (desnormalizado para sobrevivir borrados).
+  user_id String?
+  user_email String @default("")
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+}
+
 // Pago reportado por un cliente, validado contra el banco (simulado).
 model transactions {
   id String @id @default(uuid())

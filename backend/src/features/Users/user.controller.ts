@@ -2,6 +2,7 @@ import type {Request, Response} from 'express';
 import { UserService } from './user.service.js';
 import type { CreatedUser, UserResponse } from './user.types.js';
 import type { ErrorResponse } from '../../shared/error.responses.types.js';
+import { recordAudit } from '../Audit/audit.helper.js';
 
 export class UserController {
     constructor (private userService: UserService){}
@@ -25,6 +26,12 @@ export class UserController {
     public createUser = async (req: Request, res: Response<CreatedUser | ErrorResponse>) => {
         try {
             const user = await this.userService.createUser(req.body);
+            await recordAudit(req, {
+                action: "user.create",
+                entity: "user",
+                entity_id: user?.id ?? null,
+                detail: `Creó el usuario ${user?.email ?? ""}`,
+            });
             return res.status(201).json(user);
         } catch (error){
             return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo crear el usuario. Revisa los datos enviados."})
@@ -45,6 +52,12 @@ export class UserController {
         try {
             const {id} = req.params;
             await this.userService.deleteUser(id);
+            await recordAudit(req, {
+                action: "user.delete",
+                entity: "user",
+                entity_id: id,
+                detail: `Eliminó el usuario ${id}`,
+            });
             return res.status(204).json();
         } catch (error){
             return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el usuario no existe o ya fue eliminado."})

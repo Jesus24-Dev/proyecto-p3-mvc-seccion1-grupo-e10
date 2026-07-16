@@ -9,6 +9,14 @@ type AuthTokenPayload = {
   role: roles;
 };
 
+/** Usuario autenticado que el middleware adjunta a la petición. */
+export type AuthUser = { id: string; email: string; role: roles };
+
+/** Lee el usuario autenticado adjuntado por `requireAdmin`. */
+export function getAuthUser(request: Request): AuthUser | null {
+  return (request as Request & { authUser?: AuthUser }).authUser ?? null;
+}
+
 function getBearerToken(request: Request) {
   const authorizationHeader = request.headers.authorization;
 
@@ -51,6 +59,12 @@ export function requireAdmin(
         message: "Necesitas una cuenta ADMIN para realizar esta acción.",
       });
     }
+
+    (request as Request & { authUser?: AuthUser }).authUser = {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+    };
 
     return next();
   } catch {

@@ -13,6 +13,7 @@ import {
   Moon,
   Package,
   PanelLeft,
+  ScrollText,
   Settings,
   Sun,
   Tag,
@@ -48,6 +49,7 @@ const navigationItems = [
   { to: "/admin/templates", label: "Plantillas", icon: Mail },
   { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle },
   { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
+  { to: "/admin/audit", label: "Auditoría", icon: ScrollText },
 ];
 
 function BrandMark({ collapsed = false }: { collapsed?: boolean }) {

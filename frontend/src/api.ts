@@ -15,6 +15,7 @@ import type {
   CreateEmailTemplatePayload,
   CreateTagPayload,
   CreateUserInformationPayload,
+  AuditLog,
   CreatedUser,
   CreatePaymentPayload,
   CreateUserPayload,
@@ -450,4 +451,8 @@ export const paymentsApi = {
     request<Payment>(`/payments/${id}/reject`, { method: "POST" }),
   remove: (id: string) =>
     request<void>(`/payments/${id}`, { method: "DELETE" }),
+};
+
+export const auditApi = {
+  list: () => request<AuditLog[]>("/audit"),
 };

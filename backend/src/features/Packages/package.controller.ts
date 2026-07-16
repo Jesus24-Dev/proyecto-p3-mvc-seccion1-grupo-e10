@@ -3,6 +3,7 @@ import { PackageService, PackageServiceError } from "./package.service.js";
 import type { PackageResponse, TrackingResponse } from "./package.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
 import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
+import { recordAudit } from "../Audit/audit.helper.js";
 
 export class PackageController {
     constructor(private packageService: PackageService) {}
@@ -40,6 +41,12 @@ export class PackageController {
         try {
             const {id} = req.params;
             const tracking = await this.packageService.addCheckpoint(id, req.body);
+            await recordAudit(req, {
+                action: "package.status_change",
+                entity: "package",
+                entity_id: id,
+                detail: `Cambió el estado del paquete ${tracking.tracking_code} a ${req.body.status}`,
+            });
             return res.status(201).json(tracking);
         } catch (error) {
             if (error instanceof PackageServiceError) {
@@ -52,6 +59,12 @@ export class PackageController {
     public createPackage = async (req: Request<{}, {}, CreatePackageBody>, res: Response<PackageResponse | ErrorResponse>) => {
         try {
             const createdPackage = await this.packageService.createPackage(req.body);
+            await recordAudit(req, {
+                action: "package.create",
+                entity: "package",
+                entity_id: createdPackage.id,
+                detail: `Registró el paquete ${createdPackage.tracking_code}`,
+            });
             return res.status(201).json(createdPackage);
         } catch (error) {
             if (error instanceof PackageServiceError) {

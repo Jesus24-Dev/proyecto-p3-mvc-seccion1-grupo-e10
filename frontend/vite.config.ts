@@ -77,6 +77,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/audit": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

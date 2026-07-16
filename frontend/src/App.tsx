@@ -13,6 +13,7 @@ import { ContactDetailPage } from "@/pages/ContactDetailPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
 import { PaymentsPage } from "@/pages/PaymentsPage";
+import { AuditPage } from "@/pages/AuditPage";
 import { TagsPage } from "@/pages/TagsPage";
 import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -87,6 +88,7 @@ function App() {
         <Route path="automations" element={<AutomationsPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="contacts/:contactId" element={<ContactDetailPage />} />
+        <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
       {/* Editores a pantalla completa, sin el marco del panel. */}

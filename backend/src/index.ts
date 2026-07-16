@@ -10,6 +10,11 @@ import { OrderRoutes } from "./features/Orders";
 import { PackageRoutes } from "./features/Packages";
 import { MembershipRoutes } from "./features/Memberships";
 import { AutomationHookRoutes, AutomationRoutes } from "./features/Automations";
+import { TrackingRoutes } from "./features/Tracking";
+import { TagRoutes } from "./features/Tags";
+import { EmailTemplateRoutes } from "./features/EmailTemplates";
+import { EmailDomainRoutes } from "./features/EmailDomains";
+import { AiRoutes } from "./features/AI";
 
 dotenv.config();
 
@@ -31,6 +36,11 @@ app.use("/packages", PackageRoutes);
 app.use("/memberships", MembershipRoutes);
 app.use("/automations", AutomationRoutes);
 app.use("/hooks", AutomationHookRoutes);
+app.use("/tracking", TrackingRoutes);
+app.use("/tags", TagRoutes);
+app.use("/email-templates", EmailTemplateRoutes);
+app.use("/email-domains", EmailDomainRoutes);
+app.use("/ai", AiRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

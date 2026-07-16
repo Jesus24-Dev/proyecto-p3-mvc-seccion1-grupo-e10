@@ -2,17 +2,29 @@ import {prisma} from "../../database/prisma";
 import type { CreateAgencyBody } from "./agency.schema";
 import type { AgencyEntity } from "./agency.types";
 
+const agencySelect = {
+    id: true,
+    name: true,
+    location: true,
+    is_active: true,
+    user_id: true,
+    latitude: true,
+    longitude: true,
+    theme: true,
+    dashboard_layout: true,
+} as const;
+
 export class AgencyRepository {
     async findAll(): Promise<AgencyEntity[]>{
         return await prisma.agencies.findMany({
-            select: {id: true, name: true, location: true, is_active: true, user_id: true, theme: true},
+            select: agencySelect,
         });
     }
 
     async findById(id: string): Promise<AgencyEntity | null>{
         return await prisma.agencies.findUnique({
             where: {id: id},
-            select: {id: true, name: true, location: true, is_active: true, user_id: true, theme: true}
+            select: agencySelect,
         });
     }
 
@@ -20,7 +32,15 @@ export class AgencyRepository {
         return await prisma.agencies.update({
             where: {id: id},
             data: {theme: theme as object},
-            select: {id: true, name: true, location: true, is_active: true, user_id: true, theme: true},
+            select: agencySelect,
+        });
+    }
+
+    async updateDashboard(id: string, layout: unknown): Promise<AgencyEntity>{
+        return await prisma.agencies.update({
+            where: {id: id},
+            data: {dashboard_layout: layout as object},
+            select: agencySelect,
         });
     }
 

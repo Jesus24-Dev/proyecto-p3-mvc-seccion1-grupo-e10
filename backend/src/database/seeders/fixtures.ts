@@ -29,18 +29,65 @@ export const agencySeedData = [
     location: "Caracas, Distrito Capital",
     is_active: true,
     userEmail: "admin@drlogistics.local",
+    latitude: 10.4806,
+    longitude: -66.9036,
   },
   {
     name: "Valencia Centro",
     location: "Valencia, Carabobo",
     is_active: true,
     userEmail: "distributor@drlogistics.local",
+    latitude: 10.162,
+    longitude: -68.0077,
   },
   {
     name: "Maracaibo Norte",
     location: "Maracaibo, Zulia",
     is_active: true,
     userEmail: "user@drlogistics.local",
+    latitude: 10.6545,
+    longitude: -71.6403,
+  },
+] as const;
+
+// Catálogo de etiquetas por agencia (nombre de la agencia -> etiquetas).
+export const tagSeedData = [
+  { agencyName: "Caracas Central", name: "bienvenida", color: "emerald" },
+  { agencyName: "Caracas Central", name: "vip", color: "violet" },
+  { agencyName: "Caracas Central", name: "moroso", color: "red" },
+  { agencyName: "Valencia Centro", name: "bienvenida", color: "emerald" },
+  { agencyName: "Valencia Centro", name: "frecuente", color: "blue" },
+  { agencyName: "Maracaibo Norte", name: "bienvenida", color: "emerald" },
+  { agencyName: "Maracaibo Norte", name: "mayorista", color: "amber" },
+] as const;
+
+// Dominios de envío por agencia (subcuenta).
+export const emailDomainSeedData = [
+  {
+    agencyName: "Caracas Central",
+    domain: "correo.drlogistics.com",
+    status: "VERIFIED",
+  },
+  {
+    agencyName: "Valencia Centro",
+    domain: "valencia.drlogistics.com",
+    status: "PENDING",
+  },
+] as const;
+
+// Plantillas de correo por agencia (subcuenta).
+export const emailTemplateSeedData = [
+  {
+    agencyName: "Caracas Central",
+    name: "Bienvenida",
+    subject: "¡Bienvenido a Dr Logistics, {{nombre}}!",
+    body: "Hola {{nombre}},\n\nGracias por confiar en Dr Logistics. Desde ahora podrás rastrear tus paquetes con tu código de seguimiento.\n\nUn saludo,\nEl equipo de Dr Logistics",
+  },
+  {
+    agencyName: "Caracas Central",
+    name: "Paquete entregado",
+    subject: "Tu paquete {{tracking}} fue entregado",
+    body: "Hola {{nombre}},\n\nTe confirmamos que tu paquete {{tracking}} fue entregado con éxito. ¡Gracias por elegirnos!\n\nDr Logistics",
   },
 ] as const;
 
@@ -251,10 +298,10 @@ export const automationSeedData = [
     is_active: true,
     definition: {
       nodes: [
-        { id: "n1", type: "step", position: { x: 40, y: 160 }, data: { kind: "trigger", trigger: "contact_created" } },
-        { id: "n2", type: "step", position: { x: 320, y: 160 }, data: { kind: "wait", amount: 1, unit: "days" } },
-        { id: "n3", type: "step", position: { x: 600, y: 160 }, data: { kind: "send_whatsapp", message: "¡Hola! Bienvenido a Dr Logistics. Guarda este chat para rastrear tus paquetes." } },
-        { id: "n4", type: "step", position: { x: 880, y: 160 }, data: { kind: "add_tag", tag: "bienvenida" } },
+        { id: "n1", type: "step", position: { x: 320, y: 40 }, data: { kind: "trigger", trigger: "contact_created" } },
+        { id: "n2", type: "step", position: { x: 320, y: 200 }, data: { kind: "wait", amount: 1, unit: "days" } },
+        { id: "n3", type: "step", position: { x: 320, y: 360 }, data: { kind: "send_whatsapp", message: "¡Hola! Bienvenido a Dr Logistics. Guarda este chat para rastrear tus paquetes." } },
+        { id: "n4", type: "step", position: { x: 320, y: 520 }, data: { kind: "add_tag", tag: "bienvenida" } },
       ],
       edges: [
         { id: "e1", source: "n1", target: "n2" },

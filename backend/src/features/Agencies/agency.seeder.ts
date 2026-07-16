@@ -45,6 +45,8 @@ export async function seedAgencies() {
           },
           data: {
             is_active: agency.is_active,
+            latitude: agency.latitude,
+            longitude: agency.longitude,
           },
           select: {
             id: true,
@@ -59,6 +61,8 @@ export async function seedAgencies() {
             location: agency.location,
             is_active: agency.is_active,
             user_id: ownerId,
+            latitude: agency.latitude,
+            longitude: agency.longitude,
           },
           select: {
             id: true,

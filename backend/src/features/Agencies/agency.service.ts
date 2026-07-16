@@ -44,4 +44,8 @@ export class AgencyService {
   async updateAgencyTheme(id: string, theme: unknown) {
     return await this.agencyRepository.updateTheme(id, theme);
   }
+
+  async updateAgencyDashboard(id: string, layout: unknown) {
+    return await this.agencyRepository.updateDashboard(id, layout);
+  }
 }

@@ -6,6 +6,10 @@ import { z } from "zod";
 const DefinitionSchema = z.object({
   nodes: z.array(z.record(z.string(), z.unknown())),
   edges: z.array(z.record(z.string(), z.unknown())),
+  // Variables personalizadas del flujo (insertables como {{token}}).
+  variables: z.optional(z.array(z.string())),
+  // Ajustes globales del flujo (p. ej. dominio de envío, número de WhatsApp).
+  settings: z.optional(z.record(z.string(), z.unknown())),
 });
 
 export const CreateAutomationSchema = z.object({

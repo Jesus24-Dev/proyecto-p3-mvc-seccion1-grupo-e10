@@ -58,6 +58,16 @@ export class AgencyController {
         }
     }
 
+    public updateAgencyDashboard = async (req: Request<{id: string}, {}>, res: Response<AgencyResponse | ErrorResponse>) => {
+        try {
+            const {id} = req.params;
+            const agency = await this.agencyService.updateAgencyDashboard(id, req.body?.layout ?? null);
+            return res.status(200).json(agency);
+        } catch (error){
+            return res.status(400).json({"status": "error", "message": "No se pudo guardar la distribución del panel."})
+        }
+    }
+
     public deleteAgency = async (req: Request<{id: string}, {}>, res: Response<ErrorResponse>) => {
         try {
             const {id} = req.params;

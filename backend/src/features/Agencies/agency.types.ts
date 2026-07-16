@@ -20,5 +20,8 @@ export interface AgencyResponse {
     location: string;
     is_active: boolean;
     user_id: string;
+    latitude: number | null;
+    longitude: number | null;
     theme: unknown;
+    dashboard_layout: unknown;
 }

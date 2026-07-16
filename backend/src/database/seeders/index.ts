@@ -4,6 +4,9 @@ import { seedOrders } from "../../features/Orders/order.seeder.js";
 import { seedPackages } from "../../features/Packages/package.seeder.js";
 import { seedMemberships } from "../../features/Memberships/membership.seeder.js";
 import { seedAutomations } from "../../features/Automations/automation.seeder.js";
+import { seedTags } from "../../features/Tags/tags.seeder.js";
+import { seedEmailTemplates } from "../../features/EmailTemplates/emailTemplate.seeder.js";
+import { seedEmailDomains } from "../../features/EmailDomains/emailDomain.seeder.js";
 import { seedUsers } from "../../features/Users/user.seeder.js";
 import { seedUsersInformation } from "../../features/UsersInformation/userInformation.seeder.js";
 
@@ -31,6 +34,9 @@ async function main() {
   summary.push(await runSeeder("Packages", seedPackages));
   summary.push(await runSeeder("Memberships", seedMemberships));
   summary.push(await runSeeder("Automations", seedAutomations));
+  summary.push(await runSeeder("Tags", seedTags));
+  summary.push(await runSeeder("EmailDomains", seedEmailDomains));
+  summary.push(await runSeeder("EmailTemplates", seedEmailTemplates));
 
   console.log("Database seed completed successfully.");
   console.table(summary);

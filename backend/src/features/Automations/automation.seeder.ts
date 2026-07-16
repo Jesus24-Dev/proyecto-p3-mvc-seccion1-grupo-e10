@@ -8,26 +8,22 @@ export async function seedAutomations() {
   for (const automation of automationSeedData) {
     const existing = await prisma.automations.findFirst({
       where: { name: automation.name },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
-    const data = {
-      name: automation.name,
-      description: automation.description,
-      is_active: automation.is_active,
-      definition: automation.definition as Prisma.InputJsonValue,
-    };
-
-    const seededAutomation = existing
-      ? await prisma.automations.update({
-          where: { id: existing.id },
-          data,
-          select: { id: true, name: true },
-        })
-      : await prisma.automations.create({
-          data,
-          select: { id: true, name: true },
-        });
+    // Create-only: si el flujo ya existe, se respeta tal cual (conserva las
+    // posiciones y ediciones que el usuario haya guardado; no lo sobreescribe).
+    const seededAutomation =
+      existing ??
+      (await prisma.automations.create({
+        data: {
+          name: automation.name,
+          description: automation.description,
+          is_active: automation.is_active,
+          definition: automation.definition as Prisma.InputJsonValue,
+        },
+        select: { id: true, name: true },
+      }));
 
     seededAutomations.push(seededAutomation);
   }

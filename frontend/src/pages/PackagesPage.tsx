@@ -64,6 +64,7 @@ const NO_ORDER = "none";
 type FormState = {
   description: string;
   weight_kg: string;
+  dimensions: string;
   contact_id: string;
   order_id: string;
   status: PackageStatus;
@@ -72,6 +73,7 @@ type FormState = {
 const emptyForm: FormState = {
   description: "",
   weight_kg: "",
+  dimensions: "",
   contact_id: "",
   order_id: NO_ORDER,
   status: "RECEIVED",
@@ -293,6 +295,7 @@ export function PackagesPage() {
     setForm({
       description: item.description,
       weight_kg: String(item.weight_kg),
+      dimensions: item.dimensions,
       contact_id: item.contact_id,
       order_id: item.order_id ?? NO_ORDER,
       status: item.status,
@@ -309,6 +312,7 @@ export function PackagesPage() {
     const payload = {
       description: form.description,
       weight_kg: Number(form.weight_kg),
+      dimensions: form.dimensions.trim(),
       contact_id: form.contact_id,
       ...(form.order_id !== NO_ORDER ? { order_id: form.order_id } : {}),
       status: form.status,
@@ -600,6 +604,20 @@ export function PackagesPage() {
                 }
                 placeholder="Caja mediana con repuestos"
                 required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="package-dimensions">Dimensiones</Label>
+              <Input
+                id="package-dimensions"
+                value={form.dimensions}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    dimensions: event.target.value,
+                  }))
+                }
+                placeholder="p. ej. 30 × 20 × 15 cm"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

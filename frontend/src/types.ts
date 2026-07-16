@@ -139,6 +139,7 @@ export interface Package {
   tracking_code: string;
   description: string;
   weight_kg: number;
+  dimensions: string;
   status: PackageStatus;
   created_at: string;
   contact_id: string;
@@ -148,6 +149,7 @@ export interface Package {
 export interface CreatePackagePayload {
   description: string;
   weight_kg: number;
+  dimensions?: string;
   contact_id: string;
   order_id?: string;
   status?: PackageStatus;

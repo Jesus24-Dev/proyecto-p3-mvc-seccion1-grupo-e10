@@ -222,6 +222,8 @@ model packages {
   tracking_code String @unique
   description String
   weight_kg Float
+  // Dimensiones en texto libre, p. ej. "30 × 20 × 15 cm".
+  dimensions String @default("")
   status package_status @default(RECEIVED)
   created_at DateTime @default(now())
 

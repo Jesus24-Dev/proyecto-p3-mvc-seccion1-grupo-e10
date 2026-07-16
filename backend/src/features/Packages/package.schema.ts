@@ -10,6 +10,7 @@ export const CreatePackageSchema = z.object({
     weight_kg: z.number().positive({
       message: "El peso debe ser mayor que cero.",
     }),
+    dimensions: z.optional(z.string()),
     contact_id: z.guid({
       message: "Ingrese un ID de contacto válido",
     }),

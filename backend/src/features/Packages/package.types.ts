@@ -10,6 +10,7 @@ export interface PackageResponse {
   tracking_code: string;
   description: string;
   weight_kg: number;
+  dimensions: string;
   status: PackageStatus;
   created_at: Date;
   contact_id: string;

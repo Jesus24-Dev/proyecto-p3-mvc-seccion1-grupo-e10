@@ -8,6 +8,7 @@ const packageSelect = {
   tracking_code: true,
   description: true,
   weight_kg: true,
+  dimensions: true,
   status: true,
   created_at: true,
   contact_id: true,
@@ -76,6 +77,7 @@ export class PackageRepository {
           tracking_code: trackingCode,
           description: body.description,
           weight_kg: body.weight_kg,
+          dimensions: body.dimensions ?? "",
           contact_id: body.contact_id,
           order_id: body.order_id ?? null,
           ...(body.status ? { status: body.status } : {}),
@@ -117,6 +119,7 @@ export class PackageRepository {
         data: {
           description: body.description,
           weight_kg: body.weight_kg,
+          dimensions: body.dimensions ?? "",
           contact_id: body.contact_id,
           order_id: body.order_id ?? null,
           ...(body.status ? { status: body.status } : {}),

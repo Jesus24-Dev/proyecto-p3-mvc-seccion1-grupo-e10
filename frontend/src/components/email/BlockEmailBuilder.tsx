@@ -353,17 +353,26 @@ function SortableBlock({
         isDragging && "z-10 opacity-70",
       )}
     >
-      <button
-        type="button"
-        onClick={onSelect}
+      {/* Contenedor seleccionable: no puede ser <button> porque el HTML del
+          bloque contiene contenido de flujo (títulos, tablas, enlaces). */}
+      <div
+        role="button"
+        tabIndex={0}
         aria-label="Seleccionar bloque"
-        className="block w-full cursor-pointer text-left"
+        onClick={onSelect}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onSelect();
+          }
+        }}
+        className="block w-full cursor-pointer rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div
           className="pointer-events-none [&_a]:pointer-events-none"
           dangerouslySetInnerHTML={{ __html: renderBlockHtml(block, settings) }}
         />
-      </button>
+      </div>
 
       {/* Controles flotantes */}
       <div

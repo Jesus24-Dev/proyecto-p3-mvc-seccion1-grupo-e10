@@ -211,6 +211,34 @@ export interface Tag {
   updated_at: string;
 }
 
+export type PaymentStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface Payment {
+  id: string;
+  reference: string;
+  bank: string;
+  amount: number;
+  status: PaymentStatus;
+  paid_at: string;
+  validated_at: string | null;
+  note: string;
+  created_at: string;
+  contact_id: string;
+  order_id: string | null;
+  contact: { id: string; first_name: string; last_name: string } | null;
+  order: { id: string; description: string } | null;
+}
+
+export interface CreatePaymentPayload {
+  reference: string;
+  bank?: string;
+  amount: number;
+  paid_at: string;
+  contact_id: string;
+  order_id?: string;
+  note?: string;
+}
+
 /** Usuario recién creado: incluye el token para armar el enlace de verificación. */
 export interface CreatedUser {
   id: string;

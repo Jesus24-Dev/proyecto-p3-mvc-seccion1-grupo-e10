@@ -12,6 +12,7 @@ import { ContactsPage } from "@/pages/ContactsPage";
 import { ContactDetailPage } from "@/pages/ContactDetailPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
+import { PaymentsPage } from "@/pages/PaymentsPage";
 import { TagsPage } from "@/pages/TagsPage";
 import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -75,6 +76,7 @@ function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:orderId" element={<OrderDetailPage />} />
         <Route path="packages" element={<PackagesPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
         <Route
           path="packages/:trackingCode"
           element={<PackageTrackingPage />}

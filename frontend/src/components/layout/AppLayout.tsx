@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
+  Banknote,
   BookUser,
   Boxes,
   Building2,
@@ -41,6 +42,7 @@ const navigationItems = [
   { to: "/admin/agencies", label: "Agencias", icon: Building2 },
   { to: "/admin/orders", label: "Envíos", icon: Package },
   { to: "/admin/packages", label: "Paquetes", icon: Boxes },
+  { to: "/admin/payments", label: "Transacciones", icon: Banknote },
   { to: "/admin/contacts", label: "Contactos", icon: BookUser },
   { to: "/admin/tags", label: "Etiquetas", icon: Tag },
   { to: "/admin/templates", label: "Plantillas", icon: Mail },

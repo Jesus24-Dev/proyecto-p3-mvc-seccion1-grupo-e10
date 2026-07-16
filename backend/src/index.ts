@@ -15,6 +15,7 @@ import { TagRoutes } from "./features/Tags";
 import { EmailTemplateRoutes } from "./features/EmailTemplates";
 import { EmailDomainRoutes } from "./features/EmailDomains";
 import { AiRoutes } from "./features/AI";
+import { PaymentRoutes } from "./features/Payments";
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.use("/tags", TagRoutes);
 app.use("/email-templates", EmailTemplateRoutes);
 app.use("/email-domains", EmailDomainRoutes);
 app.use("/ai", AiRoutes);
+app.use("/payments", PaymentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

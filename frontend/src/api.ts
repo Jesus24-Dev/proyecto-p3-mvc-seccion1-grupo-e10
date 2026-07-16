@@ -16,7 +16,9 @@ import type {
   CreateTagPayload,
   CreateUserInformationPayload,
   CreatedUser,
+  CreatePaymentPayload,
   CreateUserPayload,
+  Payment,
   DashboardWidgetLayout,
   EmailDomain,
   EmailTemplate,
@@ -433,4 +435,19 @@ export const automationsApi = {
       },
       false,
     ),
+};
+
+export const paymentsApi = {
+  list: () => request<Payment[]>("/payments"),
+  create: (payload: CreatePaymentPayload) =>
+    request<Payment>("/payments", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  validate: (id: string) =>
+    request<Payment>(`/payments/${id}/validate`, { method: "POST" }),
+  reject: (id: string) =>
+    request<Payment>(`/payments/${id}/reject`, { method: "POST" }),
+  remove: (id: string) =>
+    request<void>(`/payments/${id}`, { method: "DELETE" }),
 };

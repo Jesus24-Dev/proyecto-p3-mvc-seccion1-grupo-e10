@@ -73,6 +73,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/payments": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

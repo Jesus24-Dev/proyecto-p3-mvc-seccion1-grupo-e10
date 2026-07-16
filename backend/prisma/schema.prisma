@@ -48,6 +48,13 @@ enum transfer_status {
   REFUNDED        // El dinero fue devuelto al remitente.
 }
 
+// Estado de validación de un pago reportado por el cliente.
+enum payment_status {
+  PENDING   // Reportado, aún sin validar contra el banco.
+  APPROVED  // Validado y aprobado.
+  REJECTED  // No coincide (monto/fecha/referencia) o rechazado.
+}
+
 model users {
   id String @id @default(uuid())
   email String @unique
@@ -78,6 +85,7 @@ model users_information {
   user users @relation(fields: [user_id], references: [id])
 
   packages packages[]
+  transactions transactions[]
 }
 
 model agencies {
@@ -205,6 +213,7 @@ model orders {
   destination_agency agencies @relation("DestinationAgency", fields: [destination_agency_id], references: [id])
 
   packages packages[]
+  transactions transactions[]
 }
 
 model packages {
@@ -242,4 +251,28 @@ model package_events {
   // Agencia (ubicación) del checkpoint; opcional para eventos sin sede.
   agency_id String?
   agency agencies? @relation(fields: [agency_id], references: [id])
+}
+
+// Pago reportado por un cliente, validado contra el banco (simulado).
+model transactions {
+  id String @id @default(uuid())
+  // Referencia bancaria reportada por el cliente.
+  reference String
+  bank String @default("Banco Mercantil")
+  amount Float
+  status payment_status @default(PENDING)
+  // Fecha del pago reportada por el cliente.
+  paid_at DateTime
+  // Momento en que se validó/rechazó contra el banco.
+  validated_at DateTime?
+  note String @default("")
+  created_at DateTime @default(now())
+
+  // Cliente (contacto) que reporta el pago.
+  contact_id String
+  contact users_information @relation(fields: [contact_id], references: [id])
+
+  // Envío (orden) que cubre el pago; opcional.
+  order_id String?
+  order orders? @relation(fields: [order_id], references: [id])
 }

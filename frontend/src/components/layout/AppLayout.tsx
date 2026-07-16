@@ -6,12 +6,15 @@ import {
   Building2,
   LayoutDashboard,
   LogOut,
+  Mail,
   Menu,
   MessageCircle,
   Moon,
   Package,
   PanelLeft,
+  Settings,
   Sun,
+  Tag,
   Users,
   Workflow,
 } from "lucide-react";
@@ -34,13 +37,15 @@ import { AgencySwitcher } from "@/components/layout/AgencySwitcher";
 
 const navigationItems = [
   { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true },
-  { to: "/admin/usuarios", label: "Usuarios", icon: Users },
-  { to: "/admin/agencias", label: "Agencias", icon: Building2 },
-  { to: "/admin/envios", label: "Envíos", icon: Package },
-  { to: "/admin/paquetes", label: "Paquetes", icon: Boxes },
-  { to: "/admin/contactos", label: "Contactos", icon: BookUser },
-  { to: "/admin/conversaciones", label: "Conversaciones", icon: MessageCircle },
-  { to: "/admin/automatizaciones", label: "Automatizaciones", icon: Workflow },
+  { to: "/admin/users", label: "Usuarios", icon: Users },
+  { to: "/admin/agencies", label: "Agencias", icon: Building2 },
+  { to: "/admin/orders", label: "Envíos", icon: Package },
+  { to: "/admin/packages", label: "Paquetes", icon: Boxes },
+  { to: "/admin/contacts", label: "Contactos", icon: BookUser },
+  { to: "/admin/tags", label: "Etiquetas", icon: Tag },
+  { to: "/admin/templates", label: "Plantillas", icon: Mail },
+  { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle },
+  { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
 ];
 
 function BrandMark({ collapsed = false }: { collapsed?: boolean }) {
@@ -55,7 +60,7 @@ function BrandMark({ collapsed = false }: { collapsed?: boolean }) {
         <Package className="size-4.5" aria-hidden="true" />
       </span>
       {!collapsed && (
-        <span className="text-[17px] font-medium tracking-tight">
+        <span className="text-lg font-medium tracking-tight">
           Dr Logistics
         </span>
       )}
@@ -100,7 +105,7 @@ function NavigationList({
 const SIDEBAR_COLLAPSED_KEY = "dr-logistics-sidebar-collapsed";
 
 /** Rutas que aprovechan todo el ancho de la pantalla. */
-const FULL_BLEED_PREFIXES = ["/admin/conversaciones", "/admin/automatizaciones"];
+const FULL_BLEED_PREFIXES = ["/admin/conversations", "/admin/automations"];
 
 export function AppLayout() {
   const { session, logout } = useAuth();
@@ -230,6 +235,10 @@ export function AppLayout() {
                 </DropdownMenuLabel>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
+              <DropdownMenuItem render={<NavLink to="/admin/settings" />}>
+                <Settings aria-hidden="true" />
+                Configuración
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={logout}>
                 <LogOut aria-hidden="true" />
                 Cerrar sesión

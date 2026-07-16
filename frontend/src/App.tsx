@@ -5,10 +5,16 @@ import { LoginPage } from "@/pages/LoginPage";
 import { UsersPage } from "@/pages/UsersPage";
 import { AgenciesPage } from "@/pages/AgenciesPage";
 import { OrdersPage } from "@/pages/OrdersPage";
+import { OrderDetailPage } from "@/pages/OrderDetailPage";
 import { ContactsPage } from "@/pages/ContactsPage";
 import { ContactDetailPage } from "@/pages/ContactDetailPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
+import { TagsPage } from "@/pages/TagsPage";
+import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
+import { SettingsPage } from "@/pages/SettingsPage";
+import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
+import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 import { AutomationEditorPage } from "@/pages/AutomationEditorPage";
@@ -27,6 +33,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LoginPage />} />
+      <Route path="/track" element={<PublicTrackingPage />} />
+      <Route path="/track/:code" element={<PublicTrackingPage />} />
       <Route
         path="/admin"
         element={
@@ -36,19 +44,34 @@ function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="usuarios" element={<UsersPage />} />
-        <Route path="agencias" element={<AgenciesPage />} />
-        <Route path="envios" element={<OrdersPage />} />
-        <Route path="paquetes" element={<PackagesPage />} />
-        <Route path="conversaciones" element={<ConversationsPage />} />
-        <Route path="automatizaciones" element={<AutomationsPage />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="agencies" element={<AgenciesPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/:orderId" element={<OrderDetailPage />} />
+        <Route path="packages" element={<PackagesPage />} />
         <Route
-          path="automatizaciones/:automationId"
-          element={<AutomationEditorPage />}
+          path="packages/:trackingCode"
+          element={<PackageTrackingPage />}
         />
-        <Route path="contactos" element={<ContactsPage />} />
-        <Route path="contactos/:contactId" element={<ContactDetailPage />} />
+        <Route path="conversations" element={<ConversationsPage />} />
+        <Route path="tags" element={<TagsPage />} />
+        <Route path="templates" element={<EmailBuilderPage />} />
+        <Route path="automations" element={<AutomationsPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="contacts/:contactId" element={<ContactDetailPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
+      {/* Editor de automatizaciones: pantalla completa, sin el marco del panel. */}
+      <Route
+        path="/admin/automations/:automationId"
+        element={
+          <RequireAdmin>
+            <div className="flex h-svh flex-col bg-background px-4 py-4 md:px-6 md:py-5">
+              <AutomationEditorPage />
+            </div>
+          </RequireAdmin>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

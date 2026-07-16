@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { Building2, Check, ChevronsUpDown, Globe } from "lucide-react";
 import {
   DropdownMenu,
@@ -8,21 +9,71 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { agenciesApi } from "@/api";
+import { agenciesApi, membershipsApi } from "@/api";
 import { useActiveAgency } from "@/context/AgencyContext";
+import { useAuth } from "@/context/AuthContext";
 import { usePageData } from "@/hooks/usePageData";
 import { cn } from "@/lib/utils";
 
 /**
- * Selector de subcuenta estilo GHL: cambia la agencia activa y con ella
- * el alcance de los datos que muestra el panel.
+ * Selector de subcuenta estilo GHL: cambia la agencia activa y con ella el
+ * alcance de los datos que muestra el panel.
+ *
+ * Alcance de acceso (solo UI): se listan las agencias que el usuario posee o
+ * donde es miembro. Si no las abarca todas (acceso de subcuenta), se oculta
+ * "Todas las agencias" y se fuerza una agencia accesible como activa.
  */
 export function AgencySwitcher() {
   const { activeAgencyId, setActiveAgencyId } = useActiveAgency();
-  const { data: agencies } = usePageData(agenciesApi.list);
+  const { session } = useAuth();
+  const { data } = usePageData(() =>
+    Promise.all([agenciesApi.list(), membershipsApi.list()]),
+  );
+  const [agencies, memberships] = data ?? [[], []];
+  const userId = session?.user.id ?? "";
+
+  // Agencias que el usuario posee o donde es miembro.
+  const accessible = useMemo(() => {
+    const memberAgencyIds = new Set(
+      memberships
+        .filter((membership) => membership.user_id === userId)
+        .map((membership) => membership.agency_id),
+    );
+    const scoped = agencies.filter(
+      (agency) => agency.user_id === userId || memberAgencyIds.has(agency.id),
+    );
+    // Si no está conectado a ninguna, no lo dejamos sin acceso: muestra todas.
+    return scoped.length > 0 ? scoped : agencies;
+  }, [agencies, memberships, userId]);
+
+  const accessibleIds = useMemo(
+    () => new Set(accessible.map((agency) => agency.id)),
+    [accessible],
+  );
+  // Acceso "de agencia": puede ver todas las subcuentas de la red.
+  const hasFullAccess =
+    agencies.length > 0 && accessible.length === agencies.length;
 
   const activeAgency =
-    agencies?.find((agency) => agency.id === activeAgencyId) ?? null;
+    agencies.find((agency) => agency.id === activeAgencyId) ?? null;
+
+  // Un usuario de subcuenta no puede quedarse en "Todas" (mostraría todo):
+  // si su agencia activa no es accesible, se selecciona la primera accesible.
+  useEffect(() => {
+    if (agencies.length === 0 || hasFullAccess) {
+      return;
+    }
+    if (!activeAgencyId || !accessibleIds.has(activeAgencyId)) {
+      setActiveAgencyId(accessible[0]?.id ?? null);
+    }
+  }, [
+    agencies.length,
+    hasFullAccess,
+    activeAgencyId,
+    accessibleIds,
+    accessible,
+    setActiveAgencyId,
+  ]);
 
   return (
     <DropdownMenu>
@@ -58,18 +109,20 @@ export function AgencySwitcher() {
           <DropdownMenuLabel>Subcuenta activa</DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setActiveAgencyId(null)}>
-          <Globe aria-hidden="true" />
-          Todas las agencias
-          <Check
-            className={cn(
-              "ml-auto",
-              activeAgencyId === null ? "opacity-100" : "opacity-0",
-            )}
-            aria-hidden="true"
-          />
-        </DropdownMenuItem>
-        {(agencies ?? []).map((agency) => (
+        {hasFullAccess && (
+          <DropdownMenuItem onClick={() => setActiveAgencyId(null)}>
+            <Globe aria-hidden="true" />
+            Todas las agencias
+            <Check
+              className={cn(
+                "ml-auto",
+                activeAgencyId === null ? "opacity-100" : "opacity-0",
+              )}
+              aria-hidden="true"
+            />
+          </DropdownMenuItem>
+        )}
+        {accessible.map((agency) => (
           <DropdownMenuItem
             key={agency.id}
             onClick={() => setActiveAgencyId(agency.id)}

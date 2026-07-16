@@ -83,10 +83,9 @@ function NavigationList({
           to={item.to}
           end={item.end}
           onClick={onNavigate}
-          title={collapsed ? item.label : undefined}
           className={({ isActive }) =>
             cn(
-              "flex h-10 items-center gap-3 rounded-full text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+              "group/nav relative flex h-10 items-center gap-3 rounded-full text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
               collapsed ? "justify-center px-0" : "px-4",
               isActive &&
                 "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -95,7 +94,17 @@ function NavigationList({
         >
           <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
           {!collapsed && item.label}
-          {collapsed && <span className="sr-only">{item.label}</span>}
+          {collapsed && (
+            <>
+              <span className="sr-only">{item.label}</span>
+              <span
+                role="tooltip"
+                className="pointer-events-none absolute top-1/2 left-full z-50 ml-2.5 -translate-y-1/2 translate-x-1 scale-95 rounded-md bg-popover px-2.5 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground opacity-0 shadow-md ring-1 ring-foreground/10 transition-[opacity,transform] duration-150 group-hover/nav:translate-x-0 group-hover/nav:scale-100 group-hover/nav:opacity-100 group-focus-visible/nav:translate-x-0 group-focus-visible/nav:scale-100 group-focus-visible/nav:opacity-100 motion-reduce:transition-none"
+              >
+                {item.label}
+              </span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

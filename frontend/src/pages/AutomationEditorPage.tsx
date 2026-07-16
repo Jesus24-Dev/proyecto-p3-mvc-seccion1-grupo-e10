@@ -67,6 +67,10 @@ import {
   NoteNodeComponent,
   type NoteNode,
 } from "@/components/automations/NoteNode";
+import {
+  EnrollmentHistory,
+  ExecutionLogs,
+} from "@/components/automations/AutomationInsights";
 import { VariableTextarea } from "@/components/automations/VariableTextarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -163,6 +167,8 @@ export function AutomationEditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<Insertion | null>(null);
   const [actionQuery, setActionQuery] = useState("");
+  // Pestaña activa del editor: constructor / historial / registros.
+  const [view, setView] = useState<"builder" | "enrollment" | "logs">("builder");
   const [notes, setNotes] = useState<Note[]>([]);
   const [customVariables, setCustomVariables] = useState<string[]>([]);
   const [variablesOpen, setVariablesOpen] = useState(false);
@@ -678,16 +684,29 @@ export function AutomationEditorPage() {
     function onDelete(event: Event) {
       deleteStep((event as CustomEvent<{ nodeId: string }>).detail.nodeId);
     }
+    function onDuplicateNote(event: Event) {
+      duplicateNote((event as CustomEvent<{ nodeId: string }>).detail.nodeId);
+    }
+    function onDeleteNote(event: Event) {
+      removeNote((event as CustomEvent<{ nodeId: string }>).detail.nodeId);
+    }
     window.addEventListener("automation:edit-step", onEdit);
     window.addEventListener("automation:duplicate-step", onDuplicate);
     window.addEventListener("automation:delete-step", onDelete);
+    // Las notas reutilizan el mismo "edit" (selecciona y abre el panel).
+    window.addEventListener("automation:edit-note", onEdit);
+    window.addEventListener("automation:duplicate-note", onDuplicateNote);
+    window.addEventListener("automation:delete-note", onDeleteNote);
     return () => {
       window.removeEventListener("automation:edit-step", onEdit);
       window.removeEventListener("automation:duplicate-step", onDuplicate);
       window.removeEventListener("automation:delete-step", onDelete);
+      window.removeEventListener("automation:edit-note", onEdit);
+      window.removeEventListener("automation:duplicate-note", onDuplicateNote);
+      window.removeEventListener("automation:delete-note", onDeleteNote);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [steps]);
+  }, [steps, notes]);
 
   function updateSwitchCase(index: number, value: string) {
     const cases = [...(selectedStep?.data.cases ?? [])];
@@ -715,6 +734,24 @@ export function AutomationEditorPage() {
     setNotes((current) => current.filter((note) => note.id !== id));
     savedPositions.current.delete(id);
     setSelectedId((current) => (current === id ? null : current));
+  }
+
+  function duplicateNote(id: string) {
+    const source = notes.find((note) => note.id === id);
+    if (!source) {
+      return;
+    }
+    const copyId = newId();
+    const basePos = savedPositions.current.get(id) ?? { x: 360, y: 40 };
+    savedPositions.current.set(copyId, {
+      x: basePos.x + 24,
+      y: basePos.y + 24,
+    });
+    setNotes((current) => [
+      ...current,
+      { id: copyId, text: source.text, color: source.color },
+    ]);
+    setSelectedId(copyId);
   }
 
   function addVariable(raw: string) {
@@ -903,7 +940,42 @@ export function AutomationEditorPage() {
         </Alert>
       )}
 
-      <div className="grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[1fr_20rem]">
+      <div
+        role="tablist"
+        aria-label="Vistas de la automatización"
+        className="flex items-center gap-1 border-b"
+      >
+        {(
+          [
+            { id: "builder", label: "Constructor" },
+            { id: "enrollment", label: "Historial de inscripciones" },
+            { id: "logs", label: "Registros de ejecución" },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={view === tab.id}
+            onClick={() => setView(tab.id)}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:text-foreground",
+              view === tab.id
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 items-stretch gap-4 lg:grid-cols-[1fr_20rem]",
+          view !== "builder" && "hidden",
+        )}
+      >
         <Card className="min-h-0 overflow-hidden p-0">
           <div
             className="h-full min-h-[460px]"
@@ -1072,6 +1144,18 @@ export function AutomationEditorPage() {
           </CardContent>
         </Card>
       </div>
+
+      {view !== "builder" && (
+        <Card className="min-h-0 flex-1 overflow-y-auto">
+          <CardContent className="p-4 md:p-6">
+            {view === "enrollment" ? (
+              <EnrollmentHistory saved={!isNew} />
+            ) : (
+              <ExecutionLogs saved={!isNew} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <VariablesDialog
         open={variablesOpen}

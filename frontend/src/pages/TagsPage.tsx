@@ -19,6 +19,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -31,7 +39,9 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActiveAgency } from "@/context/AgencyContext";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
+import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { NODE_COLORS, nodeChipClass } from "@/lib/automationSteps";
+import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Tag } from "@/types";
 
@@ -62,6 +72,17 @@ export function TagsPage() {
       ),
     [allTags, activeAgencyId],
   );
+
+  const {
+    sorted: sortedTags,
+    sortKey,
+    direction,
+    toggle,
+  } = useSortable(tags, {
+    name: (tag) => tag.name.toLowerCase(),
+    created: (tag) => tag.created_at,
+    updated: (tag) => tag.updated_at,
+  });
 
   function openCreate() {
     setEditing(null);
@@ -166,10 +187,10 @@ export function TagsPage() {
       )}
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
+        <div className="grid gap-3">
+          <Skeleton className="h-10 rounded-xl" />
+          <Skeleton className="h-10 rounded-xl" />
+          <Skeleton className="h-10 rounded-xl" />
         </div>
       ) : tags.length === 0 ? (
         <Card>
@@ -192,36 +213,91 @@ export function TagsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {tags.map((tag) => (
-            <Card key={tag.id} className="py-4">
-              <CardContent className="flex items-center gap-3 px-4">
-                <Badge className={cn("shrink-0", nodeChipClass(tag.color))}>
-                  #{tag.name}
-                </Badge>
-                <div className="ms-auto flex shrink-0 items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Editar ${tag.name}`}
-                    onClick={() => openEdit(tag)}
+        <Card className="py-0">
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead
+                    className="pl-6"
+                    aria-sort={ariaSort("name", sortKey, direction)}
                   >
-                    <Pencil aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Eliminar ${tag.name}`}
-                    onClick={() => setTagToDelete(tag)}
+                    <SortButton
+                      label="Etiqueta"
+                      columnKey="name"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden sm:table-cell"
+                    aria-sort={ariaSort("created", sortKey, direction)}
                   >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    <SortButton
+                      label="Creada"
+                      columnKey="created"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="hidden sm:table-cell"
+                    aria-sort={ariaSort("updated", sortKey, direction)}
+                  >
+                    <SortButton
+                      label="Actualizada"
+                      columnKey="updated"
+                      sortKey={sortKey}
+                      direction={direction}
+                      onToggle={toggle}
+                    />
+                  </TableHead>
+                  <TableHead className="pr-6 text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedTags.map((tag) => (
+                  <TableRow key={tag.id}>
+                    <TableCell className="pl-6">
+                      <Badge className={cn("shrink-0", nodeChipClass(tag.color))}>
+                        #{tag.name}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
+                      {formatDate(tag.created_at)}
+                    </TableCell>
+                    <TableCell className="hidden text-muted-foreground tabular-nums sm:table-cell">
+                      {formatDate(tag.updated_at)}
+                    </TableCell>
+                    <TableCell className="pr-6">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Editar ${tag.name}`}
+                          onClick={() => openEdit(tag)}
+                        >
+                          <Pencil aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Eliminar ${tag.name}`}
+                          onClick={() => setTagToDelete(tag)}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       <p className="mt-4 text-xs text-muted-foreground">

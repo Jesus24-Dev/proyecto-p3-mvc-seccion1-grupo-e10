@@ -143,6 +143,7 @@ model tags {
   // Color del preset (ver NODE_COLORS en el frontend); "" = neutro.
   color String @default("")
   created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
 
   agency_id String
   agency agencies @relation(fields: [agency_id], references: [id], onDelete: Cascade)

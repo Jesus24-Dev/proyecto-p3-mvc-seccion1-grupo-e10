@@ -8,4 +8,5 @@ export interface TagResponse {
   color: string;
   agency_id: string;
   created_at: Date;
+  updated_at: Date;
 }

@@ -8,6 +8,7 @@ const tagSelect = {
   color: true,
   agency_id: true,
   created_at: true,
+  updated_at: true,
 } as const;
 
 export class TagRepository {

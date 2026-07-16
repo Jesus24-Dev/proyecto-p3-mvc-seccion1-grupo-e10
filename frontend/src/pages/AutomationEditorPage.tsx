@@ -7,8 +7,10 @@ import {
 } from "react-router-dom";
 import {
   Background,
+  BackgroundVariant,
   Controls,
   MarkerType,
+  MiniMap,
   ReactFlow,
   useNodesState,
   type Connection,
@@ -933,8 +935,29 @@ export function AutomationEditorPage() {
               fitView
               proOptions={{ hideAttribution: true }}
             >
-              <Background gap={24} />
-              <Controls showInteractive={false} />
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={22}
+                size={1.5}
+                className="!bg-muted/25"
+              />
+              <Controls
+                showInteractive={false}
+                className="!rounded-lg !border !border-border !bg-background !shadow-sm [&>button]:!border-border [&>button]:!bg-background [&>button]:!fill-muted-foreground hover:[&>button]:!bg-muted"
+              />
+              <MiniMap
+                pannable
+                zoomable
+                className="!rounded-lg !border !border-border !bg-card"
+                maskColor="color-mix(in oklch, var(--muted) 55%, transparent)"
+                nodeColor={(node) =>
+                  node.type === "note"
+                    ? "var(--muted-foreground)"
+                    : (node.data as StepData)?.kind === "trigger"
+                      ? "var(--primary)"
+                      : "var(--border)"
+                }
+              />
             </ReactFlow>
           </div>
         </Card>

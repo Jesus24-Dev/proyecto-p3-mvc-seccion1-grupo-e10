@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   STEP_META,
   branchesFor,
@@ -144,8 +144,9 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
         <div className="mt-3 flex gap-3">
           {branches.map((branch) => (
             <div key={branch.id} className="flex flex-col items-center gap-1.5">
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {branch.label}
+              <span className="flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1 text-xs font-medium shadow-sm">
+                <GitBranch className="size-3 text-primary" aria-hidden="true" />
+                <span className="max-w-28 truncate">{branch.label}</span>
               </span>
               <div className="relative">
                 <Handle
@@ -156,7 +157,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
                 />
                 <button
                   type="button"
-                  className="nodrag flex size-6 items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  className="nodrag flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
                   aria-label={`Agregar paso en la rama ${branch.label}`}
                   onClick={(event) => requestAdd(branch.id, event)}
                 >
@@ -169,7 +170,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
       ) : (
         <button
           type="button"
-          className="nodrag mt-2 flex size-6 items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+          className="nodrag mt-2 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
           aria-label="Agregar paso siguiente"
           onClick={(event) => requestAdd("out", event)}
         >

@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import { PackageService, PackageServiceError } from "./package.service.js";
-import type { PackageResponse } from "./package.types.js";
+import type { PackageResponse, TrackingResponse } from "./package.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
-import type { CreatePackageBody } from "./package.schema.js";
+import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
 
 export class PackageController {
     constructor(private packageService: PackageService) {}
@@ -20,6 +20,32 @@ export class PackageController {
             return res.status(200).json(foundPackage);
         } else {
             return res.status(404).json({"status": "error", "message": "El paquete solicitado no existe."})
+        }
+    }
+
+    public getPackageByTrackingCode = async (req: Request<{code: string}>, res: Response<TrackingResponse | ErrorResponse>) => {
+        try {
+            const {code} = req.params;
+            const tracking = await this.packageService.getPackageByTrackingCode(code);
+            return res.status(200).json(tracking);
+        } catch (error) {
+            if (error instanceof PackageServiceError) {
+                return res.status(error.statusCode).json({"status": "error", "message": error.message})
+            }
+            return res.status(500).json({"status": "error", "message": "No se pudo obtener el rastreo del paquete."})
+        }
+    }
+
+    public addCheckpoint = async (req: Request<{id: string}, {}, AddCheckpointBody>, res: Response<TrackingResponse | ErrorResponse>) => {
+        try {
+            const {id} = req.params;
+            const tracking = await this.packageService.addCheckpoint(id, req.body);
+            return res.status(201).json(tracking);
+        } catch (error) {
+            if (error instanceof PackageServiceError) {
+                return res.status(error.statusCode).json({"status": "error", "message": error.message})
+            }
+            return res.status(400).json({"status": "error", "message": "No se pudo registrar el movimiento. Revisa los datos enviados."})
         }
     }
 

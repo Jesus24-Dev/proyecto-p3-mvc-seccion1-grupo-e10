@@ -28,4 +28,20 @@ export const CreatePackageSchema = z.object({
 
 export const UpdatePackageSchema = CreatePackageSchema;
 
+// Registrar un movimiento (checkpoint) manual en el recorrido del paquete.
+export const AddCheckpointSchema = z.object({
+  body: z.object({
+    status: z.enum(PrismaPackageStatus, {
+      error: () => ({ message: "El estado seleccionado no es válido" }),
+    }),
+    agency_id: z.optional(
+      z.guid({
+        message: "Ingrese un ID de agencia válido",
+      }),
+    ),
+    note: z.optional(z.string()),
+  }),
+});
+
 export type CreatePackageBody = z.infer<typeof CreatePackageSchema>["body"];
+export type AddCheckpointBody = z.infer<typeof AddCheckpointSchema>["body"];

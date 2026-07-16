@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { Prisma } from "../../generated/prisma/client.js";
 import { PackageRepository } from "./package.repository.js";
-import type { CreatePackageBody } from "./package.schema.js";
+import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
+import type {
+  PublicTrackingResponse,
+  TrackingResponse,
+} from "./package.types.js";
 
 export class PackageServiceError extends Error {
   constructor(
@@ -29,6 +33,63 @@ export class PackageService {
 
   async getPackageById(id: string) {
     return await this.packageRepository.findById(id);
+  }
+
+  /** Rastreo completo por código (admin): 404 si no existe. */
+  async getPackageByTrackingCode(code: string): Promise<TrackingResponse> {
+    const tracking = await this.packageRepository.findByTrackingCode(code);
+    if (!tracking) {
+      throw new PackageServiceError("El paquete solicitado no existe.", 404);
+    }
+    return tracking;
+  }
+
+  /** Rastreo público por código: sin datos personales del contacto. */
+  async getPublicTracking(code: string): Promise<PublicTrackingResponse> {
+    const tracking = await this.packageRepository.findByTrackingCode(code);
+    if (!tracking) {
+      throw new PackageServiceError(
+        "No encontramos un paquete con ese código de rastreo.",
+        404,
+      );
+    }
+    // Expone solo lo necesario para el seguimiento; nada del contacto.
+    return {
+      tracking_code: tracking.tracking_code,
+      description: tracking.description,
+      weight_kg: tracking.weight_kg,
+      status: tracking.status,
+      created_at: tracking.created_at,
+      events: tracking.events,
+    };
+  }
+
+  /** Registra un movimiento manual y devuelve el rastreo actualizado. */
+  async addCheckpoint(
+    id: string,
+    body: AddCheckpointBody,
+  ): Promise<TrackingResponse> {
+    try {
+      const tracking = await this.packageRepository.addCheckpoint(id, {
+        status: body.status,
+        agency_id: body.agency_id ?? null,
+        note: body.note ?? "",
+      });
+      if (!tracking) {
+        throw new PackageServiceError("El paquete solicitado no existe.", 404);
+      }
+      return tracking;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === "P2001" || e.code === "P2025") {
+          throw new PackageServiceError("El paquete solicitado no existe.", 404);
+        }
+        if (e.code === "P2003") {
+          throw new PackageServiceError("La agencia indicada no existe.", 400);
+        }
+      }
+      throw e;
+    }
   }
 
   async createPackage(body: CreatePackageBody) {

@@ -26,3 +26,11 @@ export interface UserResponse {
     role: PrismaRoles;
 }
 
+/** Usuario recién creado: incluye el token para armar el enlace de verificación. */
+export interface CreatedUser {
+    id: string;
+    email: string;
+    role: PrismaRoles;
+    verification_token: string | null;
+}
+

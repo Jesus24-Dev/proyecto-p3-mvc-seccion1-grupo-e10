@@ -17,11 +17,13 @@ export async function seedUsers() {
       update: {
         password: hashedPassword,
         role: user.role,
+        email_verified: true,
       },
       create: {
         email: user.email,
         password: hashedPassword,
         role: user.role,
+        email_verified: true,
       },
       select: {
         id: true,

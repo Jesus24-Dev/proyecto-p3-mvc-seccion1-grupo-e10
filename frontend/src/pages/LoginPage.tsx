@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Package } from "lucide-react";
+import { ApiRequestError } from "@/api";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +22,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (session?.user.role === "ADMIN") {
@@ -31,11 +33,21 @@ export function LoginPage() {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setNeedsVerification(false);
 
     try {
       await login({ email, password });
       navigate("/admin", { replace: true });
     } catch (caughtError) {
+      // Solo el bloqueo por verificación ofrece el enlace (no el 403 de "solo
+      // ADMIN"), distinguiéndolos por el mensaje del backend.
+      if (
+        caughtError instanceof ApiRequestError &&
+        caughtError.statusCode === 403 &&
+        caughtError.message.toLowerCase().includes("verifica tu correo")
+      ) {
+        setNeedsVerification(true);
+      }
       setError(
         caughtError instanceof Error
           ? caughtError.message
@@ -94,7 +106,21 @@ export function LoginPage() {
             </div>
             {notice && (
               <Alert variant="destructive">
-                <AlertDescription>{notice}</AlertDescription>
+                <AlertDescription>
+                  {notice}
+                  {needsVerification && (
+                    <>
+                      {" "}
+                      <Link
+                        to="/verify"
+                        className="font-medium underline underline-offset-2"
+                      >
+                        Verificar mi correo
+                      </Link>
+                      .
+                    </>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
           </CardContent>

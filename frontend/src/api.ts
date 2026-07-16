@@ -15,6 +15,7 @@ import type {
   CreateEmailTemplatePayload,
   CreateTagPayload,
   CreateUserInformationPayload,
+  CreatedUser,
   CreateUserPayload,
   DashboardWidgetLayout,
   EmailDomain,
@@ -194,12 +195,24 @@ export const authApi = {
       },
       false,
     ),
+  verifyEmail: (token: string) =>
+    request<{ email: string }>(
+      "/auth/verify-email",
+      { method: "POST", body: JSON.stringify({ token }) },
+      false,
+    ),
+  resendVerification: (email: string) =>
+    request<{ verification_token: string | null; already_verified: boolean }>(
+      "/auth/resend-verification",
+      { method: "POST", body: JSON.stringify({ email }) },
+      false,
+    ),
 };
 
 export const usersApi = {
   list: () => request<User[]>("/users"),
   create: (payload: CreateUserPayload) =>
-    request<User>("/users", {
+    request<CreatedUser>("/users", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

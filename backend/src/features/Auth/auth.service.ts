@@ -1,4 +1,5 @@
 import bcrypt from "bcrypt";
+import { randomUUID } from "node:crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { Prisma, roles } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
@@ -31,6 +32,13 @@ export class AuthService {
 			throw new AuthServiceError("Correo o contraseña incorrectos.", 401);
 		}
 
+		if (!user.email_verified) {
+			throw new AuthServiceError(
+				"Verifica tu correo electrónico antes de iniciar sesión.",
+				403,
+			);
+		}
+
 		const secret = process.env.JWT_SECRET?.trim();
 
 		if (!secret) {
@@ -61,6 +69,53 @@ export class AuthService {
 
 			throw error;
 		}
+	}
+
+	async verifyEmail(token: string): Promise<{ email: string }> {
+		const user = await this.authRepository.findByVerificationToken(token);
+
+		if (!user) {
+			throw new AuthServiceError("El enlace de verificación no es válido.", 400);
+		}
+
+		if (user.email_verified) {
+			return { email: user.email };
+		}
+
+		if (
+			user.verification_expires &&
+			user.verification_expires.getTime() < Date.now()
+		) {
+			throw new AuthServiceError(
+				"El enlace de verificación expiró. Solicita uno nuevo.",
+				400,
+			);
+		}
+
+		await this.authRepository.markVerified(user.id);
+		return { email: user.email };
+	}
+
+	async resendVerification(
+		email: string,
+	): Promise<{ verification_token: string | null; already_verified: boolean }> {
+		const user = await this.authRepository.findUserByEmail(email);
+
+		if (!user) {
+			throw new AuthServiceError("No hay ninguna cuenta con ese correo.", 404);
+		}
+
+		if (user.email_verified) {
+			return { verification_token: null, already_verified: true };
+		}
+
+		const token = randomUUID();
+		await this.authRepository.setVerificationToken(
+			email,
+			token,
+			new Date(Date.now() + 24 * 60 * 60 * 1000),
+		);
+		return { verification_token: token, already_verified: false };
 	}
 
 	private buildAuthResponse(user: AuthUser): LoginResponse {

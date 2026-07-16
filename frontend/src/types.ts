@@ -211,6 +211,14 @@ export interface Tag {
   updated_at: string;
 }
 
+/** Usuario recién creado: incluye el token para armar el enlace de verificación. */
+export interface CreatedUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  verification_token: string | null;
+}
+
 export interface CreateTagPayload {
   name: string;
   color?: string;

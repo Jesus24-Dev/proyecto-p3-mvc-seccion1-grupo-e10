@@ -54,6 +54,11 @@ model users {
   password String
   role roles
 
+  // Verificación de correo: la cuenta no puede iniciar sesión hasta verificar.
+  email_verified Boolean @default(false)
+  verification_token String? @unique
+  verification_expires DateTime?
+
   user_information users_information?
   orders_by_user orders[]
   agencies_by_user agencies[]

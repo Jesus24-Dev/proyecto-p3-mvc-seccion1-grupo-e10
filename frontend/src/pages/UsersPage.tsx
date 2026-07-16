@@ -1,5 +1,15 @@
 import { useMemo, useState, type FormEvent } from "react";
-import { Building2, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import {
+  Building2,
+  Check,
+  Copy,
+  MailCheck,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { usersApi } from "@/api";
 import { UserAccessDialog } from "@/components/users/UserAccessDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -69,6 +79,11 @@ export function UsersPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [accessUser, setAccessUser] = useState<User | null>(null);
+  const [createdInfo, setCreatedInfo] = useState<{
+    email: string;
+    link: string;
+  } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -118,6 +133,7 @@ export function UsersPage() {
     setIsSaving(true);
     setFormError(null);
 
+    let verificationToken: string | null = null;
     const failure = await runMutation(async () => {
       if (editingUser) {
         await usersApi.update(editingUser.id, {
@@ -125,7 +141,8 @@ export function UsersPage() {
           ...(form.password ? { password: form.password } : {}),
         });
       } else {
-        await usersApi.create(form);
+        const created = await usersApi.create(form);
+        verificationToken = created.verification_token;
       }
     });
 
@@ -137,10 +154,18 @@ export function UsersPage() {
     }
 
     setIsFormOpen(false);
+    if (!editingUser && verificationToken) {
+      // Envío de correo simulado: mostramos el enlace para compartirlo.
+      setLinkCopied(false);
+      setCreatedInfo({
+        email: form.email,
+        link: `${window.location.origin}/verify/${verificationToken}`,
+      });
+    }
     setNotice({
       text: editingUser
         ? "Usuario actualizado correctamente."
-        : "Usuario creado correctamente.",
+        : "Usuario creado. Envíale el enlace de verificación para que pueda iniciar sesión.",
       tone: "success",
     });
     void reload();
@@ -317,7 +342,7 @@ export function UsersPage() {
             <DialogDescription>
               {editingUser
                 ? "Actualiza el correo y define una nueva contraseña para la cuenta."
-                : "La cuenta queda disponible de inmediato para iniciar sesión."}
+                : "La cuenta se crea sin verificar: al guardarla obtendrás un enlace de verificación para enviárselo al usuario."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4">
@@ -421,6 +446,50 @@ export function UsersPage() {
       </Dialog>
 
       <UserAccessDialog user={accessUser} onClose={() => setAccessUser(null)} />
+
+      <Dialog
+        open={Boolean(createdInfo)}
+        onOpenChange={(open) => !open && setCreatedInfo(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MailCheck className="size-5 text-primary" aria-hidden="true" />
+              Enlace de verificación
+            </DialogTitle>
+            <DialogDescription>
+              El envío de correo está simulado en esta entrega. Comparte este
+              enlace con {createdInfo?.email} para que verifique su cuenta y
+              pueda iniciar sesión.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-2">
+            <code className="min-w-0 flex-1 truncate text-xs">
+              {createdInfo?.link}
+            </code>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (createdInfo) {
+                  void navigator.clipboard?.writeText(createdInfo.link);
+                  setLinkCopied(true);
+                }
+              }}
+            >
+              {linkCopied ? (
+                <Check data-icon="inline-start" aria-hidden="true" />
+              ) : (
+                <Copy data-icon="inline-start" aria-hidden="true" />
+              )}
+              {linkCopied ? "Copiado" : "Copiar"}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCreatedInfo(null)}>Listo</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(userToDelete)}

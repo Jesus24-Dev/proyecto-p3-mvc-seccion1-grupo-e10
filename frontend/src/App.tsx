@@ -17,6 +17,7 @@ import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
 import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
+import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 
@@ -58,6 +59,8 @@ function App() {
       <Route path="/" element={<LoginPage />} />
       <Route path="/track" element={<PublicTrackingPage />} />
       <Route path="/track/:code" element={<PublicTrackingPage />} />
+      <Route path="/verify" element={<VerifyEmailPage />} />
+      <Route path="/verify/:token" element={<VerifyEmailPage />} />
       <Route
         path="/admin"
         element={

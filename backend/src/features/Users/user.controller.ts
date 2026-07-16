@@ -1,6 +1,6 @@
 import type {Request, Response} from 'express';
 import { UserService } from './user.service.js';
-import type { UserResponse } from './user.types.js';
+import type { CreatedUser, UserResponse } from './user.types.js';
 import type { ErrorResponse } from '../../shared/error.responses.types.js';
 
 export class UserController {
@@ -22,7 +22,7 @@ export class UserController {
         }
     }
 
-    public createUser = async (req: Request, res: Response<UserResponse | ErrorResponse>) => {
+    public createUser = async (req: Request, res: Response<CreatedUser | ErrorResponse>) => {
         try {
             const user = await this.userService.createUser(req.body);
             return res.status(201).json(user);

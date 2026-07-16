@@ -331,7 +331,7 @@ export function ContactsPage() {
                     <TableRow key={contact.id}>
                       <TableCell className="pl-6 font-medium">
                         <Link
-                          to={`/admin/contactos/${contact.id}`}
+                          to={`/admin/contacts/${contact.id}`}
                           className="rounded-sm underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
                         >
                           {contact.first_name} {contact.last_name}

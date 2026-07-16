@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Boxes,
   Cake,
+  DollarSign,
   MapPin,
   MessageCircle,
+  Package as PackageIcon,
   Workflow,
   Zap,
 } from "lucide-react";
@@ -14,11 +16,11 @@ import {
   automationsApi,
   contactsApi,
   membershipsApi,
+  ordersApi,
   packagesApi,
   usersApi,
 } from "@/api";
-import { PageHeader } from "@/components/shared/PageHeader";
-import { PackageStatusPill } from "@/components/shared/pills";
+import { OrderStatusPill, PackageStatusPill } from "@/components/shared/pills";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,12 +33,11 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePageData } from "@/hooks/usePageData";
-import { formatDate } from "@/lib/format";
+import { formatAmount, formatDate } from "@/lib/format";
 import type { StepData } from "@/lib/automationSteps";
 
 export function ContactDetailPage() {
   const { contactId } = useParams();
-  const navigate = useNavigate();
 
   const { data, isLoading, error } = usePageData(() =>
     Promise.all([
@@ -46,10 +47,18 @@ export function ContactDetailPage() {
       membershipsApi.list(),
       agenciesApi.list(),
       automationsApi.list(),
+      ordersApi.list(),
     ]),
   );
-  const [contacts, users, packages, memberships, agencies, automations] =
-    data ?? [[], [], [], [], [], []];
+  const [
+    contacts,
+    users,
+    packages,
+    memberships,
+    agencies,
+    automations,
+    orders,
+  ] = data ?? [[], [], [], [], [], [], []];
 
   const contact = useMemo(
     () => contacts.find((item) => item.id === contactId) ?? null,
@@ -64,6 +73,29 @@ export function ContactDetailPage() {
   const contactPackages = useMemo(
     () => packages.filter((item) => item.contact_id === contactId),
     [packages, contactId],
+  );
+
+  // Envíos (órdenes) del contacto, por su cuenta de usuario.
+  const contactOrders = useMemo(
+    () =>
+      [...orders]
+        .filter((order) => order.user_id === contact?.user_id)
+        .sort(
+          (a, b) =>
+            new Date(b.date_received).getTime() -
+            new Date(a.date_received).getTime(),
+        ),
+    [orders, contact],
+  );
+
+  const totalInvested = useMemo(
+    () => contactOrders.reduce((sum, order) => sum + order.amount, 0),
+    [contactOrders],
+  );
+
+  const agencyById = useMemo(
+    () => new Map(agencies.map((agency) => [agency.id, agency])),
+    [agencies],
   );
 
   const contactAgencies = useMemo(() => {
@@ -103,7 +135,7 @@ export function ContactDetailPage() {
           variant="ghost"
           size="sm"
           nativeButton={false}
-          render={<Link to="/admin/contactos" />}
+          render={<Link to="/admin/contacts" />}
         >
           <ArrowLeft data-icon="inline-start" aria-hidden="true" />
           Volver a contactos
@@ -128,7 +160,7 @@ export function ContactDetailPage() {
         size="sm"
         nativeButton={false}
         className="mb-4"
-        render={<Link to="/admin/contactos" />}
+        render={<Link to="/admin/contacts" />}
       >
         <ArrowLeft data-icon="inline-start" aria-hidden="true" />
         Volver a contactos
@@ -147,11 +179,67 @@ export function ContactDetailPage() {
         <Button
           className="ms-auto"
           nativeButton={false}
-          render={<Link to="/admin/conversaciones" />}
+          render={<Link to="/admin/conversations" />}
         >
           <MessageCircle data-icon="inline-start" aria-hidden="true" />
           Abrir conversación
         </Button>
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="gap-3 py-5">
+          <CardContent className="grid gap-1 px-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">
+                USD invertido
+              </span>
+              <DollarSign
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
+            <span className="text-3xl font-medium tracking-tight tabular-nums">
+              {formatAmount(totalInvested)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Suma de sus envíos
+            </span>
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-5">
+          <CardContent className="grid gap-1 px-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">Envíos</span>
+              <PackageIcon
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
+            <span className="text-3xl font-medium tracking-tight tabular-nums">
+              {contactOrders.length}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Órdenes a su nombre
+            </span>
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-5">
+          <CardContent className="grid gap-1 px-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">Paquetes</span>
+              <Boxes
+                className="size-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </div>
+            <span className="text-3xl font-medium tracking-tight tabular-nums">
+              {contactPackages.length}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              A nombre del contacto
+            </span>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -221,10 +309,9 @@ export function ContactDetailPage() {
               </p>
             ) : (
               contactPackages.map((item) => (
-                <button
+                <Link
                   key={item.id}
-                  type="button"
-                  onClick={() => navigate("/admin/paquetes")}
+                  to={`/admin/packages/${encodeURIComponent(item.tracking_code)}`}
                   className="flex items-center gap-3 overflow-hidden rounded-lg border px-3 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -241,7 +328,53 @@ export function ContactDetailPage() {
                   <span className="shrink-0">
                     <PackageStatusPill status={item.status} />
                   </span>
-                </button>
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Envíos</CardTitle>
+            <CardDescription>
+              {contactOrders.length} envío
+              {contactOrders.length === 1 ? "" : "s"} ·{" "}
+              {formatAmount(totalInvested)} en total.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {contactOrders.length === 0 ? (
+              <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                <PackageIcon className="size-4" aria-hidden="true" />
+                Aún no tiene envíos.
+              </p>
+            ) : (
+              contactOrders.map((order) => (
+                <Link
+                  key={order.id}
+                  to={`/admin/orders/${order.id}`}
+                  className="flex items-center gap-3 overflow-hidden rounded-lg border px-3 py-2 text-left transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <PackageIcon className="size-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {order.description}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {agencyById.get(order.origin_agency_id)?.name ?? "—"} →{" "}
+                      {agencyById.get(order.destination_agency_id)?.name ?? "—"}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="text-sm font-medium tabular-nums">
+                      {formatAmount(order.amount)}
+                    </span>
+                    <OrderStatusPill status={order.status} />
+                  </span>
+                </Link>
               ))
             )}
           </CardContent>
@@ -264,7 +397,7 @@ export function ContactDetailPage() {
               contactAutomations.map((automation) => (
                 <Link
                   key={automation.id}
-                  to={`/admin/automatizaciones/${automation.id}`}
+                  to={`/admin/automations/${automation.id}`}
                   className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

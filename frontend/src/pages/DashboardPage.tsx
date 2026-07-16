@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
+  BadgeCheck,
+  Banknote,
   Boxes,
   Building2,
   CalendarRange,
@@ -13,7 +15,7 @@ import {
   Plus,
   Users,
 } from "lucide-react";
-import { agenciesApi, ordersApi, packagesApi, usersApi } from "@/api";
+import { agenciesApi, ordersApi, packagesApi, paymentsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { OrderStatusPill } from "@/components/shared/pills";
 import {
@@ -485,9 +487,16 @@ export function DashboardPage() {
       agenciesApi.list(),
       ordersApi.list(),
       packagesApi.list(),
+      paymentsApi.list(),
     ]),
   );
-  const [users, agencies, orders, packages] = data ?? [[], [], [], []];
+  const [users, agencies, orders, packages, payments] = data ?? [
+    [],
+    [],
+    [],
+    [],
+    [],
+  ];
 
   const agencyById = useMemo(
     () => new Map(agencies.map((agency) => [agency.id, agency])),
@@ -782,12 +791,19 @@ export function DashboardPage() {
     );
   }
 
+  const pendingPayments = payments.filter((p) => p.status === "PENDING").length;
+  const validatedPayments = payments.filter((p) => p.status === "APPROVED");
+  const validatedTotal = validatedPayments.reduce(
+    (sum, p) => sum + p.amount,
+    0,
+  );
+
   const widgets: WidgetDescriptor[] = [
     {
       id: "kpis",
       title: "Indicadores",
       content: (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <StatTile
             icon={Users}
             label="Usuarios"
@@ -821,6 +837,18 @@ export function DashboardPage() {
                 ? "Suma de las órdenes de la agencia activa"
                 : "Suma de todas las órdenes registradas"
             }
+          />
+          <StatTile
+            icon={Banknote}
+            label="Pagos pendientes"
+            value={String(pendingPayments)}
+            detail="Por validar con el banco"
+          />
+          <StatTile
+            icon={BadgeCheck}
+            label="Pagos validados"
+            value={formatAmount(validatedTotal)}
+            detail={`${validatedPayments.length} ${validatedPayments.length === 1 ? "pago aprobado" : "pagos aprobados"}`}
           />
         </div>
       ),

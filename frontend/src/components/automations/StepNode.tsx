@@ -1,8 +1,10 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { Plus } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   STEP_META,
   branchesFor,
+  nodeChipClass,
+  stepWarning,
   type StepData,
 } from "@/lib/automationSteps";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
   const isTrigger = data.kind === "trigger";
   const branches = branchesFor(data);
   const isBranching = data.kind === "condition" || data.kind === "switch";
+  const warning = stepWarning(data);
 
   function requestAdd(
     branchId: string,
@@ -32,6 +35,19 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
     window.dispatchEvent(
       new CustomEvent("automation:add-step", {
         detail: { nodeId: id, branchId },
+      }),
+    );
+  }
+
+  // Acciones sobre el nodo (editar/duplicar/eliminar): las escucha el editor.
+  function requestAction(
+    action: "edit" | "duplicate" | "delete",
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) {
+    event.stopPropagation();
+    window.dispatchEvent(
+      new CustomEvent(`automation:${action}-step`, {
+        detail: { nodeId: id },
       }),
     );
   }
@@ -48,22 +64,67 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
           <Handle
             type="target"
             position={Position.Top}
-            className="!size-2.5 !border-2 !border-background !bg-muted-foreground"
+            className="!size-4 !border-2 !border-background !bg-muted-foreground transition-colors hover:!bg-primary hover:!scale-110"
           />
         )}
+
+        {selected && (
+          <div className="nodrag nopan absolute -top-3 right-2 flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
+            <button
+              type="button"
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Editar paso"
+              onClick={(event) => requestAction("edit", event)}
+            >
+              <Pencil className="size-3.5" aria-hidden="true" />
+            </button>
+            {!isTrigger && (
+              <>
+                <button
+                  type="button"
+                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label="Duplicar paso"
+                  onClick={(event) => requestAction("duplicate", event)}
+                >
+                  <Copy className="size-3.5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  aria-label="Eliminar paso"
+                  onClick={(event) => requestAction("delete", event)}
+                >
+                  <Trash2 className="size-3.5" aria-hidden="true" />
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {warning && (
+          <span
+            className="absolute -top-1.5 -right-1.5 size-3.5 rounded-full bg-amber-400 ring-2 ring-background"
+            title={warning}
+            role="img"
+            aria-label={`Sin configurar: ${warning}`}
+          />
+        )}
+
         <div className="flex items-start gap-2.5">
           <span
             className={cn(
               "flex size-8 shrink-0 items-center justify-center rounded-lg",
-              isTrigger
+              isTrigger && !data.color
                 ? "bg-primary text-primary-foreground"
-                : "bg-muted text-foreground",
+                : nodeChipClass(data.color),
             )}
           >
             <Icon className="size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-medium">{meta.label}</p>
+            <p className="truncate text-sm font-medium">
+              {data.label?.trim() || meta.label}
+            </p>
             <p className="truncate text-xs text-muted-foreground">
               {meta.summary(data)}
             </p>
@@ -74,7 +135,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
           <Handle
             type="source"
             position={Position.Bottom}
-            className="!size-2.5 !border-2 !border-background !bg-muted-foreground"
+            className="!size-4 !border-2 !border-background !bg-muted-foreground transition-colors hover:!bg-primary hover:!scale-110"
           />
         )}
       </div>
@@ -91,7 +152,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
                   id={branch.id}
                   type="source"
                   position={Position.Bottom}
-                  className="!size-2.5 !border-2 !border-background !bg-muted-foreground"
+                  className="!size-4 !border-2 !border-background !bg-muted-foreground transition-colors hover:!bg-primary hover:!scale-110"
                 />
                 <button
                   type="button"

@@ -88,6 +88,5 @@ export function layoutTree(
     type: "step" as const,
     position: positions.get(step.id) ?? { x: 0, y: 0 },
     data: step.data,
-    draggable: false,
   }));
 }

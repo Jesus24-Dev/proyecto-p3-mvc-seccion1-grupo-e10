@@ -4,6 +4,7 @@ import type { PackageResponse, TrackingResponse } from "./package.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
 import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
 import { recordAudit } from "../Audit/audit.helper.js";
+import { notify } from "../Notifications/notification.helper.js";
 
 export class PackageController {
     constructor(private packageService: PackageService) {}
@@ -47,6 +48,13 @@ export class PackageController {
                 entity_id: id,
                 detail: `Cambió el estado del paquete ${tracking.tracking_code} a ${req.body.status}`,
             });
+            const delivered = req.body.status === "DELIVERED";
+            await notify({
+                kind: delivered ? "DELIVERY" : "STATE",
+                title: delivered ? "Entrega realizada" : "Cambio de estado",
+                body: `Paquete ${tracking.tracking_code}: ${req.body.status}`,
+                entity_id: id,
+            });
             return res.status(201).json(tracking);
         } catch (error) {
             if (error instanceof PackageServiceError) {
@@ -64,6 +72,12 @@ export class PackageController {
                 entity: "package",
                 entity_id: createdPackage.id,
                 detail: `Registró el paquete ${createdPackage.tracking_code}`,
+            });
+            await notify({
+                kind: "PACKAGE",
+                title: "Paquete recibido",
+                body: `Nuevo paquete ${createdPackage.tracking_code} registrado.`,
+                entity_id: createdPackage.id,
             });
             return res.status(201).json(createdPackage);
         } catch (error) {

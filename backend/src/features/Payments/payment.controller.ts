@@ -4,6 +4,7 @@ import type { PaymentResponse } from "./payment.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
 import type { CreatePaymentBody } from "./payment.schema.js";
 import { recordAudit } from "../Audit/audit.helper.js";
+import { notify } from "../Notifications/notification.helper.js";
 
 export class PaymentController {
   constructor(private paymentService: PaymentService) {}
@@ -46,6 +47,14 @@ export class PaymentController {
         entity_id: payment.id,
         detail: `Validó el pago ${payment.reference}: ${payment.status}`,
       });
+      if (payment.status === "APPROVED") {
+        await notify({
+          kind: "PAYMENT",
+          title: "Pago validado",
+          body: `Referencia ${payment.reference} por ${payment.amount} aprobada.`,
+          entity_id: payment.id,
+        });
+      }
       return res.status(200).json(payment as PaymentResponse);
     } catch (error) {
       return this.fail(res, error, "No se pudo validar el pago.");

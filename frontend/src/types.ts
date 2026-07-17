@@ -218,6 +218,23 @@ export interface Tag {
   updated_at: string;
 }
 
+export type NotificationKind =
+  | "PAYMENT"
+  | "PACKAGE"
+  | "STATE"
+  | "DELIVERY"
+  | "GENERAL";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  read: boolean;
+  entity_id: string | null;
+  created_at: string;
+}
+
 export type NoteKind = "NOTE" | "OBSERVATION" | "INCIDENT";
 
 export interface ClientNote {

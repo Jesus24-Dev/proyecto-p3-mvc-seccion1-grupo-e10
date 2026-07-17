@@ -15,6 +15,7 @@ import type {
   CreateEmailTemplatePayload,
   CreateTagPayload,
   CreateUserInformationPayload,
+  AppNotification,
   AuditLog,
   ClientNote,
   CreateClientNotePayload,
@@ -477,6 +478,16 @@ export const paymentsApi = {
 
 export const auditApi = {
   list: () => request<AuditLog[]>("/audit"),
+};
+
+export const notificationsApi = {
+  list: () => request<AppNotification[]>("/notifications"),
+  markRead: (id: string) =>
+    request<{ status: string }>(`/notifications/${id}/read`, {
+      method: "POST",
+    }),
+  markAllRead: () =>
+    request<{ status: string }>("/notifications/read-all", { method: "POST" }),
 };
 
 export const clientNotesApi = {

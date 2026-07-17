@@ -85,6 +85,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/notifications": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

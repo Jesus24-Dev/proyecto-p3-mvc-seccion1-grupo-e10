@@ -285,6 +285,28 @@ model package_events {
   agency agencies? @relation(fields: [agency_id], references: [id])
 }
 
+// Tipo de notificación interna del personal.
+enum notification_kind {
+  PAYMENT   // Pago validado
+  PACKAGE   // Paquete recibido / registrado
+  STATE     // Cambio de estado
+  DELIVERY  // Entrega realizada
+  GENERAL
+}
+
+// Notificaciones internas del personal (feed global del equipo).
+model notifications {
+  id String @id @default(uuid())
+  kind notification_kind @default(GENERAL)
+  title String
+  body String @default("")
+  read Boolean @default(false)
+  entity_id String?
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+}
+
 // Bitácora de auditoría: registra acciones críticas del personal.
 model audit_logs {
   id String @id @default(uuid())

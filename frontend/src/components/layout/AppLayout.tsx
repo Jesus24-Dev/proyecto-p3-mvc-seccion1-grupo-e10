@@ -36,6 +36,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { roleLabel } from "@/lib/roles";
 import { AgencySwitcher } from "@/components/layout/AgencySwitcher";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 const navigationItems = [
   { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true },
@@ -211,6 +212,8 @@ export function AppLayout() {
             </div>
           </div>
 
+          <div className="flex items-center gap-1">
+          <NotificationBell />
           <Button
             variant="ghost"
             size="icon"
@@ -258,6 +261,7 @@ export function AppLayout() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </header>
 
         <main

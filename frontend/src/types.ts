@@ -108,8 +108,11 @@ export interface UserInformation {
   user_id: string;
   first_name: string;
   last_name: string;
+  document_id: string;
+  phone: string;
   address: string;
   birthday: string;
+  created_at: string;
   tags: string[];
 }
 
@@ -117,6 +120,8 @@ export interface CreateUserInformationPayload {
   user_id: string;
   first_name: string;
   last_name: string;
+  document_id?: string;
+  phone?: string;
   address: string;
   birthday: string;
 }

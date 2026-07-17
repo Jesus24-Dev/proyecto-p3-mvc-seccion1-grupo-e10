@@ -5,21 +5,21 @@ import type { UsersInformationEntity } from "./userInformation.types.js";
 export class UserInformationRepository{
     async findAll(): Promise<UsersInformationEntity[]>{
         return await prisma.users_information.findMany({
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, document_id: true, phone: true, address: true, birthday: true, created_at: true, tags: true}
         });
     }
 
     async findById(id: string): Promise<UsersInformationEntity | null>{
         return await prisma.users_information.findUnique({
             where: {id: id},
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, document_id: true, phone: true, address: true, birthday: true, created_at: true, tags: true}
         });
     }
     
     async findByUserId(userId: string): Promise<UsersInformationEntity | null>{
         return await prisma.users_information.findUnique({
             where: {user_id: userId},
-            select: {id: true, user_id: true, first_name: true, last_name: true, address: true, birthday: true, tags: true}
+            select: {id: true, user_id: true, first_name: true, last_name: true, document_id: true, phone: true, address: true, birthday: true, created_at: true, tags: true}
         });
     }
     
@@ -29,6 +29,8 @@ export class UserInformationRepository{
                 user_id: body.user_id,
                 first_name: body.first_name,
                 last_name: body.last_name,
+                document_id: body.document_id ?? "",
+                phone: body.phone ?? "",
                 address: body.address,
                 birthday: new Date(body.birthday)
             }
@@ -41,6 +43,8 @@ export class UserInformationRepository{
             data: {
                 first_name: body.first_name,
                 last_name: body.last_name,
+                document_id: body.document_id ?? "",
+                phone: body.phone ?? "",
                 address: body.address,
                 birthday: new Date(body.birthday)
             }
@@ -53,6 +57,8 @@ export class UserInformationRepository{
             data: {
                 first_name: body.first_name,
                 last_name: body.last_name,
+                document_id: body.document_id ?? "",
+                phone: body.phone ?? "",
                 address: body.address,
                 birthday: new Date(body.birthday)
             }

@@ -34,6 +34,8 @@ export async function seedUsersInformation() {
       update: {
         first_name: item.first_name,
         last_name: item.last_name,
+        document_id: item.document_id,
+        phone: item.phone,
         address: item.address,
         birthday: item.birthday,
       },
@@ -41,6 +43,8 @@ export async function seedUsersInformation() {
         user_id: ownerId,
         first_name: item.first_name,
         last_name: item.last_name,
+        document_id: item.document_id,
+        phone: item.phone,
         address: item.address,
         birthday: item.birthday,
       },

@@ -20,7 +20,10 @@ export interface UserInformationResponse {
     user_id: string;
     first_name: string;
     last_name: string;
+    document_id: string;
+    phone: string;
     address: string;
     birthday: Date;
+    created_at: Date;
     tags: string[];
 }

@@ -80,8 +80,12 @@ model users_information {
   id String @id @default(uuid())
   first_name String
   last_name String
+  // Cédula o RIF del cliente.
+  document_id String @default("")
+  phone String @default("")
   address String
   birthday DateTime @db.Date
+  created_at DateTime @default(now())
   // Etiquetas de segmentación (usadas por las automatizaciones).
   tags String[] @default([])
 

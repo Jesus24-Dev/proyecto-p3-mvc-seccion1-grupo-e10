@@ -52,6 +52,8 @@ type FormState = {
   user_id: string;
   first_name: string;
   last_name: string;
+  document_id: string;
+  phone: string;
   address: string;
   birthday: string;
 };
@@ -60,6 +62,8 @@ const emptyForm: FormState = {
   user_id: "",
   first_name: "",
   last_name: "",
+  document_id: "",
+  phone: "",
   address: "",
   birthday: "",
 };
@@ -141,6 +145,8 @@ export function ContactsPage() {
       user_id: contact.user_id,
       first_name: contact.first_name,
       last_name: contact.last_name,
+      document_id: contact.document_id,
+      phone: contact.phone,
       address: contact.address,
       birthday: toDateInputValue(contact.birthday),
     });
@@ -158,6 +164,8 @@ export function ContactsPage() {
         await contactsApi.update(editingContact.user_id, {
           first_name: form.first_name,
           last_name: form.last_name,
+          document_id: form.document_id,
+          phone: form.phone,
           address: form.address,
           birthday: form.birthday,
         });
@@ -449,6 +457,36 @@ export function ContactsPage() {
                   }
                   placeholder="Pérez"
                   required
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="contact-document">Cédula / RIF</Label>
+                <Input
+                  id="contact-document"
+                  value={form.document_id}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      document_id: event.target.value,
+                    }))
+                  }
+                  placeholder="V-12345678 / J-12345678-9"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="contact-phone">Teléfono</Label>
+                <Input
+                  id="contact-phone"
+                  value={form.phone}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                  placeholder="+58 412 555 1234"
                 />
               </div>
             </div>

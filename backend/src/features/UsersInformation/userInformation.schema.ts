@@ -11,6 +11,8 @@ export const CreateUserInformationSchema = z.object({
     last_name: z.string().min(3, {
       message: "Ingrese un nombre válido",
     }),
+    document_id: z.optional(z.string()),
+    phone: z.optional(z.string()),
     address: z.string().min(3, {
       message: "Ingrese un nombre válido",
     }),

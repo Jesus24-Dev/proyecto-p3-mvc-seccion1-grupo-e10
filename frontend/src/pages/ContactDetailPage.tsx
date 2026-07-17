@@ -4,10 +4,14 @@ import {
   ArrowLeft,
   Boxes,
   Cake,
+  CalendarClock,
+  CreditCard,
   DollarSign,
+  Mail,
   MapPin,
   MessageCircle,
   Package as PackageIcon,
+  Phone,
   Workflow,
   Zap,
 } from "lucide-react";
@@ -248,6 +252,33 @@ export function ContactDetailPage() {
             <CardTitle>Ficha</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm">
+            {contact.document_id && (
+              <div className="flex items-center gap-2">
+                <CreditCard
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                {contact.document_id}
+              </div>
+            )}
+            {account?.email && (
+              <div className="flex items-center gap-2">
+                <Mail
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                {account.email}
+              </div>
+            )}
+            {contact.phone && (
+              <div className="flex items-center gap-2">
+                <Phone
+                  className="size-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                {contact.phone}
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <MapPin
                 className="size-4 shrink-0 text-muted-foreground"
@@ -261,6 +292,13 @@ export function ContactDetailPage() {
                 aria-hidden="true"
               />
               {formatDate(contact.birthday)}
+            </div>
+            <div className="flex items-center gap-2">
+              <CalendarClock
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              Cliente desde {formatDate(contact.created_at)}
             </div>
             <div>
               <p className="mb-1.5 text-xs text-muted-foreground">Agencias</p>

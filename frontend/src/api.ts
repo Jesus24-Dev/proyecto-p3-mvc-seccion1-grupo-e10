@@ -18,6 +18,8 @@ import type {
   AppNotification,
   AuditLog,
   ClientNote,
+  SystemConfig,
+  UpdateConfigPayload,
   CreateClientNotePayload,
   CreatedUser,
   CreatePaymentPayload,
@@ -478,6 +480,15 @@ export const paymentsApi = {
 
 export const auditApi = {
   list: () => request<AuditLog[]>("/audit"),
+};
+
+export const configApi = {
+  get: () => request<SystemConfig>("/config"),
+  update: (payload: UpdateConfigPayload) =>
+    request<SystemConfig>("/config", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const notificationsApi = {

@@ -285,6 +285,23 @@ model package_events {
   agency agencies? @relation(fields: [agency_id], references: [id])
 }
 
+// Configuración global del sistema (fila única).
+model system_config {
+  id String @id @default("singleton")
+  company_name String @default("Dr-Logistics CA")
+  company_rif String @default("")
+  company_address String @default("")
+  company_phone String @default("")
+  company_email String @default("")
+  // Correo remitente y de soporte.
+  sender_email String @default("")
+  support_email String @default("")
+  // Claves de API (simuladas): se guardan pero no se usan en esta entrega.
+  bank_api_key String @default("")
+  ml_api_key String @default("")
+  updated_at DateTime @default(now()) @updatedAt
+}
+
 // Tipo de notificación interna del personal.
 enum notification_kind {
   PAYMENT   // Pago validado

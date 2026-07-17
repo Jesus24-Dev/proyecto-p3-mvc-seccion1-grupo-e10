@@ -89,6 +89,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/config": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

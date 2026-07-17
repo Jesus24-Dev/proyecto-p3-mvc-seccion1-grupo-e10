@@ -5,6 +5,7 @@ import {
   BookUser,
   Boxes,
   Building2,
+  Cog,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -53,6 +54,7 @@ const navigationItems = [
   { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
   { to: "/admin/reports", label: "Reportes", icon: FileBarChart2 },
   { to: "/admin/audit", label: "Auditoría", icon: ScrollText },
+  { to: "/admin/configuration", label: "Configuración", icon: Cog },
 ];
 
 function BrandMark({ collapsed = false }: { collapsed?: boolean }) {
@@ -255,7 +257,7 @@ export function AppLayout() {
               <DropdownMenuSeparator />
               <DropdownMenuItem render={<NavLink to="/admin/settings" />}>
                 <Settings aria-hidden="true" />
-                Configuración
+                Ajustes de cuenta
               </DropdownMenuItem>
               <DropdownMenuItem onClick={logout}>
                 <LogOut aria-hidden="true" />

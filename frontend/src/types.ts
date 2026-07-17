@@ -218,6 +218,24 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface SystemConfig {
+  id: string;
+  company_name: string;
+  company_rif: string;
+  company_address: string;
+  company_phone: string;
+  company_email: string;
+  sender_email: string;
+  support_email: string;
+  bank_api_key: string;
+  ml_api_key: string;
+  updated_at: string;
+}
+
+export type UpdateConfigPayload = Partial<
+  Omit<SystemConfig, "id" | "updated_at">
+>;
+
 export type NotificationKind =
   | "PAYMENT"
   | "PACKAGE"

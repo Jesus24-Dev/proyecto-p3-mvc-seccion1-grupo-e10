@@ -81,6 +81,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/client-notes": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

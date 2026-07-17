@@ -218,6 +218,23 @@ export interface Tag {
   updated_at: string;
 }
 
+export type NoteKind = "NOTE" | "OBSERVATION" | "INCIDENT";
+
+export interface ClientNote {
+  id: string;
+  kind: NoteKind;
+  body: string;
+  author_email: string;
+  created_at: string;
+  contact_id: string;
+}
+
+export interface CreateClientNotePayload {
+  contact_id: string;
+  kind?: NoteKind;
+  body: string;
+}
+
 export interface AuditLog {
   id: string;
   action: string;

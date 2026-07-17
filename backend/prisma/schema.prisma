@@ -94,6 +94,28 @@ model users_information {
 
   packages packages[]
   transactions transactions[]
+  notes client_notes[]
+}
+
+// Tipo de anotación del historial CRM del cliente.
+enum note_kind {
+  NOTE        // Nota interna
+  OBSERVATION // Observación
+  INCIDENT    // Incidencia
+}
+
+// Historial CRM: notas internas, observaciones e incidencias de un cliente.
+model client_notes {
+  id String @id @default(uuid())
+  kind note_kind @default(NOTE)
+  body String
+  author_email String @default("")
+  created_at DateTime @default(now())
+
+  contact_id String
+  contact users_information @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@index([contact_id])
 }
 
 model agencies {

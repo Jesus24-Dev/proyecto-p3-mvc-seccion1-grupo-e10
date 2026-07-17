@@ -17,6 +17,7 @@ import { EmailDomainRoutes } from "./features/EmailDomains";
 import { AiRoutes } from "./features/AI";
 import { PaymentRoutes } from "./features/Payments";
 import { AuditRoutes } from "./features/Audit";
+import { ClientNoteRoutes } from "./features/ClientNotes";
 
 dotenv.config();
 
@@ -45,6 +46,7 @@ app.use("/email-domains", EmailDomainRoutes);
 app.use("/ai", AiRoutes);
 app.use("/payments", PaymentRoutes);
 app.use("/audit", AuditRoutes);
+app.use("/client-notes", ClientNoteRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

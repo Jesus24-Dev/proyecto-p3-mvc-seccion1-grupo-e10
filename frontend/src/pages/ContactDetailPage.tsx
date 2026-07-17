@@ -25,6 +25,7 @@ import {
   usersApi,
 } from "@/api";
 import { OrderStatusPill, PackageStatusPill } from "@/components/shared/pills";
+import { ClientNotes } from "@/components/contacts/ClientNotes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -330,6 +331,8 @@ export function ContactDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ClientNotes contactId={contactId} />
 
         <Card>
           <CardHeader>

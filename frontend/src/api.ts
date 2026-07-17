@@ -16,6 +16,8 @@ import type {
   CreateTagPayload,
   CreateUserInformationPayload,
   AuditLog,
+  ClientNote,
+  CreateClientNotePayload,
   CreatedUser,
   CreatePaymentPayload,
   CreateUserPayload,
@@ -475,4 +477,16 @@ export const paymentsApi = {
 
 export const auditApi = {
   list: () => request<AuditLog[]>("/audit"),
+};
+
+export const clientNotesApi = {
+  list: (contactId: string) =>
+    request<ClientNote[]>(`/client-notes?contact_id=${contactId}`),
+  create: (payload: CreateClientNotePayload) =>
+    request<ClientNote>("/client-notes", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/client-notes/${id}`, { method: "DELETE" }),
 };

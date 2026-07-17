@@ -204,7 +204,7 @@ function SortableWidget({
   return (
     <div
       ref={setNodeRef}
-      className={cn("relative", isDragging && "z-10 opacity-80")}
+      className={cn("relative flex flex-col", isDragging && "z-10 opacity-80")}
       style={{
         gridColumn: `span ${entry.colSpan}`,
         minHeight: entry.rowSpan * ROW_UNIT,
@@ -263,7 +263,12 @@ function SortableWidget({
           />
         </>
       )}
-      <div className={cn(editing && "pointer-events-none select-none")}>
+      <div
+        className={cn(
+          "flex-1 [&>*]:h-full",
+          editing && "pointer-events-none select-none",
+        )}
+      >
         {children}
       </div>
     </div>

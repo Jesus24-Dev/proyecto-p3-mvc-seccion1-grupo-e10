@@ -77,12 +77,19 @@ import type { LucideIcon } from "lucide-react";
 
 // Distribución por defecto de los widgets del panel (grid de 12 columnas).
 const WIDGET_DEFAULTS: DashboardWidgetLayout[] = [
-  { id: "kpis", colSpan: 12, rowSpan: 1, order: 0, hidden: false },
-  { id: "revenue", colSpan: 6, rowSpan: 2, order: 1, hidden: false },
-  { id: "packages-donut", colSpan: 6, rowSpan: 2, order: 2, hidden: false },
-  { id: "activity", colSpan: 6, rowSpan: 2, order: 3, hidden: false },
-  { id: "orders-status", colSpan: 6, rowSpan: 2, order: 4, hidden: false },
-  { id: "recent-orders", colSpan: 12, rowSpan: 2, order: 5, hidden: false },
+  // Cada KPI es un widget individual: se reordena, redimensiona y oculta solo.
+  { id: "kpi-users", colSpan: 3, rowSpan: 1, order: 0, hidden: false },
+  { id: "kpi-agencies", colSpan: 3, rowSpan: 1, order: 1, hidden: false },
+  { id: "kpi-orders", colSpan: 3, rowSpan: 1, order: 2, hidden: false },
+  { id: "kpi-packages", colSpan: 3, rowSpan: 1, order: 3, hidden: false },
+  { id: "kpi-amount", colSpan: 4, rowSpan: 1, order: 4, hidden: false },
+  { id: "kpi-pending", colSpan: 4, rowSpan: 1, order: 5, hidden: false },
+  { id: "kpi-validated", colSpan: 4, rowSpan: 1, order: 6, hidden: false },
+  { id: "revenue", colSpan: 6, rowSpan: 2, order: 7, hidden: false },
+  { id: "packages-donut", colSpan: 6, rowSpan: 2, order: 8, hidden: false },
+  { id: "activity", colSpan: 6, rowSpan: 2, order: 9, hidden: false },
+  { id: "orders-status", colSpan: 6, rowSpan: 2, order: 10, hidden: false },
+  { id: "recent-orders", colSpan: 12, rowSpan: 2, order: 11, hidden: false },
 ];
 
 const DASHBOARD_STORAGE_KEY = "dr-logistics-dashboard-layout";
@@ -91,8 +98,16 @@ const DASHBOARD_STORAGE_KEY = "dr-logistics-dashboard-layout";
 function mergeLayout(
   saved: DashboardWidgetLayout[] | null | undefined,
 ): DashboardWidgetLayout[] {
-  const savedById = new Map((saved ?? []).map((entry) => [entry.id, entry]));
-  let nextOrder = (saved ?? []).reduce(
+  const savedList = saved ?? [];
+  const savedById = new Map(savedList.map((entry) => [entry.id, entry]));
+  // Los KPI pasaron de un único widget "kpis" a widgets individuales "kpi-*".
+  // Un layout guardado anterior a ese cambio se descarta para no dejar los
+  // KPI al final ni arrastrar tamaños viejos.
+  const isPreSplit = savedList.length > 0 && !savedById.has("kpi-users");
+  if (isPreSplit) {
+    return WIDGET_DEFAULTS.map((def) => ({ ...def }));
+  }
+  let nextOrder = savedList.reduce(
     (max, entry) => Math.max(max, entry.order),
     WIDGET_DEFAULTS.length - 1,
   );
@@ -121,7 +136,7 @@ type StatTileProps = {
 
 function StatTile({ icon: Icon, label, value, detail }: StatTileProps) {
   return (
-    <Card className="gap-3 py-5">
+    <Card className="h-full justify-center gap-3 py-5">
       <CardContent className="grid gap-1 px-5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">{label}</span>
@@ -800,57 +815,91 @@ export function DashboardPage() {
 
   const widgets: WidgetDescriptor[] = [
     {
-      id: "kpis",
-      title: "Indicadores",
+      id: "kpi-users",
+      title: "Usuarios",
       content: (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-          <StatTile
-            icon={Users}
-            label="Usuarios"
-            value={String(users.length)}
-            detail={`${stats.admins} admin · ${stats.distributors} ${stats.distributors === 1 ? "distribuidor" : "distribuidores"}`}
-          />
-          <StatTile
-            icon={Building2}
-            label="Agencias"
-            value={String(agencies.length)}
-            detail={`${stats.activeAgencies} ${stats.activeAgencies === 1 ? "activa" : "activas"}`}
-          />
-          <StatTile
-            icon={Package}
-            label="Envíos"
-            value={String(scopedOrders.length)}
-            detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
-          />
-          <StatTile
-            icon={Boxes}
-            label="Paquetes"
-            value={String(scopedPackages.length)}
-            detail={`${stats.deliveredPackages} ${stats.deliveredPackages === 1 ? "entregado" : "entregados"}`}
-          />
-          <StatTile
-            icon={DollarSign}
-            label="Monto en envíos"
-            value={formatAmount(stats.totalAmount)}
-            detail={
-              activeAgency
-                ? "Suma de las órdenes de la agencia activa"
-                : "Suma de todas las órdenes registradas"
-            }
-          />
-          <StatTile
-            icon={Banknote}
-            label="Pagos pendientes"
-            value={String(pendingPayments)}
-            detail="Por validar con el banco"
-          />
-          <StatTile
-            icon={BadgeCheck}
-            label="Pagos validados"
-            value={formatAmount(validatedTotal)}
-            detail={`${validatedPayments.length} ${validatedPayments.length === 1 ? "pago aprobado" : "pagos aprobados"}`}
-          />
-        </div>
+        <StatTile
+          icon={Users}
+          label="Usuarios"
+          value={String(users.length)}
+          detail={`${stats.admins} admin · ${stats.distributors} ${stats.distributors === 1 ? "distribuidor" : "distribuidores"}`}
+        />
+      ),
+    },
+    {
+      id: "kpi-agencies",
+      title: "Agencias",
+      content: (
+        <StatTile
+          icon={Building2}
+          label="Agencias"
+          value={String(agencies.length)}
+          detail={`${stats.activeAgencies} ${stats.activeAgencies === 1 ? "activa" : "activas"}`}
+        />
+      ),
+    },
+    {
+      id: "kpi-orders",
+      title: "Envíos",
+      content: (
+        <StatTile
+          icon={Package}
+          label="Envíos"
+          value={String(scopedOrders.length)}
+          detail={`${stats.completedOrders} ${stats.completedOrders === 1 ? "completado" : "completados"}`}
+        />
+      ),
+    },
+    {
+      id: "kpi-packages",
+      title: "Paquetes",
+      content: (
+        <StatTile
+          icon={Boxes}
+          label="Paquetes"
+          value={String(scopedPackages.length)}
+          detail={`${stats.deliveredPackages} ${stats.deliveredPackages === 1 ? "entregado" : "entregados"}`}
+        />
+      ),
+    },
+    {
+      id: "kpi-amount",
+      title: "Monto en envíos",
+      content: (
+        <StatTile
+          icon={DollarSign}
+          label="Monto en envíos"
+          value={formatAmount(stats.totalAmount)}
+          detail={
+            activeAgency
+              ? "Suma de las órdenes de la agencia activa"
+              : "Suma de todas las órdenes registradas"
+          }
+        />
+      ),
+    },
+    {
+      id: "kpi-pending",
+      title: "Pagos pendientes",
+      content: (
+        <StatTile
+          icon={Banknote}
+          label="Pagos pendientes"
+          value={String(pendingPayments)}
+          detail="Por validar con el banco"
+        />
+      ),
+    },
+    {
+      id: "kpi-validated",
+      title: "Pagos validados",
+      content: (
+        <StatTile
+          icon={BadgeCheck}
+          label="Pagos validados"
+          value={formatAmount(validatedTotal)}
+          detail={`${validatedPayments.length} ${validatedPayments.length === 1 ? "pago aprobado" : "pagos aprobados"}`}
+        />
       ),
     },
     {

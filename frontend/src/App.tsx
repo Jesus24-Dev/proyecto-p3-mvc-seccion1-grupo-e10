@@ -20,6 +20,7 @@ import { SettingsPage } from "@/pages/SettingsPage";
 import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
 import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
+import { PasswordResetPage } from "@/pages/PasswordResetPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 
@@ -63,6 +64,8 @@ function App() {
       <Route path="/track/:code" element={<PublicTrackingPage />} />
       <Route path="/verify" element={<VerifyEmailPage />} />
       <Route path="/verify/:token" element={<VerifyEmailPage />} />
+      <Route path="/forgot" element={<PasswordResetPage />} />
+      <Route path="/reset/:token" element={<PasswordResetPage />} />
       <Route
         path="/admin"
         element={

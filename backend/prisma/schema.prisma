@@ -66,6 +66,10 @@ model users {
   verification_token String? @unique
   verification_expires DateTime?
 
+  // Recuperación de contraseña (enlace por correo, simulado).
+  reset_token String? @unique
+  reset_expires DateTime?
+
   user_information users_information?
   orders_by_user orders[]
   agencies_by_user agencies[]

@@ -210,6 +210,26 @@ export const authApi = {
       { method: "POST", body: JSON.stringify({ email }) },
       false,
     ),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ status: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    }),
+  forgotPassword: (email: string) =>
+    request<{ reset_token: string | null }>(
+      "/auth/forgot-password",
+      { method: "POST", body: JSON.stringify({ email }) },
+      false,
+    ),
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ status: string }>(
+      "/auth/reset-password",
+      { method: "POST", body: JSON.stringify({ token, new_password: newPassword }) },
+      false,
+    ),
 };
 
 export const usersApi = {

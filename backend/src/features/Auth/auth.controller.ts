@@ -1,11 +1,15 @@
 import type { Request, Response } from "express";
 import { AuthService, AuthServiceError } from "./auth.service.js";
 import type {
+	ChangePasswordBody,
+	ForgotPasswordBody,
 	LoginBody,
 	RegisterBody,
 	ResendVerificationBody,
+	ResetPasswordBody,
 	VerifyEmailBody,
 } from "./auth.schema.js";
+import { getAuthUser } from "./auth.middleware.js";
 import type { LoginResponse } from "./auth.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
 
@@ -84,15 +88,68 @@ export class AuthController {
 			const result = await this.authService.resendVerification(req.body.email);
 			return res.status(200).json(result);
 		} catch (error) {
-			if (error instanceof AuthServiceError) {
-				return res
-					.status(error.statusCode)
-					.json({ status: "error", message: error.message });
-			}
-			return res.status(500).json({
-				status: "error",
-				message: "Ocurrió un error inesperado en el servidor.",
-			});
+			return this.fail(res, error);
 		}
 	};
+
+	public changePassword = async (
+		req: Request<{}, unknown, ChangePasswordBody>,
+		res: Response,
+	) => {
+		try {
+			const user = getAuthUser(req);
+			if (!user) {
+				return res
+					.status(401)
+					.json({ status: "error", message: "No autenticado." });
+			}
+			await this.authService.changePassword(
+				user.id,
+				req.body.current_password,
+				req.body.new_password,
+			);
+			return res.status(200).json({ status: "ok" });
+		} catch (error) {
+			return this.fail(res, error);
+		}
+	};
+
+	public forgotPassword = async (
+		req: Request<{}, unknown, ForgotPasswordBody>,
+		res: Response,
+	) => {
+		try {
+			const result = await this.authService.forgotPassword(req.body.email);
+			return res.status(200).json(result);
+		} catch (error) {
+			return this.fail(res, error);
+		}
+	};
+
+	public resetPassword = async (
+		req: Request<{}, unknown, ResetPasswordBody>,
+		res: Response,
+	) => {
+		try {
+			await this.authService.resetPassword(
+				req.body.token,
+				req.body.new_password,
+			);
+			return res.status(200).json({ status: "ok" });
+		} catch (error) {
+			return this.fail(res, error);
+		}
+	};
+
+	private fail(res: Response, error: unknown) {
+		if (error instanceof AuthServiceError) {
+			return res
+				.status(error.statusCode)
+				.json({ status: "error", message: error.message });
+		}
+		return res.status(500).json({
+			status: "error",
+			message: "Ocurrió un error inesperado en el servidor.",
+		});
+	}
 }

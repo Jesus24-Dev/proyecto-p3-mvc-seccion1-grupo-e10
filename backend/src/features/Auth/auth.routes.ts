@@ -4,11 +4,15 @@ import { AuthRepository } from "./auth.repository.js";
 import { AuthController } from "./auth.controller.js";
 import { AuthService } from "./auth.service.js";
 import {
+  ChangePasswordSchema,
+  ForgotPasswordSchema,
   LoginSchema,
   RegisterSchema,
   ResendVerificationSchema,
+  ResetPasswordSchema,
   VerifyEmailSchema,
 } from "./auth.schema.js";
+import { requireAuth } from "./auth.middleware.js";
 
 const router = Router();
 
@@ -27,6 +31,22 @@ router.post(
   "/resend-verification",
   validate(ResendVerificationSchema),
   controller.resendVerification,
+);
+router.post(
+  "/change-password",
+  requireAuth,
+  validate(ChangePasswordSchema),
+  controller.changePassword,
+);
+router.post(
+  "/forgot-password",
+  validate(ForgotPasswordSchema),
+  controller.forgotPassword,
+);
+router.post(
+  "/reset-password",
+  validate(ResetPasswordSchema),
+  controller.resetPassword,
 );
 
 export const AuthRoutes = router;

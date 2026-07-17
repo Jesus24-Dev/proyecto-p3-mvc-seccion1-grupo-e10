@@ -118,6 +118,59 @@ export class AuthService {
 		return { verification_token: token, already_verified: false };
 	}
 
+	async changePassword(
+		userId: string,
+		currentPassword: string,
+		newPassword: string,
+	): Promise<void> {
+		const user = await this.authRepository.findByIdWithPassword(userId);
+		if (!user) {
+			throw new AuthServiceError("La cuenta no existe.", 404);
+		}
+		const valid = await bcrypt.compare(currentPassword, user.password);
+		if (!valid) {
+			throw new AuthServiceError("La contraseña actual no es correcta.", 400);
+		}
+		await this.authRepository.updatePassword(
+			userId,
+			await bcrypt.hash(newPassword, 10),
+		);
+	}
+
+	async forgotPassword(
+		email: string,
+	): Promise<{ reset_token: string | null }> {
+		const user = await this.authRepository.findUserByEmail(email);
+		// No revelamos si el correo existe; solo devolvemos enlace si aplica.
+		if (!user) {
+			return { reset_token: null };
+		}
+		const token = randomUUID();
+		await this.authRepository.setResetToken(
+			email,
+			token,
+			new Date(Date.now() + 60 * 60 * 1000),
+		);
+		return { reset_token: token };
+	}
+
+	async resetPassword(token: string, newPassword: string): Promise<void> {
+		const user = await this.authRepository.findByResetToken(token);
+		if (!user) {
+			throw new AuthServiceError("El enlace de restablecimiento no es válido.", 400);
+		}
+		if (user.reset_expires && user.reset_expires.getTime() < Date.now()) {
+			throw new AuthServiceError(
+				"El enlace de restablecimiento expiró. Solicita uno nuevo.",
+				400,
+			);
+		}
+		await this.authRepository.updatePassword(
+			user.id,
+			await bcrypt.hash(newPassword, 10),
+		);
+	}
+
 	private buildAuthResponse(user: AuthUser): LoginResponse {
 		const secret = process.env.JWT_SECRET?.trim();
 

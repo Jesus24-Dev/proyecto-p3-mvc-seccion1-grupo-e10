@@ -124,10 +124,16 @@ export function LoginPage() {
               </Alert>
             )}
           </CardContent>
-          <CardFooter className="mt-6 flex-col gap-4">
+          <CardFooter className="mt-6 flex-col gap-3">
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Entrando…" : "Iniciar sesión"}
             </Button>
+            <Link
+              to="/forgot"
+              className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
           </CardFooter>
         </form>
       </Card>

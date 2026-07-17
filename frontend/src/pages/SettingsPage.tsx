@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Check } from "lucide-react";
-import { agenciesApi, contactsApi, usersApi } from "@/api";
+import { agenciesApi, authApi, contactsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,11 @@ export function SettingsPage() {
   }
 
   // --- Contraseña ---
-  const [password, setPassword] = useState({ next: "", confirm: "" });
+  const [password, setPassword] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
   const [passwordMsg, setPasswordMsg] = useState<{
     text: string;
     tone: "success" | "danger";
@@ -121,9 +125,16 @@ export function SettingsPage() {
 
   async function savePassword(event: FormEvent) {
     event.preventDefault();
+    if (!password.current) {
+      setPasswordMsg({
+        text: "Ingresa tu contraseña actual.",
+        tone: "danger",
+      });
+      return;
+    }
     if (password.next.length < 8) {
       setPasswordMsg({
-        text: "La contraseña debe tener al menos 8 caracteres.",
+        text: "La nueva contraseña debe tener al menos 8 caracteres.",
         tone: "danger",
       });
       return;
@@ -135,17 +146,14 @@ export function SettingsPage() {
     setPasswordSaving(true);
     setPasswordMsg(null);
     const failure = await runMutation(async () => {
-      await usersApi.update(userId, {
-        email: session?.user.email ?? profile.email,
-        password: password.next,
-      });
+      await authApi.changePassword(password.current, password.next);
     });
     setPasswordSaving(false);
     if (failure) {
       setPasswordMsg({ text: failure, tone: "danger" });
       return;
     }
-    setPassword({ next: "", confirm: "" });
+    setPassword({ current: "", next: "", confirm: "" });
     setPasswordMsg({ text: "Contraseña actualizada.", tone: "success" });
   }
 
@@ -328,10 +336,23 @@ export function SettingsPage() {
                   </Alert>
                 )}
                 <div className="grid gap-2">
+                  <Label htmlFor="password-current">Contraseña actual</Label>
+                  <Input
+                    id="password-current"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password.current}
+                    onChange={(event) =>
+                      setPassword((c) => ({ ...c, current: event.target.value }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="password-next">Nueva contraseña</Label>
                   <Input
                     id="password-next"
                     type="password"
+                    autoComplete="new-password"
                     value={password.next}
                     onChange={(event) =>
                       setPassword((c) => ({ ...c, next: event.target.value }))

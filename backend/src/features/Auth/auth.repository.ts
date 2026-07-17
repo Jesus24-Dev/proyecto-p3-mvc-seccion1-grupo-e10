@@ -63,4 +63,37 @@ export class AuthRepository {
             select: { id: true, email: true, email_verified: true },
         });
     }
+
+    async findByIdWithPassword(id: string) {
+        return prisma.users.findUnique({
+            where: { id },
+            select: { id: true, email: true, password: true },
+        });
+    }
+
+    async updatePassword(id: string, hashedPassword: string) {
+        await prisma.users.update({
+            where: { id },
+            data: {
+                password: hashedPassword,
+                reset_token: null,
+                reset_expires: null,
+            },
+        });
+    }
+
+    async setResetToken(email: string, token: string, expires: Date) {
+        return prisma.users.update({
+            where: { email },
+            data: { reset_token: token, reset_expires: expires },
+            select: { id: true, email: true },
+        });
+    }
+
+    async findByResetToken(token: string) {
+        return prisma.users.findUnique({
+            where: { reset_token: token },
+            select: { id: true, email: true, reset_expires: true },
+        });
+    }
 }

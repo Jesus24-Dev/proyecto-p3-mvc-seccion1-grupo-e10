@@ -31,6 +31,35 @@ export const ResendVerificationSchema = z.object({
   }),
 });
 
+const PASSWORD_RULE = z.string().regex(/^(?=.*[A-Z])(?=.*\d)[A-Za-z\d]{8,}$/, {
+  message:
+    "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
+});
+
+export const ChangePasswordSchema = z.object({
+  body: z.object({
+    current_password: z.string().min(1, "Ingresa tu contraseña actual."),
+    new_password: PASSWORD_RULE,
+  }),
+});
+
+export const ForgotPasswordSchema = z.object({
+  body: z.object({
+    email: z.email("Formato de email inválido."),
+  }),
+});
+
+export const ResetPasswordSchema = z.object({
+  body: z.object({
+    token: z.string().min(1, "El token es requerido."),
+    new_password: PASSWORD_RULE,
+  }),
+});
+
+export type ChangePasswordBody = z.infer<typeof ChangePasswordSchema>["body"];
+export type ForgotPasswordBody = z.infer<typeof ForgotPasswordSchema>["body"];
+export type ResetPasswordBody = z.infer<typeof ResetPasswordSchema>["body"];
+
 export type LoginBody = z.infer<typeof LoginSchema>["body"];
 export type RegisterBody = z.infer<typeof RegisterSchema>["body"];
 export type VerifyEmailBody = z.infer<typeof VerifyEmailSchema>["body"];

@@ -37,12 +37,16 @@ export function NotificationBell() {
   const unread = notifications.filter((item) => !item.read).length;
 
   async function markRead(id: string) {
-    await runMutation(() => notificationsApi.markRead(id));
+    await runMutation(async () => {
+      await notificationsApi.markRead(id);
+    });
     void reload();
   }
 
   async function markAllRead() {
-    await runMutation(() => notificationsApi.markAllRead());
+    await runMutation(async () => {
+      await notificationsApi.markAllRead();
+    });
     void reload();
   }
 

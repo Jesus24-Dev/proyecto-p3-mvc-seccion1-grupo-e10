@@ -257,7 +257,9 @@ export function BlockEmailBuilder({
             </Label>
             <Select
               value={settings.fontFamily}
-              onValueChange={(font) => emit(blocks, { ...settings, fontFamily: font })}
+              onValueChange={(font) =>
+                emit(blocks, { ...settings, fontFamily: font ?? settings.fontFamily })
+              }
             >
               <SelectTrigger id="be-font" size="sm" className="w-full">
                 <SelectValue>

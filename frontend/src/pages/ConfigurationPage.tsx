@@ -93,7 +93,10 @@ export function ConfigurationPage() {
   if (isLoading) {
     return (
       <>
-        <PageHeader title="Configuración del sistema" />
+        <PageHeader
+          title="Configuración del sistema"
+          description="Parámetros globales de Dr-Logistics."
+        />
         <div className="grid gap-4">
           <Skeleton className="h-48 rounded-xl" />
           <Skeleton className="h-48 rounded-xl" />

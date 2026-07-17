@@ -332,7 +332,7 @@ export function ContactDetailPage() {
           </CardContent>
         </Card>
 
-        <ClientNotes contactId={contactId} />
+        <ClientNotes contactId={contactId ?? ""} />
 
         <Card>
           <CardHeader>

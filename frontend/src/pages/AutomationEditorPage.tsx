@@ -987,7 +987,12 @@ export function AutomationEditorPage() {
               edges={flowEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
-              onInit={(instance) => (rfInstanceRef.current = instance)}
+              onInit={(instance) => {
+                // El tipo de arista inferido no encaja con Edge (varianza);
+                // el ref solo se usa para screenToFlowPosition.
+                rfInstanceRef.current =
+                  instance as ReactFlowInstance<EditorNode, Edge>;
+              }}
               onNodesChange={onNodesChange}
               nodesConnectable={true}
               onConnect={onConnect}

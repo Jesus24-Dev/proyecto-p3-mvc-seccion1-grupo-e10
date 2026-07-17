@@ -84,9 +84,9 @@ function AccessManager({ user }: { user: User }) {
   async function changeRole(membershipId: string, role: AgencyRole) {
     setBusy(membershipId);
     setFailure(null);
-    const err = await runMutation(() =>
-      membershipsApi.updateRole(membershipId, role),
-    );
+    const err = await runMutation(async () => {
+      await membershipsApi.updateRole(membershipId, role);
+    });
     setBusy(null);
     if (err) setFailure(err);
     await reload();

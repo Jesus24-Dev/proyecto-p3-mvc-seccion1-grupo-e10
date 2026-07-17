@@ -499,7 +499,7 @@ export function PaymentsPage() {
                 }))}
                 value={form.contact_id}
                 onValueChange={(value) =>
-                  setForm((c) => ({ ...c, contact_id: value }))
+                  setForm((c) => ({ ...c, contact_id: value ?? "" }))
                 }
               >
                 <SelectTrigger id="pay-contact" className="w-full">

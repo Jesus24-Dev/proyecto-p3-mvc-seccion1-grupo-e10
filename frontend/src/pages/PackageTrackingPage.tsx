@@ -287,7 +287,7 @@ export function PackageTrackingPage() {
                 }))}
                 value={form.agency_id}
                 onValueChange={(value) =>
-                  setForm((current) => ({ ...current, agency_id: value }))
+                  setForm((current) => ({ ...current, agency_id: value ?? "" }))
                 }
               >
                 <SelectTrigger id="checkpoint-agency" className="w-full">

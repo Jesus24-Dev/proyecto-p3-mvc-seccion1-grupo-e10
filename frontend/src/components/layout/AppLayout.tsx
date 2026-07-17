@@ -11,6 +11,7 @@ import {
   Menu,
   MessageCircle,
   Moon,
+  FileBarChart2,
   Package,
   PanelLeft,
   ScrollText,
@@ -50,6 +51,7 @@ const navigationItems = [
   { to: "/admin/templates", label: "Plantillas", icon: Mail },
   { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle },
   { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
+  { to: "/admin/reports", label: "Reportes", icon: FileBarChart2 },
   { to: "/admin/audit", label: "Auditoría", icon: ScrollText },
 ];
 

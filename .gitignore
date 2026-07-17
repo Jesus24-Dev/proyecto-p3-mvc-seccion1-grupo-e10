@@ -8,3 +8,4 @@ generated
 # Estado local de herramientas de diseño
 .impeccable/
 .claude/
+.vercel

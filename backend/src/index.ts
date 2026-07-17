@@ -20,6 +20,7 @@ import { AuditRoutes } from "./features/Audit";
 import { ClientNoteRoutes } from "./features/ClientNotes";
 import { NotificationRoutes } from "./features/Notifications";
 import { ConfigRoutes } from "./features/Config";
+import { RoleRoutes } from "./features/Roles";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ app.use("/audit", AuditRoutes);
 app.use("/client-notes", ClientNoteRoutes);
 app.use("/notifications", NotificationRoutes);
 app.use("/config", ConfigRoutes);
+app.use("/roles", RoleRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

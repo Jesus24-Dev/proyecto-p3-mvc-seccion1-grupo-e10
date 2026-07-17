@@ -16,10 +16,13 @@ import type {
   CreateTagPayload,
   CreateUserInformationPayload,
   AppNotification,
+  AppRole,
   AuditLog,
   ClientNote,
+  CreateRolePayload,
   SystemConfig,
   UpdateConfigPayload,
+  UpdateRolePayload,
   CreateClientNotePayload,
   CreatedUser,
   CreatePaymentPayload,
@@ -480,6 +483,21 @@ export const paymentsApi = {
 
 export const auditApi = {
   list: () => request<AuditLog[]>("/audit"),
+};
+
+export const rolesApi = {
+  list: () => request<AppRole[]>("/roles"),
+  create: (payload: CreateRolePayload) =>
+    request<AppRole>("/roles", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateRolePayload) =>
+    request<AppRole>(`/roles/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) => request<void>(`/roles/${id}`, { method: "DELETE" }),
 };
 
 export const configApi = {

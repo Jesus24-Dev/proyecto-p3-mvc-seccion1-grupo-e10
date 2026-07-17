@@ -285,6 +285,19 @@ model package_events {
   agency agencies? @relation(fields: [agency_id], references: [id])
 }
 
+// Catálogo de roles del sistema con sus permisos por módulo.
+// Capa de gestión (no reemplaza el enum `roles` que usa la autenticación).
+model app_roles {
+  id String @id @default(uuid())
+  name String @unique
+  description String @default("")
+  // Claves de permiso (ver PERMISSION_CATALOG en el frontend).
+  permissions String[] @default([])
+  // Roles base del sistema: no se pueden eliminar.
+  is_system Boolean @default(false)
+  created_at DateTime @default(now())
+}
+
 // Configuración global del sistema (fila única).
 model system_config {
   id String @id @default("singleton")

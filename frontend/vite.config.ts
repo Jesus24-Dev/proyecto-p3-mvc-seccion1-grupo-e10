@@ -93,6 +93,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/roles": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
       },
     },
   };

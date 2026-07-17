@@ -10,6 +10,7 @@ import { seedEmailDomains } from "../../features/EmailDomains/emailDomain.seeder
 import { seedUsers } from "../../features/Users/user.seeder.js";
 import { seedUsersInformation } from "../../features/UsersInformation/userInformation.seeder.js";
 import { seedPayments } from "../../features/Payments/payment.seeder.js";
+import { seedRoles } from "../../features/Roles/role.seeder.js";
 
 type SeedSummary = {
   feature: string;
@@ -39,6 +40,7 @@ async function main() {
   summary.push(await runSeeder("EmailDomains", seedEmailDomains));
   summary.push(await runSeeder("EmailTemplates", seedEmailTemplates));
   summary.push(await runSeeder("Payments", seedPayments));
+  summary.push(await runSeeder("Roles", seedRoles));
 
   console.log("Database seed completed successfully.");
   console.table(summary);

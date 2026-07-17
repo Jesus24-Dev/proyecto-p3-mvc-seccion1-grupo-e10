@@ -16,6 +16,7 @@ import { PaymentsPage } from "@/pages/PaymentsPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { ReportsPage } from "@/pages/ReportsPage";
 import { ConfigurationPage } from "@/pages/ConfigurationPage";
+import { RolesPage } from "@/pages/RolesPage";
 import { TagsPage } from "@/pages/TagsPage";
 import { EmailBuilderPage } from "@/pages/EmailBuilderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -97,6 +98,7 @@ function App() {
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="configuration" element={<ConfigurationPage />} />
+        <Route path="roles" element={<RolesPage />} />
       </Route>
       {/* Editores a pantalla completa, sin el marco del panel. */}
       <Route

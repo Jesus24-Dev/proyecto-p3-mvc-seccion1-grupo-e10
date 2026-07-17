@@ -16,6 +16,7 @@ import {
   Package,
   PanelLeft,
   ScrollText,
+  ShieldCheck,
   Settings,
   Sun,
   Tag,
@@ -54,6 +55,7 @@ const navigationItems = [
   { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
   { to: "/admin/reports", label: "Reportes", icon: FileBarChart2 },
   { to: "/admin/audit", label: "Auditoría", icon: ScrollText },
+  { to: "/admin/roles", label: "Roles y permisos", icon: ShieldCheck },
   { to: "/admin/configuration", label: "Configuración", icon: Cog },
 ];
 
@@ -163,12 +165,12 @@ export function AppLayout() {
     <div className="flex min-h-svh bg-background">
       <aside
         className={cn(
-          "hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 md:flex",
+          "sticky top-0 hidden h-svh shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 md:flex",
           isCollapsed ? "w-16" : "w-60",
         )}
       >
         <BrandMark collapsed={isCollapsed} />
-        <div className="flex-1 py-3">
+        <div className="min-h-0 flex-1 overflow-y-auto py-3">
           <NavigationList collapsed={isCollapsed} />
         </div>
       </aside>

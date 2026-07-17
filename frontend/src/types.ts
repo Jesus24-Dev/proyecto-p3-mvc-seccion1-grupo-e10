@@ -218,6 +218,23 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface AppRole {
+  id: string;
+  name: string;
+  description: string;
+  permissions: string[];
+  is_system: boolean;
+  created_at: string;
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description?: string;
+  permissions?: string[];
+}
+
+export type UpdateRolePayload = Partial<CreateRolePayload>;
+
 export interface SystemConfig {
   id: string;
   company_name: string;

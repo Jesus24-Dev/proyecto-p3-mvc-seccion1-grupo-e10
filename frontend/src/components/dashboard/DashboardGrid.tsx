@@ -173,7 +173,7 @@ function SortableWidget({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: entry.id, disabled: !editing });
 
-  function startResize(event: ReactPointerEvent) {
+  function startResize(event: ReactPointerEvent, axis: "x" | "y" | "both") {
     event.preventDefault();
     event.stopPropagation();
     const grid = gridRef.current;
@@ -185,8 +185,10 @@ function SortableWidget({
     const startRow = entry.rowSpan;
 
     function onMove(moveEvent: PointerEvent) {
-      const deltaCols = Math.round((moveEvent.clientX - startX) / colUnit);
-      const deltaRows = Math.round((moveEvent.clientY - startY) / ROW_UNIT);
+      const deltaCols =
+        axis === "y" ? 0 : Math.round((moveEvent.clientX - startX) / colUnit);
+      const deltaRows =
+        axis === "x" ? 0 : Math.round((moveEvent.clientY - startY) / ROW_UNIT);
       const colSpan = Math.min(MAX_COLS, Math.max(2, startCol + deltaCols));
       const rowSpan = Math.min(6, Math.max(1, startRow + deltaRows));
       onResize(colSpan, rowSpan);
@@ -238,11 +240,25 @@ function SortableWidget({
             className="pointer-events-none absolute inset-0 z-10 rounded-xl border-2 border-dashed border-primary/40"
             aria-hidden="true"
           />
-          {/* Tirador de redimensionado (esquina inferior derecha). */}
+          {/* Tirador de ancho (borde derecho). */}
+          <div
+            role="separator"
+            aria-label={`Ajustar ancho de ${title}`}
+            onPointerDown={(event) => startResize(event, "x")}
+            className="absolute top-1/2 -right-1 z-20 h-8 w-1.5 -translate-y-1/2 cursor-ew-resize rounded-full bg-primary/50 hover:bg-primary"
+          />
+          {/* Tirador de alto (borde inferior). */}
+          <div
+            role="separator"
+            aria-label={`Ajustar alto de ${title}`}
+            onPointerDown={(event) => startResize(event, "y")}
+            className="absolute -bottom-1 left-1/2 z-20 h-1.5 w-8 -translate-x-1/2 cursor-ns-resize rounded-full bg-primary/50 hover:bg-primary"
+          />
+          {/* Tirador de esquina (ancho y alto). */}
           <div
             role="separator"
             aria-label={`Redimensionar ${title}`}
-            onPointerDown={startResize}
+            onPointerDown={(event) => startResize(event, "both")}
             className="absolute -right-1 -bottom-1 z-20 size-4 cursor-nwse-resize rounded-sm border-2 border-primary/60 bg-background"
           />
         </>

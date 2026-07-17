@@ -1222,8 +1222,9 @@ export function DashboardPage() {
       {editing && (
         <p className="mb-4 flex items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
           <LayoutGrid className="size-4 text-primary" aria-hidden="true" />
-          Arrastra por el asa para reordenar, tira de la esquina para
-          redimensionar y usa la × para ocultar un widget.
+          Arrastra por el asa para reordenar, usa el borde derecho para el
+          ancho, el inferior para el alto (o la esquina para ambos) y la × para
+          ocultar un widget.
         </p>
       )}
 

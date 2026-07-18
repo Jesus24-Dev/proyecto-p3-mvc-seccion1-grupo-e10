@@ -1,12 +1,16 @@
 import {
+  BellRing,
   Camera,
   Clock,
+  Eraser,
   GitBranch,
   Mail,
   MessageCircle,
   MessagesSquare,
+  NotebookPen,
   Split,
   Tag,
+  UserCog,
   Webhook,
   Zap,
   type LucideIcon,
@@ -20,6 +24,10 @@ export type StepKind =
   | "send_messenger"
   | "send_email"
   | "add_tag"
+  | "remove_tag"
+  | "update_contact"
+  | "notify_team"
+  | "create_note"
   | "send_webhook"
   | "condition"
   | "switch";
@@ -40,8 +48,10 @@ export type StepData = {
   email_mode?: "template" | "custom";
   template_id?: string;
   from_domain?: string;
-  /** add_tag */
+  /** add_tag / remove_tag */
   tag?: string;
+  /** create_note */
+  note_kind?: string;
   /** send_webhook */
   url?: string;
   method?: "POST" | "GET";
@@ -178,6 +188,22 @@ export function mergeVariables(custom: string[]): AutomationVariable[] {
   return [...AUTOMATION_VARIABLES, ...extras];
 }
 
+/** Campos del contacto que puede actualizar el paso "actualizar contacto". */
+export const CONTACT_FIELDS = [
+  { value: "phone", label: "Teléfono" },
+  { value: "address", label: "Dirección" },
+  { value: "first_name", label: "Nombre" },
+  { value: "last_name", label: "Apellido" },
+  { value: "document_id", label: "Cédula/RIF" },
+] as const;
+
+/** Tipos de nota CRM para el paso "crear nota". */
+export const NOTE_KINDS = [
+  { value: "NOTE", label: "Nota" },
+  { value: "OBSERVATION", label: "Observación" },
+  { value: "INCIDENT", label: "Incidencia" },
+] as const;
+
 /** Campos del contacto/evento sobre los que ramifica un condicional. */
 export const BRANCH_FIELDS = [
   { value: "tag", label: "Etiqueta del contacto" },
@@ -286,6 +312,35 @@ export const STEP_META: Record<StepKind, StepMeta> = {
     icon: Tag,
     summary: (data) => (data.tag ? `#${data.tag}` : "Elige la etiqueta"),
   },
+  remove_tag: {
+    label: "Quitar etiqueta",
+    icon: Eraser,
+    summary: (data) => (data.tag ? `#${data.tag}` : "Elige la etiqueta"),
+  },
+  update_contact: {
+    label: "Actualizar contacto",
+    icon: UserCog,
+    summary: (data) => {
+      const field =
+        CONTACT_FIELDS.find((option) => option.value === data.field)?.label ??
+        "Campo";
+      return data.value
+        ? `${field} = "${data.value.slice(0, 24)}"`
+        : `Define ${field.toLowerCase()}`;
+    },
+  },
+  notify_team: {
+    label: "Notificar al equipo",
+    icon: BellRing,
+    summary: (data) =>
+      data.message ? `"${data.message.slice(0, 42)}…"` : "Escribe el aviso",
+  },
+  create_note: {
+    label: "Crear nota",
+    icon: NotebookPen,
+    summary: (data) =>
+      data.body?.trim() ? data.body.slice(0, 42) : "Escribe la nota",
+  },
   send_webhook: {
     label: "Enviar webhook",
     icon: Webhook,
@@ -357,6 +412,15 @@ export function stepWarning(data: StepData): string | null {
       return data.subject?.trim() ? null : "Define el asunto del email.";
     case "add_tag":
       return data.tag?.trim() ? null : "Elige la etiqueta a agregar.";
+    case "remove_tag":
+      return data.tag?.trim() ? null : "Elige la etiqueta a quitar.";
+    case "update_contact":
+      if (!data.field) return "Elige un campo del contacto.";
+      return data.value?.trim() ? null : "Escribe el nuevo valor.";
+    case "notify_team":
+      return data.message?.trim() ? null : "Escribe el aviso para el equipo.";
+    case "create_note":
+      return data.body?.trim() ? null : "Escribe el contenido de la nota.";
     case "send_webhook":
       return data.url?.trim() ? null : "Define la URL de destino.";
     case "condition":
@@ -382,6 +446,10 @@ export const ADDABLE_STEPS: StepKind[] = [
   "send_messenger",
   "send_email",
   "add_tag",
+  "remove_tag",
+  "update_contact",
+  "notify_team",
+  "create_note",
   "send_webhook",
   "condition",
   "switch",
@@ -400,7 +468,14 @@ export function defaultDataFor(kind: StepKind): StepData {
     case "send_email":
       return { kind, subject: "", body: "", email_mode: "custom" };
     case "add_tag":
+    case "remove_tag":
       return { kind, tag: "" };
+    case "update_contact":
+      return { kind, field: "phone", value: "" };
+    case "notify_team":
+      return { kind, message: "" };
+    case "create_note":
+      return { kind, note_kind: "NOTE", body: "" };
     case "send_webhook":
       return { kind, url: "", method: "POST" };
     case "condition":

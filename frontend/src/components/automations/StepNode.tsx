@@ -1,5 +1,14 @@
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
-import { Copy, GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  GitBranch,
+  Pencil,
+  Plus,
+  Trash2,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import {
   STEP_META,
   branchesFor,
@@ -10,6 +19,15 @@ import {
 import { cn } from "@/lib/utils";
 
 export type StepNode = Node<StepData, "step">;
+
+/** Estado en vivo inyectado en `data.__live` al ejecutar la vista "En vivo". */
+export type NodeLiveInfo = {
+  active: number;
+  ok: number;
+  error: number;
+  visited: number;
+  lastError?: string;
+};
 
 /**
  * Nodo vertical del lienzo (estilo GHL): entra por arriba y sale por abajo.
@@ -24,6 +42,20 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
   const branches = branchesFor(data);
   const isBranching = data.kind === "condition" || data.kind === "switch";
   const warning = stepWarning(data);
+  // Modo "En vivo": el editor inyecta los agregados de ejecución y el nodo se
+  // vuelve de solo lectura (sin toolbar ni botones "+").
+  const live = (data as StepData & { __live?: NodeLiveInfo }).__live;
+  // Estado del nodo en vivo: en curso (hay contactos), error, hecho
+  // (ya pasaron y sin error) o pendiente (nadie ha pasado aún).
+  const liveStatus: "running" | "error" | "done" | "pending" | null = !live
+    ? null
+    : live.active > 0
+      ? "running"
+      : live.error > 0
+        ? "error"
+        : live.ok > 0 || live.visited > 0
+          ? "done"
+          : "pending";
 
   function requestAdd(
     branchId: string,
@@ -56,10 +88,42 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
     <div className="flex flex-col items-center">
       <div
         className={cn(
-          "relative w-60 rounded-xl border bg-background p-3 shadow-sm transition-shadow",
+          "relative w-60 rounded-xl border bg-background p-3 shadow-sm transition-all",
           selected && "border-ring ring-3 ring-ring/30",
+          // En vivo: el borde codifica el estado del nodo.
+          liveStatus === "running" &&
+            "border-primary ring-3 ring-primary/30 shadow-md",
+          liveStatus === "done" && "border-success/60",
+          liveStatus === "error" && "border-destructive/60",
+          liveStatus === "pending" && "border-dashed opacity-55",
         )}
       >
+        {liveStatus === "running" && (
+          <span
+            className="nodrag nopan absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground shadow-sm motion-safe:animate-pulse"
+            title={`${live!.active} ${live!.active === 1 ? "contacto" : "contactos"} en este paso`}
+          >
+            <Users className="size-3" aria-hidden="true" />
+            {live!.active}
+          </span>
+        )}
+        {liveStatus === "done" && (
+          <span
+            className="nodrag nopan absolute -top-2.5 -right-2.5 flex size-6 items-center justify-center rounded-full bg-success text-success-foreground shadow-sm ring-2 ring-background"
+            title={`Paso completado (${live!.ok})`}
+          >
+            <CheckCircle2 className="size-4" aria-hidden="true" />
+          </span>
+        )}
+        {liveStatus === "error" && (
+          <span
+            className="nodrag nopan absolute -top-2.5 -right-2.5 flex size-6 items-center justify-center rounded-full bg-destructive text-white shadow-sm ring-2 ring-background"
+            title={live!.lastError ?? `Con errores (${live!.error})`}
+          >
+            <TriangleAlert className="size-3.5" aria-hidden="true" />
+          </span>
+        )}
+
         {!isTrigger && (
           <Handle
             type="target"
@@ -68,7 +132,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
           />
         )}
 
-        {selected && (
+        {selected && !live && (
           <div className="nodrag nopan absolute -top-3 right-2 flex items-center gap-0.5 rounded-full border bg-background px-1 py-0.5 shadow-sm">
             <button
               type="button"
@@ -101,7 +165,7 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
           </div>
         )}
 
-        {warning && (
+        {warning && !live && (
           <span
             className="absolute -top-1.5 -right-1.5 size-3.5 rounded-full bg-amber-400 ring-2 ring-background"
             title={warning}
@@ -131,6 +195,20 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
           </div>
         </div>
 
+        {/* En vivo: motivo del último fallo del nodo, legible en el lienzo. */}
+        {liveStatus === "error" && live?.lastError && (
+          <p
+            className="mt-2 flex items-start gap-1 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive"
+            title={live.lastError}
+          >
+            <TriangleAlert
+              className="mt-0.5 size-3 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="line-clamp-2">{live.lastError}</span>
+          </p>
+        )}
+
         {!isBranching && (
           <Handle
             type="source"
@@ -155,27 +233,31 @@ export function StepNodeComponent({ id, data, selected }: NodeProps<StepNode>) {
                   position={Position.Bottom}
                   className="!size-4 !border-2 !border-background !bg-muted-foreground transition-colors hover:!bg-primary hover:!scale-110"
                 />
-                <button
-                  type="button"
-                  className="nodrag flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-                  aria-label={`Agregar paso en la rama ${branch.label}`}
-                  onClick={(event) => requestAdd(branch.id, event)}
-                >
-                  <Plus className="size-3.5" aria-hidden="true" />
-                </button>
+                {!live && (
+                  <button
+                    type="button"
+                    className="nodrag flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+                    aria-label={`Agregar paso en la rama ${branch.label}`}
+                    onClick={(event) => requestAdd(branch.id, event)}
+                  >
+                    <Plus className="size-3.5" aria-hidden="true" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <button
-          type="button"
-          className="nodrag mt-2 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
-          aria-label="Agregar paso siguiente"
-          onClick={(event) => requestAdd("out", event)}
-        >
-          <Plus className="size-3.5" aria-hidden="true" />
-        </button>
+        !live && (
+          <button
+            type="button"
+            className="nodrag mt-2 flex size-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:border-primary hover:bg-primary hover:text-primary-foreground"
+            aria-label="Agregar paso siguiente"
+            onClick={(event) => requestAdd("out", event)}
+          >
+            <Plus className="size-3.5" aria-hidden="true" />
+          </button>
+        )
       )}
     </div>
   );

@@ -19,8 +19,10 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
+  AlignVerticalJustifyCenter,
   ArrowLeft,
   Braces,
+  Filter,
   Play,
   Plus,
   Save,
@@ -35,6 +37,7 @@ import {
   aiApi,
   ApiRequestError,
   automationsApi,
+  contactsApi,
   emailDomainsApi,
   emailTemplatesApi,
   tagsApi,
@@ -42,10 +45,15 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useActiveAgency } from "@/context/AgencyContext";
 import { useMutationHandler } from "@/hooks/usePageData";
+import { computeNodeStats, useAutomationRuns } from "@/hooks/useAutomationRuns";
+import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   AUTOMATION_VARIABLES,
   BRANCH_FIELDS,
   CONDITION_OPERATORS,
+  CONTACT_FIELDS,
+  NOTE_KINDS,
   DEFAULT_NOTE_COLOR,
   NODE_COLORS,
   NOTE_COLORS,
@@ -98,6 +106,7 @@ import type {
   AutomationDefinition,
   EmailDomain,
   EmailTemplate,
+  UserInformation,
 } from "@/types";
 
 const nodeTypes = { step: StepNodeComponent, note: NoteNodeComponent };
@@ -116,7 +125,11 @@ const ACTION_CATALOG: Array<{ group: string; kinds: StepKind[] }> = [
     group: "Mensajería",
     kinds: ["send_whatsapp", "send_instagram", "send_messenger", "send_email"],
   },
-  { group: "Contacto", kinds: ["add_tag"] },
+  {
+    group: "Contacto",
+    kinds: ["add_tag", "remove_tag", "update_contact", "create_note"],
+  },
+  { group: "Equipo", kinds: ["notify_team"] },
   { group: "Lógica", kinds: ["wait", "condition", "switch"] },
   { group: "Integraciones", kinds: ["send_webhook"] },
 ];
@@ -167,8 +180,15 @@ export function AutomationEditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [pending, setPending] = useState<Insertion | null>(null);
   const [actionQuery, setActionQuery] = useState("");
-  // Pestaña activa del editor: constructor / historial / registros.
-  const [view, setView] = useState<"builder" | "enrollment" | "logs">("builder");
+  // Pestaña activa del editor: constructor / en vivo / historial / registros.
+  const [view, setView] = useState<
+    "builder" | "live" | "enrollment" | "logs"
+  >("builder");
+  // Ejecución manual ("Ejecutar"): diálogo de selección de contacto.
+  const [runOpen, setRunOpen] = useState(false);
+  // "sample" = deja que el servidor elija un contacto de muestra.
+  const [runContactId, setRunContactId] = useState("sample");
+  const [contacts, setContacts] = useState<UserInformation[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [customVariables, setCustomVariables] = useState<string[]>([]);
   const [variablesOpen, setVariablesOpen] = useState(false);
@@ -181,7 +201,13 @@ export function AutomationEditorPage() {
   const [flowSettings, setFlowSettings] = useState<{
     email_from_domain: string;
     whatsapp_from: string;
-  }>({ email_from_domain: "", whatsapp_from: "" });
+    allow_reentry: boolean;
+  }>({ email_from_domain: "", whatsapp_from: "", allow_reentry: false });
+  // Filtros de las vistas de ejecución: por contacto ("all" = todos) y por
+  // rango de fechas (YYYY-MM-DD, vacío = sin límite).
+  const [runFilterContact, setRunFilterContact] = useState("all");
+  const [runFilterFrom, setRunFilterFrom] = useState("");
+  const [runFilterTo, setRunFilterTo] = useState("");
   const { activeAgencyId } = useActiveAgency();
   const [tagOptions, setTagOptions] = useState<string[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([]);
@@ -194,20 +220,27 @@ export function AutomationEditorPage() {
     const scoped = <T extends { agency_id: string }>(items: T[]) =>
       items.filter((item) => !activeAgencyId || item.agency_id === activeAgencyId);
 
-    Promise.all([tagsApi.list(), emailTemplatesApi.list(), emailDomainsApi.list()])
-      .then(([tags, templates, domains]) => {
+    Promise.all([
+      tagsApi.list(),
+      emailTemplatesApi.list(),
+      emailDomainsApi.list(),
+      contactsApi.list(),
+    ])
+      .then(([tags, templates, domains, contactList]) => {
         if (cancelled) {
           return;
         }
         setTagOptions([...new Set(scoped(tags).map((tag) => tag.name))]);
         setEmailTemplates(scoped(templates));
         setEmailDomains(scoped(domains));
+        setContacts(contactList);
       })
       .catch(() => {
         if (!cancelled) {
           setTagOptions([]);
           setEmailTemplates([]);
           setEmailDomains([]);
+          setContacts([]);
         }
       });
     return () => {
@@ -314,6 +347,101 @@ export function AutomationEditorPage() {
     [validEdges],
   );
 
+  // Ejecución en vivo (SSE): se conecta solo fuera del constructor.
+  const { runs, isConnected } = useAutomationRuns(
+    isNew ? undefined : automationId,
+    !isNew && view !== "builder",
+  );
+  // Contactos presentes en las ejecuciones, para el filtro.
+  const runContactOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const run of runs) {
+      map.set(run.contact_id ?? "anon", run.contact_name);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }));
+  }, [runs]);
+  // Ejecuciones filtradas por contacto y rango de fechas (aplican a las tres
+  // vistas de ejecución).
+  const filteredRuns = useMemo(() => {
+    const fromTs = runFilterFrom
+      ? new Date(`${runFilterFrom}T00:00:00`).getTime()
+      : null;
+    const toTs = runFilterTo
+      ? new Date(`${runFilterTo}T23:59:59`).getTime()
+      : null;
+    return runs.filter((r) => {
+      if (
+        runFilterContact !== "all" &&
+        (r.contact_id ?? "anon") !== runFilterContact
+      ) {
+        return false;
+      }
+      const ts = new Date(r.started_at).getTime();
+      if (fromTs !== null && ts < fromTs) {
+        return false;
+      }
+      if (toTs !== null && ts > toTs) {
+        return false;
+      }
+      return true;
+    });
+  }, [runs, runFilterContact, runFilterFrom, runFilterTo]);
+  const nodeStats = useMemo(() => computeNodeStats(filteredRuns), [filteredRuns]);
+  const activeRunCount = useMemo(
+    () =>
+      filteredRuns.filter(
+        (r) => r.status === "RUNNING" || r.status === "WAITING",
+      ).length,
+    [filteredRuns],
+  );
+  // Aristas de solo lectura para la vista en vivo (sin botón de borrar).
+  // El camino recorrido (ambos extremos visitados) se resalta en verde.
+  const liveEdges = useMemo(
+    () =>
+      validEdges.map((edge) => {
+        const followed =
+          (nodeStats[edge.source]?.visited ?? 0) > 0 &&
+          (nodeStats[edge.target]?.visited ?? 0) > 0;
+        return {
+          ...edge,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            ...(followed ? { color: "var(--success)" } : {}),
+          },
+          ...(followed
+            ? {
+                animated: true,
+                style: { stroke: "var(--success)", strokeWidth: 2.5 },
+              }
+            : {}),
+        };
+      }),
+    [validEdges, nodeStats],
+  );
+  // Nodos de solo lectura: reutilizan las posiciones del constructor e
+  // inyectan los agregados por nodo en `data.__live`.
+  const liveNodes = useMemo<EditorNode[]>(
+    () =>
+      rfNodes.map((node) => {
+        if (node.type === "note") {
+          return { ...node, draggable: false, selectable: false };
+        }
+        const stat = nodeStats[node.id] ?? {
+          active: 0,
+          ok: 0,
+          error: 0,
+          visited: 0,
+        };
+        return {
+          ...node,
+          draggable: false,
+          selectable: false,
+          data: { ...(node.data as StepData), __live: stat },
+        } as EditorNode;
+      }),
+    [rfNodes, nodeStats],
+  );
+
   const selectedStep = useMemo(
     () => steps.find((step) => step.id === selectedId) ?? null,
     [steps, selectedId],
@@ -391,6 +519,7 @@ export function AutomationEditorPage() {
           setFlowSettings({
             email_from_domain: loadedSettings.email_from_domain ?? "",
             whatsapp_from: loadedSettings.whatsapp_from ?? "",
+            allow_reentry: loadedSettings.allow_reentry ?? false,
           });
         }
       })
@@ -769,6 +898,27 @@ export function AutomationEditorPage() {
     setCustomVariables((current) => current.filter((item) => item !== token));
   }
 
+  // Reordena el lienzo con el auto-layout vertical, descartando las posiciones
+  // movidas a mano (las notas flotantes se conservan).
+  function autoAlign() {
+    savedPositions.current.clear();
+    const laid = layoutTree(steps, validEdges);
+    const byId = new Map(laid.map((node) => [node.id, node.position]));
+    setRfNodes((prev) =>
+      prev.map((node) => {
+        if (node.type === "note") {
+          return node;
+        }
+        const position = byId.get(node.id);
+        return position ? { ...node, position } : node;
+      }),
+    );
+    window.requestAnimationFrame(() =>
+      rfInstanceRef.current?.fitView({ padding: 0.2, duration: 300 }),
+    );
+    toast.success("Flujo alineado");
+  }
+
   async function handleSave() {
     setIsSaving(true);
     setNotice(null);
@@ -795,6 +945,7 @@ export function AutomationEditorPage() {
       settings: {
         email_from_domain: flowSettings.email_from_domain,
         whatsapp_from: flowSettings.whatsapp_from,
+        allow_reentry: flowSettings.allow_reentry,
       },
     };
 
@@ -814,39 +965,58 @@ export function AutomationEditorPage() {
     });
 
     setIsSaving(false);
-    setNotice(
-      failure
-        ? { text: failure, tone: "danger" }
-        : { text: "Automatización guardada correctamente.", tone: "success" },
-    );
+    if (failure) {
+      toast.error("No se pudo guardar", { description: failure });
+    } else {
+      toast.success("Automatización guardada", {
+        description: "Tus cambios quedaron guardados.",
+      });
+    }
   }
 
-  const runTest = useCallback(async () => {
+  // Ejecuta el flujo para un contacto (o una muestra) y salta a la vista en
+  // vivo para verlo recorrer los nodos.
+  const runNow = useCallback(async () => {
     if (isNew) {
       return;
     }
     setIsTesting(true);
     setNotice(null);
     try {
-      const result = (await automationsApi.triggerWebhook(automationId!)) as {
-        status?: string;
-      };
-      setNotice({
-        text: `Disparador ejecutado: ${result.status ?? "queued"}.`,
-        tone: "success",
+      const contactId = runContactId === "sample" ? undefined : runContactId;
+      await automationsApi.run(automationId!, contactId);
+      setRunOpen(false);
+      setView("live");
+      toast.success("Ejecución iniciada", {
+        description: "Míralo avanzar en la vista En vivo.",
       });
     } catch (error) {
-      setNotice({
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo disparar la automatización.",
-        tone: "danger",
+      toast.error("No se pudo ejecutar", {
+        description: error instanceof Error ? error.message : undefined,
       });
     } finally {
       setIsTesting(false);
     }
-  }, [automationId, isNew]);
+  }, [automationId, isNew, runContactId]);
+
+  // Reintenta una ejecución: todo el flujo o solo los pasos fallidos.
+  async function handleRetry(runId: string, mode: "full" | "failed") {
+    if (isNew) {
+      return;
+    }
+    const failure = await runMutation(async () => {
+      await automationsApi.retryRun(automationId!, runId, mode);
+    });
+    if (failure) {
+      toast.error("No se pudo reintentar", { description: failure });
+      return;
+    }
+    setView("live");
+    toast.success(
+      mode === "full" ? "Reintentando todo el flujo" : "Reintentando pasos fallidos",
+      { description: "Míralo en la vista En vivo." },
+    );
+  }
 
   if (isLoading) {
     return <Skeleton className="h-[70vh] rounded-xl" />;
@@ -885,12 +1055,17 @@ export function AutomationEditorPage() {
             <option key={option} value={option} />
           ))}
         </datalist>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setIsActive((current) => !current)}
-        >
-          {isActive ? "Activa" : "Pausada"}
+        <label className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm text-muted-foreground select-none">
+          <Switch
+            checked={isActive}
+            onCheckedChange={setIsActive}
+            aria-label={isActive ? "Pausar automatización" : "Activar automatización"}
+          />
+          <span className="font-medium">{isActive ? "Activa" : "Pausada"}</span>
+        </label>
+        <Button variant="outline" size="sm" onClick={autoAlign}>
+          <AlignVerticalJustifyCenter data-icon="inline-start" aria-hidden="true" />
+          Auto-alinear
         </Button>
         <Button variant="outline" size="sm" onClick={addNote}>
           <StickyNote data-icon="inline-start" aria-hidden="true" />
@@ -920,11 +1095,11 @@ export function AutomationEditorPage() {
           {!isNew && (
             <Button
               variant="outline"
-              onClick={() => void runTest()}
+              onClick={() => setRunOpen(true)}
               disabled={isTesting}
             >
               <Play data-icon="inline-start" aria-hidden="true" />
-              {isTesting ? "Disparando…" : "Probar disparador"}
+              {isTesting ? "Ejecutando…" : "Ejecutar"}
             </Button>
           )}
           <Button onClick={() => void handleSave()} disabled={isSaving}>
@@ -948,6 +1123,7 @@ export function AutomationEditorPage() {
         {(
           [
             { id: "builder", label: "Constructor" },
+            { id: "live", label: "En vivo" },
             { id: "enrollment", label: "Historial de inscripciones" },
             { id: "logs", label: "Registros de ejecución" },
           ] as const
@@ -969,6 +1145,72 @@ export function AutomationEditorPage() {
           </button>
         ))}
       </div>
+
+      {view !== "builder" && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Filter className="size-4 text-muted-foreground" aria-hidden="true" />
+          {runContactOptions.length > 0 && (
+            <Select
+              items={[
+                { value: "all", label: "Todos los contactos" },
+                ...runContactOptions.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              value={runFilterContact}
+              onValueChange={(value) => setRunFilterContact(value as string)}
+            >
+              <SelectTrigger className="h-9 w-56" aria-label="Filtrar por contacto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los contactos</SelectItem>
+                {runContactOptions.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <div className="flex items-center gap-1.5">
+            <Label htmlFor="run-from" className="text-xs text-muted-foreground">
+              Desde
+            </Label>
+            <Input
+              id="run-from"
+              type="date"
+              value={runFilterFrom}
+              max={runFilterTo || undefined}
+              onChange={(event) => setRunFilterFrom(event.target.value)}
+              className="h-9 w-40"
+            />
+            <Label htmlFor="run-to" className="text-xs text-muted-foreground">
+              Hasta
+            </Label>
+            <Input
+              id="run-to"
+              type="date"
+              value={runFilterTo}
+              min={runFilterFrom || undefined}
+              onChange={(event) => setRunFilterTo(event.target.value)}
+              className="h-9 w-40"
+            />
+          </div>
+          {(runFilterContact !== "all" || runFilterFrom || runFilterTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setRunFilterContact("all");
+                setRunFilterFrom("");
+                setRunFilterTo("");
+              }}
+            >
+              <X data-icon="inline-start" aria-hidden="true" />
+              Limpiar
+            </Button>
+          )}
+        </div>
+      )}
 
       <div
         className={cn(
@@ -1039,7 +1281,7 @@ export function AutomationEditorPage() {
           </div>
         </Card>
 
-        <Card className="h-fit">
+        <Card className="min-h-0 self-stretch overflow-y-auto lg:max-h-[calc(100dvh-13rem)]">
           <CardContent className="grid gap-4">
             {showCatalog ? (
               <>
@@ -1150,13 +1392,80 @@ export function AutomationEditorPage() {
         </Card>
       </div>
 
-      {view !== "builder" && (
+      {view === "live" && (
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  isConnected
+                    ? "bg-success motion-safe:animate-pulse"
+                    : "bg-muted-foreground",
+                )}
+                aria-hidden="true"
+              />
+              {isConnected ? "En vivo" : "Conectando…"}
+            </span>
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {activeRunCount}
+              </span>{" "}
+              en curso · {filteredRuns.length} inscripcion
+              {filteredRuns.length === 1 ? "" : "es"}
+            </span>
+            <span className="rounded-full border border-dashed px-2 py-0.5 text-xs text-muted-foreground">
+              Modo demo: las esperas se comprimen a segundos
+            </span>
+          </div>
+          <Card className="min-h-0 flex-1 overflow-hidden p-0">
+            <div className="h-full min-h-[460px]">
+              <ReactFlow
+                nodes={liveNodes}
+                edges={liveEdges}
+                nodeTypes={nodeTypes}
+                nodesDraggable={false}
+                nodesConnectable={false}
+                elementsSelectable={false}
+                fitView
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background
+                  variant={BackgroundVariant.Dots}
+                  gap={22}
+                  size={1.5}
+                  className="!bg-muted/25"
+                />
+                <Controls
+                  showInteractive={false}
+                  className="!rounded-lg !border !border-border !bg-background !shadow-sm [&>button]:!border-border [&>button]:!bg-background [&>button]:!fill-muted-foreground hover:[&>button]:!bg-muted"
+                />
+                <MiniMap
+                  pannable
+                  zoomable
+                  className="!rounded-lg !border !border-border !bg-card"
+                  maskColor="color-mix(in oklch, var(--muted) 55%, transparent)"
+                  nodeColor={(node) =>
+                    node.type === "note"
+                      ? "var(--muted-foreground)"
+                      : (node.data as StepData)?.kind === "trigger"
+                        ? "var(--primary)"
+                        : "var(--border)"
+                  }
+                />
+              </ReactFlow>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {(view === "enrollment" || view === "logs") && (
         <Card className="min-h-0 flex-1 overflow-y-auto">
           <CardContent className="p-4 md:p-6">
             {view === "enrollment" ? (
-              <EnrollmentHistory saved={!isNew} />
+              <EnrollmentHistory runs={filteredRuns} onRetry={handleRetry} />
             ) : (
-              <ExecutionLogs saved={!isNew} />
+              <ExecutionLogs runs={filteredRuns} />
             )}
           </CardContent>
         </Card>
@@ -1276,16 +1585,85 @@ export function AutomationEditorPage() {
               Se usa como remitente de los pasos "Enviar WhatsApp".
             </p>
           </div>
+          <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+            <div className="min-w-0">
+              <Label htmlFor="flow-reentry">Permitir re-entrada</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Un contacto puede inscribirse otra vez aunque ya esté recorriendo
+                el flujo. Si está apagado, se ignoran las reinscripciones.
+              </p>
+            </div>
+            <Switch
+              id="flow-reentry"
+              checked={flowSettings.allow_reentry}
+              onCheckedChange={(value) =>
+                setFlowSettings((current) => ({ ...current, allow_reentry: value }))
+              }
+              aria-label="Permitir re-entrada"
+            />
+          </div>
           <DialogFooter>
             <Button onClick={() => setSettingsOpen(false)}>Listo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={runOpen} onOpenChange={setRunOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ejecutar automatización</DialogTitle>
+            <DialogDescription>
+              Inscribe un contacto y míralo recorrer el flujo en vivo. Corre
+              aunque el flujo esté pausado (es una prueba).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="run-contact">Contacto</Label>
+            <Select
+              items={[
+                { value: "sample", label: "Contacto de muestra" },
+                ...contacts.map((contact) => ({
+                  value: contact.id,
+                  label: `${contact.first_name} ${contact.last_name}`.trim(),
+                })),
+              ]}
+              value={runContactId}
+              onValueChange={(value) => setRunContactId(value as string)}
+            >
+              <SelectTrigger id="run-contact" className="w-full">
+                <SelectValue placeholder="Contacto de muestra" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sample">Contacto de muestra</SelectItem>
+                {contacts.map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id}>
+                    {`${contact.first_name} ${contact.last_name}`.trim()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Las variables ({"{{nombre}}"}, {"{{tracking}}"}…) se rellenan con
+              los datos de este contacto.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRunOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void runNow()} disabled={isTesting}>
+              <Play data-icon="inline-start" aria-hidden="true" />
+              {isTesting ? "Ejecutando…" : "Ejecutar y ver en vivo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <p className="text-xs text-muted-foreground">
-        El motor de ejecución de flujos está fuera del alcance de esta entrega:
-        las automatizaciones se diseñan y guardan, y el estado Activa indica que
-        quedarían en producción.
+        El motor de ejecución avanza cada inscripción paso a paso: usa{" "}
+        <span className="font-medium">Ejecutar</span> para verlo en vivo. Con el
+        flujo <span className="font-medium">Activo</span>, los disparadores
+        (contacto creado, paquete entregado…) lo inician solos.
       </p>
     </div>
   );
@@ -1315,18 +1693,16 @@ function StepConfig({
   onRemove,
 }: StepConfigProps) {
   const { data } = step;
-  const tagListId = "cfg-tag-options";
+  // Catálogo de etiquetas de la subcuenta; incluye el valor ya guardado
+  // aunque no esté en el catálogo, para no perderlo.
+  const tagItemsFor = (current: string | undefined) =>
+    Array.from(
+      new Set([current, ...tagOptions].filter((t): t is string => Boolean(t))),
+    );
 
   return (
     <>
       <p className="font-medium">{STEP_META[data.kind].label}</p>
-
-      {/* Etiquetas de la subcuenta activa, para autocompletar campos de etiqueta. */}
-      <datalist id={tagListId}>
-        {tagOptions.map((tag) => (
-          <option key={tag} value={tag} />
-        ))}
-      </datalist>
 
       {data.kind === "trigger" && (
         <div className="grid gap-2">
@@ -1522,17 +1898,123 @@ function StepConfig({
         </>
       )}
 
-      {data.kind === "add_tag" && (
+      {(data.kind === "add_tag" || data.kind === "remove_tag") && (
         <div className="grid gap-2">
           <Label htmlFor="cfg-tag">Etiqueta</Label>
-          <Input
-            id="cfg-tag"
-            value={data.tag ?? ""}
-            onChange={(event) => onChange({ tag: event.target.value })}
-            placeholder="bienvenida"
-            list={tagListId}
-          />
+          {tagItemsFor(data.tag).length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No hay etiquetas en esta subcuenta. Créalas en la sección
+              Etiquetas.
+            </p>
+          ) : (
+            <Select
+              items={tagItemsFor(data.tag).map((t) => ({
+                value: t,
+                label: `#${t}`,
+              }))}
+              value={data.tag ?? ""}
+              onValueChange={(value) => onChange({ tag: value as string })}
+            >
+              <SelectTrigger id="cfg-tag" className="w-full">
+                <SelectValue placeholder="Elige una etiqueta" />
+              </SelectTrigger>
+              <SelectContent>
+                {tagItemsFor(data.tag).map((t) => (
+                  <SelectItem key={t} value={t}>
+                    #{t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
+      )}
+
+      {data.kind === "update_contact" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-contact-field">Campo del contacto</Label>
+            <Select
+              items={CONTACT_FIELDS.map((o) => ({ value: o.value, label: o.label }))}
+              value={data.field ?? "phone"}
+              onValueChange={(value) => onChange({ field: value as string })}
+            >
+              <SelectTrigger id="cfg-contact-field" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CONTACT_FIELDS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-contact-value">Nuevo valor</Label>
+            <VariableTextarea
+              id="cfg-contact-value"
+              value={data.value ?? ""}
+              onChange={(value) => onChange({ value })}
+              variables={variables}
+              placeholder="p. ej. +58 412 555 1234"
+            />
+            <VariableHint />
+          </div>
+        </>
+      )}
+
+      {data.kind === "notify_team" && (
+        <div className="grid gap-2">
+          <Label htmlFor="cfg-notify">Aviso para el equipo</Label>
+          <VariableTextarea
+            id="cfg-notify"
+            value={data.message ?? ""}
+            onChange={(value) => onChange({ message: value })}
+            variables={variables}
+            placeholder="El contacto {{nombre}} necesita seguimiento."
+          />
+          <VariableHint />
+          <p className="text-xs text-muted-foreground">
+            Aparece en el feed de notificaciones del equipo.
+          </p>
+        </div>
+      )}
+
+      {data.kind === "create_note" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-note-kind">Tipo de nota</Label>
+            <Select
+              items={NOTE_KINDS.map((o) => ({ value: o.value, label: o.label }))}
+              value={data.note_kind ?? "NOTE"}
+              onValueChange={(value) => onChange({ note_kind: value as string })}
+            >
+              <SelectTrigger id="cfg-note-kind" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {NOTE_KINDS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-note-body">Contenido</Label>
+            <VariableTextarea
+              id="cfg-note-body"
+              value={data.body ?? ""}
+              onChange={(value) => onChange({ body: value })}
+              variables={variables}
+              placeholder="Anotación en la ficha del contacto…"
+            />
+            <VariableHint />
+          </div>
+        </>
       )}
 
       {data.kind === "send_webhook" && (
@@ -1619,13 +2101,34 @@ function StepConfig({
           {data.operator !== "exists" && (
             <div className="grid gap-2">
               <Label htmlFor="cfg-value">Valor</Label>
-              <Input
-                id="cfg-value"
-                value={data.value ?? ""}
-                onChange={(event) => onChange({ value: event.target.value })}
-                placeholder="vip"
-                list={data.field === "tag" ? tagListId : undefined}
-              />
+              {data.field === "tag" && tagItemsFor(data.value).length > 0 ? (
+                <Select
+                  items={tagItemsFor(data.value).map((t) => ({
+                    value: t,
+                    label: `#${t}`,
+                  }))}
+                  value={data.value ?? ""}
+                  onValueChange={(value) => onChange({ value: value as string })}
+                >
+                  <SelectTrigger id="cfg-value" className="w-full">
+                    <SelectValue placeholder="Elige una etiqueta" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tagItemsFor(data.value).map((t) => (
+                      <SelectItem key={t} value={t}>
+                        #{t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id="cfg-value"
+                  value={data.value ?? ""}
+                  onChange={(event) => onChange({ value: event.target.value })}
+                  placeholder="vip"
+                />
+              )}
             </div>
           )}
           <p className="text-xs text-muted-foreground">

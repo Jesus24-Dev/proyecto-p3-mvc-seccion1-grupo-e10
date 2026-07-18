@@ -57,6 +57,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
 import { STEP_META, type StepData } from "@/lib/automationSteps";
 import { cn } from "@/lib/utils";
@@ -109,10 +111,6 @@ export function AutomationsPage() {
 
   const [automationToDelete, setAutomationToDelete] =
     useState<Automation | null>(null);
-  const [notice, setNotice] = useState<{
-    text: string;
-    tone: "success" | "danger";
-  } | null>(null);
   const [customFolders, setCustomFolders] = useState<string[]>(
     loadCustomFolders,
   );
@@ -179,13 +177,12 @@ export function AutomationsPage() {
   );
 
   async function handleToggleActive(automation: Automation) {
-    setNotice(null);
-
+    const nextActive = !automation.is_active;
     const payload = {
       name: automation.name,
       description: automation.description,
       folder: folderOf(automation),
-      is_active: !automation.is_active,
+      is_active: nextActive,
       definition: automation.definition,
     };
 
@@ -194,10 +191,18 @@ export function AutomationsPage() {
     });
 
     if (failure) {
-      setNotice({ text: failure, tone: "danger" });
+      toast.error("No se pudo cambiar el estado", { description: failure });
       return;
     }
 
+    toast.success(
+      nextActive ? "Automatización activada" : "Automatización pausada",
+      {
+        description: nextActive
+          ? "Sus disparadores ya inscriben contactos."
+          : "Dejará de inscribir contactos automáticamente.",
+      },
+    );
     void reload();
   }
 
@@ -206,7 +211,6 @@ export function AutomationsPage() {
     if (folderOf(automation) === folder) {
       return;
     }
-    setNotice(null);
     const failure = await runMutation(async () => {
       await automationsApi.update(automation.id, {
         name: automation.name,
@@ -217,15 +221,10 @@ export function AutomationsPage() {
       });
     });
     if (failure) {
-      setNotice({ text: failure, tone: "danger" });
+      toast.error("No se pudo mover", { description: failure });
       return;
     }
-    setNotice({
-      text: folder
-        ? `Movida a "${folder}".`
-        : "Movida a Sin carpeta.",
-      tone: "success",
-    });
+    toast.success(folder ? `Movida a "${folder}"` : "Movida a Sin carpeta");
     void reload();
   }
 
@@ -254,15 +253,18 @@ export function AutomationsPage() {
       return;
     }
 
+    const name = automationToDelete.name;
     const failure = await runMutation(() =>
       automationsApi.remove(automationToDelete.id),
     );
     setAutomationToDelete(null);
-    setNotice(
-      failure
-        ? { text: failure, tone: "danger" }
-        : { text: "Automatización eliminada correctamente.", tone: "success" },
-    );
+    if (failure) {
+      toast.error("No se pudo eliminar", { description: failure });
+    } else {
+      toast.success("Automatización eliminada", {
+        description: `Se eliminó "${name}".`,
+      });
+    }
     void reload();
   }
 
@@ -285,14 +287,6 @@ export function AutomationsPage() {
         </Button>
       </PageHeader>
 
-      {notice && (
-        <Alert
-          variant={notice.tone === "danger" ? "destructive" : "default"}
-          className="mb-4"
-        >
-          <AlertDescription>{notice.text}</AlertDescription>
-        </Alert>
-      )}
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
@@ -509,6 +503,7 @@ function AutomationRow({
     useDraggable({ id: automation.id });
   // Otras carpetas a las que se puede mover (excluye la actual).
   const targets = folderNames.filter((name) => name !== currentFolder);
+  const active = automation.is_active;
 
   return (
     <Card
@@ -518,7 +513,15 @@ function AutomationRow({
           ? { transform: CSS.Translate.toString(transform), zIndex: 10 }
           : undefined
       }
-      className={cn("py-4", isDragging && "opacity-70 shadow-lg")}
+      className={cn(
+        "relative overflow-hidden py-4 transition-colors",
+        // Los flujos activos destacan con el acento primario de la subcuenta:
+        // borde teñido y una franja lateral.
+        active
+          ? "border-primary/40 before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-primary before:content-['']"
+          : "opacity-95",
+        isDragging && "opacity-70 shadow-lg",
+      )}
     >
       <CardContent className="flex flex-wrap items-center gap-4 px-5">
         <button
@@ -530,7 +533,14 @@ function AutomationRow({
         >
           <GripVertical className="size-4" aria-hidden="true" />
         </button>
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors",
+            active
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground",
+          )}
+        >
           <Zap className="size-5" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
@@ -538,12 +548,12 @@ function AutomationRow({
             <p className="font-medium">{automation.name}</p>
             <Badge
               className={
-                automation.is_active
-                  ? "bg-success text-success-foreground"
+                active
+                  ? "bg-primary/15 text-primary"
                   : "bg-muted text-muted-foreground"
               }
             >
-              {automation.is_active ? "Activa" : "Pausada"}
+              {active ? "Activa" : "Pausada"}
             </Badge>
           </div>
           <p className="truncate text-sm text-muted-foreground">
@@ -551,13 +561,14 @@ function AutomationRow({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToggleActive}
-          >
-            {automation.is_active ? "Pausar" : "Activar"}
-          </Button>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground select-none">
+            <Switch
+              checked={active}
+              onCheckedChange={onToggleActive}
+              aria-label={active ? `Pausar ${automation.name}` : `Activar ${automation.name}`}
+            />
+            <span className="hidden sm:inline">{active ? "Activa" : "Pausada"}</span>
+          </label>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={

@@ -1,7 +1,25 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { BookUser, Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { contactsApi, usersApi } from "@/api";
+import {
+  BookUser,
+  ListFilter,
+  Pencil,
+  Plus,
+  Save,
+  Search,
+  Tag,
+  Trash2,
+  X,
+} from "lucide-react";
+import { contactsApi, smartListsApi, tagsApi, usersApi } from "@/api";
+import { toast } from "sonner";
+import type { SmartList, SmartListCondition, UserInformation } from "@/types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -46,7 +64,8 @@ import {
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
 import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { formatDate, toDateInputValue } from "@/lib/format";
-import type { UserInformation } from "@/types";
+import { nodeChipClass } from "@/lib/automationSteps";
+import { cn } from "@/lib/utils";
 
 type FormState = {
   user_id: string;
@@ -68,12 +87,132 @@ const emptyForm: FormState = {
   birthday: "",
 };
 
+// Campos y operadores del constructor de listas inteligentes.
+const SMART_FIELDS = [
+  { value: "email", label: "Correo" },
+  { value: "phone", label: "Teléfono" },
+  { value: "document", label: "Cédula / RIF" },
+  { value: "address", label: "Dirección" },
+  { value: "tag", label: "Etiqueta" },
+] as const;
+
+const SET_OPS = [
+  { value: "set", label: "está definido" },
+  { value: "not_set", label: "no está definido" },
+] as const;
+
+const TAG_OPS = [
+  { value: "has", label: "tiene" },
+  { value: "not_has", label: "no tiene" },
+] as const;
+
+// ¿Un contacto cumple TODAS las condiciones de una lista? (AND)
+function contactMatches(
+  conditions: SmartListCondition[],
+  ownerEmail: string,
+  contact: UserInformation,
+  tags: string[],
+): boolean {
+  const has = (value: string | undefined | null) =>
+    Boolean(value && String(value).trim());
+  return conditions.every((c) => {
+    switch (c.field) {
+      case "email":
+        return c.op === "not_set" ? !has(ownerEmail) : has(ownerEmail);
+      case "phone":
+        return c.op === "not_set" ? !has(contact.phone) : has(contact.phone);
+      case "document":
+        return c.op === "not_set"
+          ? !has(contact.document_id)
+          : has(contact.document_id);
+      case "address":
+        return c.op === "not_set" ? !has(contact.address) : has(contact.address);
+      case "tag": {
+        const hasTag = tags.includes(c.value ?? "");
+        return c.op === "not_has" ? !hasTag : hasTag;
+      }
+      default:
+        return true;
+    }
+  });
+}
+
 export function ContactsPage() {
   const { data, isLoading, error, reload } = usePageData(() =>
-    Promise.all([contactsApi.list(), usersApi.list()]),
+    Promise.all([
+      contactsApi.list(),
+      usersApi.list(),
+      tagsApi.list(),
+      smartListsApi.list(),
+    ]),
   );
-  const [contacts, users] = data ?? [[], []];
+  const contacts = data?.[0] ?? [];
+  const users = data?.[1] ?? [];
+  const tagCatalog = data?.[2] ?? [];
+  const smartLists = data?.[3] ?? [];
   const runMutation = useMutationHandler();
+
+  // Filtro rápido por etiqueta ("all" = todas) y color por etiqueta.
+  const [tagFilter, setTagFilter] = useState("all");
+  const tagColorByName = useMemo(
+    () => new Map(tagCatalog.map((tag) => [tag.name, tag.color])),
+    [tagCatalog],
+  );
+
+  // Lista inteligente activa + constructor de nuevas listas.
+  const [activeListId, setActiveListId] = useState("all");
+  const [listDialogOpen, setListDialogOpen] = useState(false);
+  const [listName, setListName] = useState("");
+  const [listConditions, setListConditions] = useState<SmartListCondition[]>([
+    { field: "tag", op: "has", value: "" },
+  ]);
+  const activeList = smartLists.find((list) => list.id === activeListId) ?? null;
+
+  // Etiquetas por contacto en estado local, para agregar/quitar sin recargar.
+  const [tagsByContact, setTagsByContact] = useState<Record<string, string[]>>(
+    {},
+  );
+  useEffect(() => {
+    setTagsByContact(
+      Object.fromEntries(contacts.map((contact) => [contact.id, contact.tags])),
+    );
+    // Se resincroniza cuando cambia el conjunto de contactos cargados.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.length]);
+
+  const tagNames = useMemo(
+    () => [...new Set(tagCatalog.map((tag) => tag.name))].sort((a, b) =>
+      a.localeCompare(b, "es"),
+    ),
+    [tagCatalog],
+  );
+
+  async function addContactTag(contactId: string, tag: string) {
+    if ((tagsByContact[contactId] ?? []).includes(tag)) {
+      return;
+    }
+    const failure = await runMutation(async () => {
+      const res = await contactsApi.addTag(contactId, tag);
+      setTagsByContact((current) => ({ ...current, [contactId]: res.tags }));
+    });
+    if (failure) {
+      toast.error("No se pudo agregar la etiqueta", { description: failure });
+    } else {
+      toast.success(`Etiqueta #${tag} agregada`);
+    }
+  }
+
+  async function removeContactTag(contactId: string, tag: string) {
+    const failure = await runMutation(async () => {
+      const res = await contactsApi.removeTag(contactId, tag);
+      setTagsByContact((current) => ({ ...current, [contactId]: res.tags }));
+    });
+    if (failure) {
+      toast.error("No se pudo quitar la etiqueta", { description: failure });
+    } else {
+      toast.success(`Etiqueta #${tag} quitada`);
+    }
+  }
 
   const [search, setSearch] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -102,15 +241,33 @@ export function ContactsPage() {
   }, [contacts, users]);
 
   const filteredContacts = useMemo(() => {
+    // 1) Filtra por lista inteligente y por etiqueta rápida.
+    const base = contacts.filter((contact) => {
+      const contactTags = tagsByContact[contact.id] ?? contact.tags;
+      if (
+        activeList &&
+        !contactMatches(
+          activeList.conditions,
+          userById.get(contact.user_id)?.email ?? "",
+          contact,
+          contactTags,
+        )
+      ) {
+        return false;
+      }
+      if (tagFilter !== "all" && !contactTags.includes(tagFilter)) {
+        return false;
+      }
+      return true;
+    });
+
+    // 2) Filtra por la búsqueda de texto.
     const query = search.trim().toLowerCase();
-
     if (!query) {
-      return contacts;
+      return base;
     }
-
-    return contacts.filter((contact) => {
+    return base.filter((contact) => {
       const owner = userById.get(contact.user_id);
-
       return (
         contact.first_name.toLowerCase().includes(query) ||
         contact.last_name.toLowerCase().includes(query) ||
@@ -118,7 +275,7 @@ export function ContactsPage() {
         owner?.email.toLowerCase().includes(query)
       );
     });
-  }, [contacts, search, userById]);
+  }, [contacts, search, userById, activeList, tagsByContact]);
 
   const {
     sorted: sortedContacts,
@@ -208,6 +365,77 @@ export function ContactsPage() {
     void reload();
   }
 
+  function addCondition() {
+    setListConditions((current) => [
+      ...current,
+      { field: "email", op: "set" },
+    ]);
+  }
+
+  function updateCondition(index: number, patch: Partial<SmartListCondition>) {
+    setListConditions((current) =>
+      current.map((cond, i) => {
+        if (i !== index) {
+          return cond;
+        }
+        const next = { ...cond, ...patch };
+        // Al cambiar de campo, ajusta el operador por defecto.
+        if (patch.field !== undefined) {
+          if (patch.field === "tag") {
+            next.op = "has";
+          } else {
+            next.op = "set";
+            next.value = undefined;
+          }
+        }
+        return next;
+      }),
+    );
+  }
+
+  function removeCondition(index: number) {
+    setListConditions((current) => current.filter((_, i) => i !== index));
+  }
+
+  async function saveSmartList() {
+    const conditions = listConditions.filter(
+      (c) => c.field && c.op && (c.field !== "tag" || (c.value ?? "").trim()),
+    );
+    if (!listName.trim() || conditions.length === 0) {
+      toast.error("Dale un nombre y al menos una condición válida.");
+      return;
+    }
+    const failure = await runMutation(async () => {
+      const created = await smartListsApi.create({
+        name: listName.trim(),
+        conditions,
+      });
+      setActiveListId(created.id);
+    });
+    if (failure) {
+      toast.error("No se pudo crear la lista", { description: failure });
+      return;
+    }
+    setListDialogOpen(false);
+    setListName("");
+    setListConditions([{ field: "tag", op: "has", value: "" }]);
+    toast.success("Lista inteligente creada");
+    void reload();
+  }
+
+  async function deleteSmartList(id: string) {
+    const failure = await runMutation(() => smartListsApi.remove(id));
+    if (failure) {
+      toast.error("No se pudo eliminar la lista", { description: failure });
+      return;
+    }
+    if (activeListId === id) {
+      setActiveListId("all");
+    }
+    toast.success("Lista eliminada");
+    void reload();
+  }
+
   return (
     <>
       <PageHeader
@@ -233,6 +461,76 @@ export function ContactsPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Listas inteligentes: segmentos guardados por condiciones. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <ListFilter className="size-4 text-muted-foreground" aria-hidden="true" />
+        <Select
+          items={[
+            { value: "all", label: "Todos los contactos" },
+            ...smartLists.map((list) => ({ value: list.id, label: list.name })),
+          ]}
+          value={activeListId}
+          onValueChange={(value) => setActiveListId(value as string)}
+        >
+          <SelectTrigger className="h-9 w-60" aria-label="Lista inteligente">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los contactos</SelectItem>
+            {smartLists.map((list) => (
+              <SelectItem key={list.id} value={list.id}>
+                {list.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          items={[
+            { value: "all", label: "Todas las etiquetas" },
+            ...tagNames.map((name) => ({ value: name, label: `#${name}` })),
+          ]}
+          value={tagFilter}
+          onValueChange={(value) => setTagFilter(value as string)}
+        >
+          <SelectTrigger className="h-9 w-48" aria-label="Filtrar por etiqueta">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las etiquetas</SelectItem>
+            {tagNames.map((name) => (
+              <SelectItem key={name} value={name}>
+                #{name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {activeList && (
+          <>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {filteredContacts.length} coincidencia
+              {filteredContacts.length === 1 ? "" : "s"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Eliminar lista ${activeList.name}`}
+              onClick={() => void deleteSmartList(activeList.id)}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setListDialogOpen(true)}
+        >
+          <Plus data-icon="inline-start" aria-hidden="true" />
+          Nueva lista inteligente
+        </Button>
+      </div>
 
       <div className="mb-4 relative max-w-xs">
         <Search
@@ -326,6 +624,7 @@ export function ContactsPage() {
                       onToggle={toggle}
                     />
                   </TableHead>
+                  <TableHead>Etiquetas</TableHead>
                   <TableHead className="w-24 pr-6 text-right">
                     Acciones
                   </TableHead>
@@ -351,6 +650,104 @@ export function ContactsPage() {
                       </TableCell>
                       <TableCell className="hidden whitespace-nowrap text-muted-foreground md:table-cell">
                         {formatDate(contact.birthday)}
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const rowTags = tagsByContact[contact.id] ?? [];
+                          const shown = rowTags.slice(0, 2);
+                          const hidden = rowTags.slice(2);
+                          const available = tagNames.filter(
+                            (name) => !rowTags.includes(name),
+                          );
+                          return (
+                            <div className="flex min-w-40 flex-nowrap items-center gap-1">
+                              {shown.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className={cn(
+                                    "inline-flex max-w-28 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                                    nodeChipClass(tagColorByName.get(tag)),
+                                  )}
+                                >
+                                  <span className="truncate">#{tag}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void removeContactTag(contact.id, tag)
+                                    }
+                                    aria-label={`Quitar etiqueta ${tag}`}
+                                    className="-mr-0.5 shrink-0 rounded-full text-muted-foreground transition-colors hover:text-destructive"
+                                  >
+                                    <X className="size-3" aria-hidden="true" />
+                                  </button>
+                                </span>
+                              ))}
+                              {hidden.length > 0 && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger
+                                    render={
+                                      <button
+                                        type="button"
+                                        className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/70"
+                                        aria-label={`Ver ${hidden.length} etiquetas más`}
+                                      >
+                                        +{hidden.length}
+                                      </button>
+                                    }
+                                  />
+                                  <DropdownMenuContent align="start">
+                                    {hidden.map((tag) => (
+                                      <DropdownMenuItem
+                                        key={tag}
+                                        onClick={() =>
+                                          void removeContactTag(contact.id, tag)
+                                        }
+                                      >
+                                        <X
+                                          className="mr-2 size-3.5 text-muted-foreground"
+                                          aria-hidden="true"
+                                        />
+                                        #{tag}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger
+                                  render={
+                                    <button
+                                      type="button"
+                                      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                                      aria-label={`Agregar etiqueta a ${contact.first_name}`}
+                                    >
+                                      <Tag className="size-3" aria-hidden="true" />
+                                      <Plus className="size-3" aria-hidden="true" />
+                                    </button>
+                                  }
+                                />
+                                <DropdownMenuContent align="start">
+                                  {available.length === 0 ? (
+                                    <DropdownMenuItem disabled>
+                                      Sin etiquetas disponibles
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    available.map((name) => (
+                                      <DropdownMenuItem
+                                        key={name}
+                                        onClick={() =>
+                                          void addContactTag(contact.id, name)
+                                        }
+                                      >
+                                        #{name}
+                                      </DropdownMenuItem>
+                                    ))
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="pr-6 text-right">
                         <div className="inline-flex gap-1">
@@ -570,6 +967,135 @@ export function ContactsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={listDialogOpen} onOpenChange={setListDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nueva lista inteligente</DialogTitle>
+            <DialogDescription>
+              Un segmento de contactos que cumplen TODAS las condiciones. Se
+              guarda y comparte con el equipo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="list-name">Nombre</Label>
+              <Input
+                id="list-name"
+                value={listName}
+                onChange={(event) => setListName(event.target.value)}
+                placeholder="p. ej. Clientes VIP sin teléfono"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Condiciones</Label>
+              {listConditions.map((cond, index) => {
+                const ops = cond.field === "tag" ? TAG_OPS : SET_OPS;
+                return (
+                  <div key={index} className="flex flex-wrap items-center gap-2">
+                    <Select
+                      items={SMART_FIELDS.map((f) => ({ value: f.value, label: f.label }))}
+                      value={cond.field}
+                      onValueChange={(value) =>
+                        updateCondition(index, { field: value as string })
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-36" aria-label="Campo">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SMART_FIELDS.map((f) => (
+                          <SelectItem key={f.value} value={f.value}>
+                            {f.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      items={ops.map((o) => ({ value: o.value, label: o.label }))}
+                      value={cond.op}
+                      onValueChange={(value) =>
+                        updateCondition(index, { op: value as string })
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-40" aria-label="Operador">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ops.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {cond.field === "tag" &&
+                      (tagNames.length > 0 ? (
+                        <Select
+                          items={tagNames.map((n) => ({ value: n, label: `#${n}` }))}
+                          value={cond.value ?? ""}
+                          onValueChange={(value) =>
+                            updateCondition(index, { value: value as string })
+                          }
+                        >
+                          <SelectTrigger className="h-9 w-36" aria-label="Etiqueta">
+                            <SelectValue placeholder="Etiqueta" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tagNames.map((n) => (
+                              <SelectItem key={n} value={n}>
+                                #{n}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          className="h-9 w-36"
+                          value={cond.value ?? ""}
+                          onChange={(event) =>
+                            updateCondition(index, { value: event.target.value })
+                          }
+                          placeholder="etiqueta"
+                        />
+                      ))}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => removeCondition(index)}
+                      aria-label="Quitar condición"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </div>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-self-start"
+                onClick={addCondition}
+              >
+                <Plus data-icon="inline-start" aria-hidden="true" />
+                Agregar condición
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setListDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={() => void saveSmartList()}>
+              <Save data-icon="inline-start" aria-hidden="true" />
+              Guardar lista
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

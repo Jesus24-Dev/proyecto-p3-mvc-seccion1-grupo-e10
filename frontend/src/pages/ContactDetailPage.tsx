@@ -1,18 +1,23 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Boxes,
   Cake,
   CalendarClock,
+  CheckCircle2,
+  Clock,
   CreditCard,
   DollarSign,
+  LogOut,
   Mail,
   MapPin,
   MessageCircle,
   Package as PackageIcon,
   Phone,
+  Plus,
   Workflow,
+  X,
   Zap,
 } from "lucide-react";
 import {
@@ -22,6 +27,7 @@ import {
   membershipsApi,
   ordersApi,
   packagesApi,
+  tagsApi,
   usersApi,
 } from "@/api";
 import { OrderStatusPill, PackageStatusPill } from "@/components/shared/pills";
@@ -36,10 +42,47 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePageData } from "@/hooks/usePageData";
+import { toast } from "sonner";
+import { usePageData, useMutationHandler } from "@/hooks/usePageData";
 import { formatAmount, formatDate } from "@/lib/format";
-import type { StepData } from "@/lib/automationSteps";
+import { cn } from "@/lib/utils";
+import type { AutomationRunStatus, ContactRun } from "@/types";
+
+// Estilo del estado de una inscripción en la ficha del contacto.
+function runMeta(status: AutomationRunStatus): {
+  label: string;
+  className: string;
+  icon: typeof CheckCircle2;
+} {
+  switch (status) {
+    case "COMPLETED":
+      return {
+        label: "Completada",
+        className: "bg-success text-success-foreground",
+        icon: CheckCircle2,
+      };
+    case "RUNNING":
+    case "WAITING":
+      return {
+        label: "En curso",
+        className: "bg-info text-info-foreground",
+        icon: Clock,
+      };
+    default:
+      return {
+        label: status === "FAILED" ? "Falló" : "Salió",
+        className: "bg-muted text-muted-foreground",
+        icon: LogOut,
+      };
+  }
+}
 
 export function ContactDetailPage() {
   const { contactId } = useParams();
@@ -53,6 +96,10 @@ export function ContactDetailPage() {
       agenciesApi.list(),
       automationsApi.list(),
       ordersApi.list(),
+      tagsApi.list(),
+      contactId
+        ? automationsApi.runsByContact(contactId)
+        : Promise.resolve([] as ContactRun[]),
     ]),
   );
   const [
@@ -61,9 +108,15 @@ export function ContactDetailPage() {
     packages,
     memberships,
     agencies,
-    automations,
+    ,
     orders,
-  ] = data ?? [[], [], [], [], [], [], []];
+    tagCatalog,
+    contactRuns,
+  ] = data ?? [[], [], [], [], [], [], [], [], []];
+
+  const runMutation = useMutationHandler();
+  // Etiquetas del contacto en estado local, para agregar/quitar sin recargar.
+  const [tags, setTags] = useState<string[]>([]);
 
   const contact = useMemo(
     () => contacts.find((item) => item.id === contactId) ?? null,
@@ -74,6 +127,52 @@ export function ContactDetailPage() {
     () => users.find((user) => user.id === contact?.user_id) ?? null,
     [users, contact],
   );
+
+  // Sincroniza las etiquetas locales cuando carga (o cambia) el contacto.
+  useEffect(() => {
+    if (contact) {
+      setTags(contact.tags);
+    }
+  }, [contact]);
+
+  // Etiquetas del catálogo aún no aplicadas a este contacto.
+  const availableTags = useMemo(
+    () =>
+      [...new Set(tagCatalog.map((tag) => tag.name))]
+        .filter((name) => !tags.includes(name))
+        .sort((a, b) => a.localeCompare(b, "es")),
+    [tagCatalog, tags],
+  );
+
+  async function handleAddTag(tag: string) {
+    if (!contact || tags.includes(tag)) {
+      return;
+    }
+    const failure = await runMutation(async () => {
+      const res = await contactsApi.addTag(contact.id, tag);
+      setTags(res.tags);
+    });
+    if (failure) {
+      toast.error("No se pudo agregar la etiqueta", { description: failure });
+    } else {
+      toast.success(`Etiqueta #${tag} agregada`);
+    }
+  }
+
+  async function handleRemoveTag(tag: string) {
+    if (!contact) {
+      return;
+    }
+    const failure = await runMutation(async () => {
+      const res = await contactsApi.removeTag(contact.id, tag);
+      setTags(res.tags);
+    });
+    if (failure) {
+      toast.error("No se pudo quitar la etiqueta", { description: failure });
+    } else {
+      toast.success(`Etiqueta #${tag} quitada`);
+    }
+  }
 
   const contactPackages = useMemo(
     () => packages.filter((item) => item.contact_id === contactId),
@@ -110,24 +209,6 @@ export function ContactDetailPage() {
       .map((membership) => agencyById.get(membership.agency_id))
       .filter((agency): agency is (typeof agencies)[number] => Boolean(agency));
   }, [memberships, agencies, contact]);
-
-  // Automatizaciones activas cuyo disparador aplica a contactos.
-  const contactAutomations = useMemo(
-    () =>
-      automations.filter((automation) => {
-        if (!automation.is_active) {
-          return false;
-        }
-        const trigger = automation.definition.nodes.find(
-          (node) => (node.data as StepData | undefined)?.kind === "trigger",
-        );
-        const triggerKind = (trigger?.data as StepData | undefined)?.trigger;
-        return (
-          triggerKind === "contact_created" || triggerKind === "tag_added"
-        );
-      }),
-    [automations],
-  );
 
   if (isLoading) {
     return <Skeleton className="h-96 rounded-xl" />;
@@ -317,16 +398,56 @@ export function ContactDetailPage() {
             </div>
             <div>
               <p className="mb-1.5 text-xs text-muted-foreground">Etiquetas</p>
-              <div className="flex flex-wrap gap-1.5">
-                {contact.tags.length === 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {tags.length === 0 && (
                   <span className="text-muted-foreground">Sin etiquetas</span>
-                ) : (
-                  contact.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      #{tag}
-                    </Badge>
-                  ))
                 )}
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium"
+                  >
+                    #{tag}
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveTag(tag)}
+                      aria-label={`Quitar etiqueta ${tag}`}
+                      className="-mr-0.5 rounded-full text-muted-foreground transition-colors hover:text-destructive"
+                    >
+                      <X className="size-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-dashed px-2 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                        aria-label="Agregar etiqueta"
+                      >
+                        <Plus className="size-3" aria-hidden="true" />
+                        Agregar
+                      </button>
+                    }
+                  />
+                  <DropdownMenuContent align="start">
+                    {availableTags.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        No hay más etiquetas
+                      </DropdownMenuItem>
+                    ) : (
+                      availableTags.map((name) => (
+                        <DropdownMenuItem
+                          key={name}
+                          onClick={() => void handleAddTag(name)}
+                        >
+                          #{name}
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardContent>
@@ -425,33 +546,45 @@ export function ContactDetailPage() {
           <CardHeader>
             <CardTitle>Automatizaciones</CardTitle>
             <CardDescription>
-              Flujos activos que aplican a este contacto.
+              {contactRuns.length === 0
+                ? "Historial de inscripciones en flujos."
+                : `${contactRuns.length} inscripción${contactRuns.length === 1 ? "" : "es"} en flujos.`}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {contactAutomations.length === 0 ? (
+            {contactRuns.length === 0 ? (
               <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                 <Workflow className="size-4" aria-hidden="true" />
-                No está en ningún flujo activo.
+                Aún no se ha inscrito en ningún flujo.
               </p>
             ) : (
-              contactAutomations.map((automation) => (
-                <Link
-                  key={automation.id}
-                  to={`/admin/automations/${automation.id}`}
-                  className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-                >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Zap className="size-4" aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {automation.name}
-                  </span>
-                  <Badge className="bg-success text-success-foreground">
-                    Activa
-                  </Badge>
-                </Link>
-              ))
+              contactRuns.slice(0, 8).map((run) => {
+                const meta = runMeta(run.status);
+                const RunIcon = meta.icon;
+                return (
+                  <Link
+                    key={run.id}
+                    to={`/admin/automations/editor/${run.automation_id}`}
+                    className="flex items-center gap-3 rounded-lg border px-3 py-2 transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Zap className="size-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {run.automation_name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground tabular-nums">
+                        {formatDate(run.started_at)}
+                      </span>
+                    </span>
+                    <Badge className={cn("gap-1 shrink-0", meta.className)}>
+                      <RunIcon className="size-3" aria-hidden="true" />
+                      {meta.label}
+                    </Badge>
+                  </Link>
+                );
+              })
             )}
           </CardContent>
         </Card>

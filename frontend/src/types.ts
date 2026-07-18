@@ -33,6 +33,10 @@ export interface AgencyTheme {
   accent: string;
   /** Radio base en rem. */
   radius: number;
+  /** Escala de tamaño de fuente/interfaz (id de FONT_SCALES). */
+  fontScale?: string;
+  /** Tinte del fondo de la app (id de BACKGROUND_PRESETS). */
+  background?: string;
 }
 
 export interface Agency {
@@ -408,6 +412,8 @@ export interface AutomationDefinition {
   settings?: {
     email_from_domain?: string;
     whatsapp_from?: string;
+    /** Permite que un contacto se inscriba de nuevo aunque ya esté en curso. */
+    allow_reentry?: boolean;
   };
 }
 
@@ -428,6 +434,85 @@ export interface SaveAutomationPayload {
   folder?: string;
   is_active?: boolean;
   definition: AutomationDefinition;
+}
+
+/** Estado de una ejecución (inscripción) de un contacto en un flujo. */
+export type AutomationRunStatus =
+  | "RUNNING"
+  | "WAITING"
+  | "COMPLETED"
+  | "EXITED"
+  | "FAILED";
+
+/** Resultado de un paso ejecutado, para el registro de ejecución. */
+export type AutomationEventResult = "OK" | "ERROR" | "INFO";
+
+export interface AutomationRunEvent {
+  id: string;
+  run_id: string;
+  /** Nodo del lienzo ejecutado. */
+  node_id: string;
+  /** StepKind del nodo (trigger, wait, send_whatsapp, ...). */
+  kind: string;
+  result: AutomationEventResult;
+  detail: string;
+  created_at: string;
+}
+
+export interface AutomationRun {
+  id: string;
+  automation_id: string;
+  contact_id: string | null;
+  contact_name: string;
+  status: AutomationRunStatus;
+  /** Nodo donde está parado el contacto (para pintarlo en el lienzo). */
+  current_node_id: string | null;
+  trigger: string;
+  started_at: string;
+  updated_at: string;
+  events: AutomationRunEvent[];
+}
+
+/** Mensaje del stream SSE de ejecución en vivo. */
+export interface AutomationStreamUpdate {
+  automationId: string;
+  run: Omit<AutomationRun, "events">;
+  event?: AutomationRunEvent;
+}
+
+/** Inscripción de un contacto vista desde su ficha (incluye el nombre del flujo). */
+export interface ContactRun {
+  id: string;
+  automation_id: string;
+  automation_name: string;
+  status: AutomationRunStatus;
+  current_node_id: string | null;
+  trigger: string;
+  started_at: string;
+  updated_at: string;
+  events: AutomationRunEvent[];
+}
+
+/** Condición de una lista inteligente (segmento de contactos). */
+export interface SmartListCondition {
+  /** email | phone | document | address | tag */
+  field: string;
+  /** set | not_set | has | not_has */
+  op: string;
+  value?: string;
+}
+
+export interface SmartList {
+  id: string;
+  name: string;
+  conditions: SmartListCondition[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveSmartListPayload {
+  name: string;
+  conditions: SmartListCondition[];
 }
 
 export interface ApiFieldError {

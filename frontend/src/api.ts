@@ -7,6 +7,8 @@ import type {
   AgencyTheme,
   Automation,
   AutomationDefinition,
+  AutomationRun,
+  ContactRun,
   CreateAgencyPayload,
   CreateMembershipPayload,
   CreateOrderPayload,
@@ -37,6 +39,8 @@ import type {
   Package,
   PublicTracking,
   SaveAutomationPayload,
+  SaveSmartListPayload,
+  SmartList,
   Tag,
   TrackingResponse,
   UpdateAgencyPayload,
@@ -415,6 +419,33 @@ export const contactsApi = {
     request<void>(`/info/${userId}`, {
       method: "DELETE",
     }),
+  // Etiquetas del contacto (por su id de contacto, no user_id).
+  addTag: (contactId: string, tag: string) =>
+    request<{ tags: string[] }>(`/info/${contactId}/tags`, {
+      method: "POST",
+      body: JSON.stringify({ tag }),
+    }),
+  removeTag: (contactId: string, tag: string) =>
+    request<{ tags: string[] }>(
+      `/info/${contactId}/tags/${encodeURIComponent(tag)}`,
+      { method: "DELETE" },
+    ),
+};
+
+export const smartListsApi = {
+  list: () => request<SmartList[]>("/smart-lists"),
+  create: (payload: SaveSmartListPayload) =>
+    request<SmartList>("/smart-lists", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: SaveSmartListPayload) =>
+    request<SmartList>(`/smart-lists/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (id: string) =>
+    request<void>(`/smart-lists/${id}`, { method: "DELETE" }),
 };
 
 export const membershipsApi = {
@@ -464,6 +495,29 @@ export const automationsApi = {
       },
       false,
     ),
+  // Ejecución manual: inscribe un contacto (o una muestra) y lo hace recorrer
+  // el flujo en vivo.
+  run: (id: string, contactId?: string) =>
+    request<{ run_id: string }>(`/automations/${id}/run`, {
+      method: "POST",
+      body: JSON.stringify(contactId ? { contact_id: contactId } : {}),
+    }),
+  runs: (id: string) => request<AutomationRun[]>(`/automations/${id}/runs`),
+  // Reintenta una ejecución: "full" (reinscribe) o "failed" (pasos fallidos).
+  retryRun: (id: string, runId: string, mode: "full" | "failed") =>
+    request<{ run_id: string; retried: number | null }>(
+      `/automations/${id}/runs/${runId}/retry`,
+      { method: "POST", body: JSON.stringify({ mode }) },
+    ),
+  // Inscripciones de un contacto en cualquier flujo, para su ficha.
+  runsByContact: (contactId: string) =>
+    request<ContactRun[]>(`/automations/contact/${contactId}/runs`),
+  // URL del stream SSE. EventSource no envía cabeceras, así que el token va
+  // como query param (lo valida requireAdminQueryToken en el backend).
+  streamUrl: (id: string) => {
+    const token = getStoredSession()?.token ?? "";
+    return `${API_URL}/automations/${id}/stream?token=${encodeURIComponent(token)}`;
+  },
 };
 
 export const paymentsApi = {

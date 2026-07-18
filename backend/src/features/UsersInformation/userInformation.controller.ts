@@ -4,6 +4,7 @@ import type { UserInformationResponse } from './userInformation.types.js';
 import type { ErrorResponse } from '../../shared/error.responses.types.js';
 import type { CreateUserInformationBody } from './userInformation.schema.js';
 import { recordAudit } from '../Audit/audit.helper.js';
+import { fireContactCreated, fireTagAdded, safeFire } from '../Automations/engine/index.js';
 
 export class UserInformationController {
     constructor (private userInformationService: UserInformationService){}
@@ -44,6 +45,10 @@ export class UserInformationController {
                 entity_id: userInformation?.id ?? null,
                 detail: `Creó el cliente ${userInformation?.first_name ?? ""} ${userInformation?.last_name ?? ""}`.trim(),
             });
+            // Dispara las automatizaciones que escuchan "contacto creado".
+            if (userInformation?.id) {
+                safeFire(fireContactCreated(userInformation.id), "contact_created");
+            }
             return res.status(201).json(userInformation);
         } catch (error){
             return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo guardar la información de contacto. Revisa los datos enviados."})
@@ -70,6 +75,40 @@ export class UserInformationController {
         }
     }
     
+    // Agrega una etiqueta a un contacto (por su id) y dispara "tag_added".
+    public addContactTag = async (req: Request<{id: string}, {}, {tag?: string}>, res: Response<{tags: string[]} | ErrorResponse>) => {
+        try {
+            const {id} = req.params;
+            const tag = (req.body?.tag ?? "").trim();
+            if (!tag) {
+                return res.status(400).json({"status": "error", "message": "Indica una etiqueta."});
+            }
+            const tags = await this.userInformationService.addContactTag(id, tag);
+            await recordAudit(req, {
+                action: "client.tag_add",
+                entity: "client",
+                entity_id: id,
+                detail: `Agregó la etiqueta #${tag}`,
+            });
+            // Dispara las automatizaciones que escuchan "etiqueta agregada".
+            safeFire(fireTagAdded(id, tag), "tag_added");
+            return res.status(200).json({tags});
+        } catch (error) {
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo agregar la etiqueta."});
+        }
+    }
+
+    // Quita una etiqueta de un contacto (por su id).
+    public removeContactTag = async (req: Request<{id: string, tag: string}>, res: Response<{tags: string[]} | ErrorResponse>) => {
+        try {
+            const {id, tag} = req.params;
+            const tags = await this.userInformationService.removeContactTag(id, decodeURIComponent(tag));
+            return res.status(200).json({tags});
+        } catch (error) {
+            return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo quitar la etiqueta."});
+        }
+    }
+
     public deleteUserInformation = async (req: Request<{id: string}, {}>, res: Response<ErrorResponse>) => {
         try {
             const {id} = req.params;

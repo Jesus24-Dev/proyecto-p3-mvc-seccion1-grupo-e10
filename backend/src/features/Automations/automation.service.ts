@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { AutomationRepository } from "./automation.repository.js";
 import type { CreateAutomationBody } from "./automation.schema.js";
+import { engine } from "./engine/index.js";
 
 export class AutomationServiceError extends Error {
   constructor(
@@ -44,9 +45,9 @@ export class AutomationService {
   }
 
   /**
-   * Dispara una automatización vía webhook: valida que exista y esté
-   * activa y devuelve el plan de ejecución simulado (el motor real de
-   * flujos queda fuera del alcance de esta entrega).
+   * Dispara una automatización vía webhook: valida que exista y esté activa,
+   * inscribe al contacto (si el payload trae `contact_id`) o un disparo
+   * anónimo, y lo hace recorrer el flujo con el motor de ejecución real.
    */
   async triggerAutomation(id: string, payload: unknown) {
     const automation = await this.automationRepository.findById(id);
@@ -65,20 +66,60 @@ export class AutomationService {
       );
     }
 
-    const definition = automation.definition as {
-      nodes?: Array<{ data?: { kind?: string } }>;
-    };
-    const steps = (definition.nodes ?? [])
-      .map((node) => node.data?.kind)
-      .filter((kind): kind is string => Boolean(kind));
+    const contactId =
+      payload && typeof payload === "object" && "contact_id" in payload
+        ? ((payload as { contact_id?: unknown }).contact_id as string) ?? null
+        : null;
+
+    const result = await engine.enroll({
+      automationId: id,
+      contactId: typeof contactId === "string" ? contactId : null,
+      trigger: "webhook_received",
+    });
 
     return {
-      status: "queued" as const,
+      status: result ? ("running" as const) : ("skipped" as const),
       automation: { id: automation.id, name: automation.name },
-      steps,
-      received: payload ?? null,
+      run_id: result?.runId ?? null,
       triggered_at: new Date().toISOString(),
     };
+  }
+
+  // Ejecución manual desde el editor ("Ejecutar"): corre aunque el flujo esté
+  // pausado (es una prueba) e inscribe un contacto de muestra si no se indica.
+  async runAutomation(id: string, contactId: string | null) {
+    const automation = await this.automationRepository.findById(id);
+    if (!automation) {
+      throw new AutomationServiceError(
+        "La automatización solicitada no existe.",
+        404,
+      );
+    }
+    const result = await engine.enroll({
+      automationId: id,
+      contactId,
+      trigger: "manual",
+      force: true,
+    });
+    if (!result) {
+      throw new AutomationServiceError(
+        "No se pudo inscribir: el flujo necesita un disparador, o el contacto ya está inscrito.",
+        409,
+      );
+    }
+    return { run_id: result.runId };
+  }
+
+  // Reintenta una ejecución (todo el flujo o solo los pasos fallidos).
+  async retryRun(runId: string, mode: "full" | "failed") {
+    const result = await engine.retryRun(runId, mode);
+    if (!result) {
+      throw new AutomationServiceError(
+        "La ejecución no existe o no se pudo reintentar.",
+        404,
+      );
+    }
+    return { run_id: result.runId, retried: result.retried ?? null };
   }
 
   async deleteAutomation(id: string) {

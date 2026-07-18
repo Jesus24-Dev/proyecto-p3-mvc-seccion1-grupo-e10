@@ -5,6 +5,7 @@ import type { ErrorResponse } from "../../shared/error.responses.types.js";
 import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
 import { recordAudit } from "../Audit/audit.helper.js";
 import { notify } from "../Notifications/notification.helper.js";
+import { firePackageDelivered, safeFire } from "../Automations/engine/index.js";
 
 export class PackageController {
     constructor(private packageService: PackageService) {}
@@ -55,6 +56,10 @@ export class PackageController {
                 body: `Paquete ${tracking.tracking_code}: ${req.body.status}`,
                 entity_id: id,
             });
+            // Dispara las automatizaciones que escuchan "paquete entregado".
+            if (delivered) {
+                safeFire(firePackageDelivered(id), "package_delivered");
+            }
             return res.status(201).json(tracking);
         } catch (error) {
             if (error instanceof PackageServiceError) {
@@ -92,6 +97,10 @@ export class PackageController {
         try {
             const {id} = req.params;
             const updatedPackage = await this.packageService.updatePackage(id, req.body);
+            // Editar el paquete a estado "entregado" también dispara el flujo.
+            if (req.body.status === "DELIVERED") {
+                safeFire(firePackageDelivered(id), "package_delivered");
+            }
             return res.status(200).json(updatedPackage);
         } catch (error) {
             if (error instanceof PackageServiceError) {

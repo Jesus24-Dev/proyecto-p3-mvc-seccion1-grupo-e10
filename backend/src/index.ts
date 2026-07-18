@@ -21,6 +21,8 @@ import { ClientNoteRoutes } from "./features/ClientNotes";
 import { NotificationRoutes } from "./features/Notifications";
 import { ConfigRoutes } from "./features/Config";
 import { RoleRoutes } from "./features/Roles";
+import { SmartListRoutes } from "./features/SmartLists";
+import { startScheduler } from "./features/Automations/engine/index.js";
 
 dotenv.config();
 
@@ -53,6 +55,10 @@ app.use("/client-notes", ClientNoteRoutes);
 app.use("/notifications", NotificationRoutes);
 app.use("/config", ConfigRoutes);
 app.use("/roles", RoleRoutes);
+app.use("/smart-lists", SmartListRoutes);
+
+// Motor de automatizaciones: despierta las esperas vencidas y las avanza.
+startScheduler();
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

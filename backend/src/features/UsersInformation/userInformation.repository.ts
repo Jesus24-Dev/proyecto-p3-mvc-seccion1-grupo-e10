@@ -65,6 +65,43 @@ export class UserInformationRepository{
         });
     }
     
+    // Agrega una etiqueta al contacto (sin duplicar). Devuelve la lista nueva.
+    async addTag(id: string, tag: string): Promise<string[]>{
+        const contact = await prisma.users_information.findUnique({
+            where: {id: id},
+            select: {tags: true},
+        });
+        if (!contact) {
+            throw new Error("El contacto solicitado no existe.");
+        }
+        if (contact.tags.includes(tag)) {
+            return contact.tags;
+        }
+        const updated = await prisma.users_information.update({
+            where: {id: id},
+            data: {tags: {set: [...contact.tags, tag]}},
+            select: {tags: true},
+        });
+        return updated.tags;
+    }
+
+    // Quita una etiqueta del contacto. Devuelve la lista nueva.
+    async removeTag(id: string, tag: string): Promise<string[]>{
+        const contact = await prisma.users_information.findUnique({
+            where: {id: id},
+            select: {tags: true},
+        });
+        if (!contact) {
+            throw new Error("El contacto solicitado no existe.");
+        }
+        const updated = await prisma.users_information.update({
+            where: {id: id},
+            data: {tags: {set: contact.tags.filter((item) => item !== tag)}},
+            select: {tags: true},
+        });
+        return updated.tags;
+    }
+
     async delete(id: string): Promise<void>{
         await prisma.users_information.delete({
             where: {id: id}

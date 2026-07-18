@@ -68,6 +68,14 @@ export class UserInformationService {
     }
   }
 
+  async addContactTag(id: string, tag: string) {
+    return await this.userInformationRepository.addTag(id, tag);
+  }
+
+  async removeContactTag(id: string, tag: string) {
+    return await this.userInformationRepository.removeTag(id, tag);
+  }
+
   async deleteUserInformation(id: string) {
     try {
       await this.userInformationRepository.delete(id);

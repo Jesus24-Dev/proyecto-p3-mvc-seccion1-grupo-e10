@@ -95,6 +95,8 @@ model users_information {
   packages packages[]
   transactions transactions[]
   notes client_notes[]
+  // Inscripciones del contacto en automatizaciones.
+  automation_runs automation_runs[]
 }
 
 // Tipo de anotación del historial CRM del cliente.
@@ -219,6 +221,84 @@ model automations {
   folder String @default("")
   is_active Boolean @default(false)
   definition Json
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Ejecuciones (inscripciones): un contacto recorriendo el flujo.
+  runs automation_runs[]
+}
+
+// Estado de una ejecución (inscripción) de un contacto en un flujo.
+enum automation_run_status {
+  RUNNING   // Avanzando por los pasos.
+  WAITING   // Detenido en un paso "esperar", hasta resume_at.
+  COMPLETED // Llegó al final del flujo.
+  EXITED    // Salió por una rama sin continuación (p. ej. condición "No").
+  FAILED    // Error irrecuperable del motor.
+}
+
+// Resultado de un paso ejecutado, para el registro (log) de ejecución.
+enum automation_event_result {
+  OK    // El paso se ejecutó correctamente.
+  ERROR // El paso falló (se registra y el flujo continúa cuando es posible).
+  INFO  // Evento informativo (inscripción, espera iniciada, etc.).
+}
+
+// Una ejecución del flujo: el recorrido de un contacto por los nodos.
+// El motor la avanza nodo a nodo; el scheduler despierta las que esperan.
+model automation_runs {
+  id String @id @default(uuid())
+
+  automation_id String
+  automation automations @relation(fields: [automation_id], references: [id], onDelete: Cascade)
+
+  // Contacto inscrito (opcional: los webhooks anónimos no traen contacto).
+  contact_id String?
+  contact users_information? @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+
+  status automation_run_status @default(RUNNING)
+  // Nodo donde está parado el contacto (para pintarlo en el lienzo).
+  current_node_id String?
+  // Evento que lo inscribió (contact_created, webhook_received, manual, ...).
+  trigger String @default("")
+  // Variables resueltas del contacto y su paquete/envío al inscribirse.
+  context Json?
+  // Cuándo despertar un paso "esperar" (null si no está esperando).
+  resume_at DateTime?
+  started_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  events automation_run_events[]
+
+  @@index([status, resume_at])
+  @@index([automation_id])
+}
+
+// Registro (log) de cada paso ejecutado dentro de una ejecución.
+model automation_run_events {
+  id String @id @default(uuid())
+
+  run_id String
+  run automation_runs @relation(fields: [run_id], references: [id], onDelete: Cascade)
+
+  // Nodo del lienzo ejecutado y su tipo (StepKind del editor).
+  node_id String @default("")
+  kind String @default("")
+  result automation_event_result @default(INFO)
+  detail String @default("")
+  created_at DateTime @default(now())
+
+  @@index([run_id])
+}
+
+// Listas inteligentes: segmentos guardados de contactos definidos por
+// condiciones (correo definido/no, teléfono, etiqueta, etc.). El filtrado
+// se aplica en el cliente; aquí solo se persiste la definición compartida.
+model smart_lists {
+  id String @id @default(uuid())
+  name String
+  // Array de condiciones { field, op, value? }.
+  conditions Json
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }

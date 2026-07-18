@@ -14,6 +14,9 @@ const controller = new UserInformationController(service);
 
 router.use(requireAdmin);
 router.get('/', controller.getUsersInformation);
+// Etiquetas del contacto (por su id de contacto, no user_id).
+router.post('/:id/tags', controller.addContactTag);
+router.delete('/:id/tags/:tag', controller.removeContactTag);
 router.get('/:user_id', controller.getUserInformationByUserId);
 router.post('/', validate(CreateUserInformationSchema), controller.createUserInformation);
 router.put('/:user_id', controller.updateUserInformationUsingUserId);

@@ -3,6 +3,7 @@ import { OrderService } from './order.service';
 import type { OrderResponse } from './order.types';
 import type { ErrorResponse } from '../../shared/error.responses.types';
 import type { CreateOrderBody } from './order.schema';
+import { fireOrderCompleted, safeFire } from '../Automations/engine/index.js';
 
 export class OrderController {
     constructor (private orderService: OrderService){}
@@ -45,6 +46,10 @@ export class OrderController {
         try {
             const {id} = req.params;
             const order = await this.orderService.updateOrder(id, req.body);
+            // Dispara las automatizaciones que escuchan "envío completado".
+            if ((req.body as { status?: string })?.status === "COMPLETED") {
+                safeFire(fireOrderCompleted(id), "order_completed");
+            }
             return res.status(200).json(order);
         } catch (error){
             return res.status(400).json({"status": "error", "message": "No se pudo actualizar la orden. Revisa los datos enviados."})

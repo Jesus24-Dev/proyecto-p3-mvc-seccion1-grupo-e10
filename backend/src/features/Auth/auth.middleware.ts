@@ -63,6 +63,55 @@ export function requireAuth(
   }
 }
 
+/**
+ * Variante de `requireAdmin` para SSE: EventSource no puede enviar cabeceras,
+ * así que el token viaja en `?token=`. Verifica y exige rol ADMIN igual.
+ */
+export function requireAdminQueryToken(
+  request: Request,
+  response: Response<ErrorResponse>,
+  next: NextFunction,
+) {
+  const token =
+    typeof request.query.token === "string" ? request.query.token.trim() : "";
+
+  if (!token) {
+    return response.status(401).json({
+      status: "error",
+      message: "Necesitas iniciar sesión para acceder a este recurso.",
+    });
+  }
+
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret) {
+    return response.status(500).json({
+      status: "error",
+      message: "El servidor no está configurado correctamente.",
+    });
+  }
+
+  try {
+    const payload = jwt.verify(token, secret) as AuthTokenPayload;
+    if (payload.role !== roles.ADMIN) {
+      return response.status(403).json({
+        status: "error",
+        message: "Necesitas una cuenta ADMIN para realizar esta acción.",
+      });
+    }
+    (request as Request & { authUser?: AuthUser }).authUser = {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role,
+    };
+    return next();
+  } catch {
+    return response.status(401).json({
+      status: "error",
+      message: "Tu sesión expiró o no es válida. Inicia sesión de nuevo.",
+    });
+  }
+}
+
 export function requireAdmin(
   request: Request,
   response: Response<ErrorResponse>,

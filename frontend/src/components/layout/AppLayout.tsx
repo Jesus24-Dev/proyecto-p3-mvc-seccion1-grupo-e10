@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Banknote,
+  Bell,
   BookUser,
   Boxes,
   Building2,
@@ -41,22 +42,32 @@ import { roleLabel } from "@/lib/roles";
 import { AgencySwitcher } from "@/components/layout/AgencySwitcher";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 
+// Orden de los grupos del menú lateral.
+const NAV_GROUPS = [
+  "General",
+  "Operaciones",
+  "CRM",
+  "Análisis",
+  "Administración",
+] as const;
+
 const navigationItems = [
-  { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true },
-  { to: "/admin/users", label: "Usuarios", icon: Users },
-  { to: "/admin/agencies", label: "Agencias", icon: Building2 },
-  { to: "/admin/orders", label: "Envíos", icon: Package },
-  { to: "/admin/packages", label: "Paquetes", icon: Boxes },
-  { to: "/admin/payments", label: "Transacciones", icon: Banknote },
-  { to: "/admin/contacts", label: "Contactos", icon: BookUser },
-  { to: "/admin/tags", label: "Etiquetas", icon: Tag },
-  { to: "/admin/templates", label: "Plantillas", icon: Mail },
-  { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle },
-  { to: "/admin/automations", label: "Automatizaciones", icon: Workflow },
-  { to: "/admin/reports", label: "Reportes", icon: FileBarChart2 },
-  { to: "/admin/audit", label: "Auditoría", icon: ScrollText },
-  { to: "/admin/roles", label: "Roles y permisos", icon: ShieldCheck },
-  { to: "/admin/configuration", label: "Configuración", icon: Cog },
+  { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true, group: "General" },
+  { to: "/admin/orders", label: "Envíos", icon: Package, group: "Operaciones" },
+  { to: "/admin/packages", label: "Paquetes", icon: Boxes, group: "Operaciones" },
+  { to: "/admin/payments", label: "Transacciones", icon: Banknote, group: "Operaciones" },
+  { to: "/admin/contacts", label: "Contactos", icon: BookUser, group: "CRM" },
+  { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle, group: "CRM" },
+  { to: "/admin/automations", label: "Automatizaciones", icon: Workflow, group: "CRM" },
+  { to: "/admin/tags", label: "Etiquetas", icon: Tag, group: "CRM" },
+  { to: "/admin/templates", label: "Plantillas", icon: Mail, group: "CRM" },
+  { to: "/admin/reports", label: "Reportes", icon: FileBarChart2, group: "Análisis" },
+  { to: "/admin/notifications", label: "Notificaciones", icon: Bell, group: "Análisis" },
+  { to: "/admin/audit", label: "Auditoría", icon: ScrollText, group: "Análisis" },
+  { to: "/admin/users", label: "Usuarios", icon: Users, group: "Administración" },
+  { to: "/admin/agencies", label: "Agencias", icon: Building2, group: "Administración" },
+  { to: "/admin/roles", label: "Roles y permisos", icon: ShieldCheck, group: "Administración" },
+  { to: "/admin/configuration", label: "Configuración", icon: Cog, group: "Administración" },
 ];
 
 function BrandMark({ collapsed = false }: { collapsed?: boolean }) {
@@ -88,36 +99,59 @@ function NavigationList({
 }) {
   return (
     <nav aria-label="Secciones del panel" className="flex flex-col gap-1 px-3">
-      {navigationItems.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          onClick={onNavigate}
-          className={({ isActive }) =>
-            cn(
-              "group/nav relative flex h-10 items-center gap-3 rounded-full text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
-              collapsed ? "justify-center px-0" : "px-4",
-              isActive &&
-                "bg-sidebar-accent font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            )
-          }
-        >
-          <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
-          {!collapsed && item.label}
-          {collapsed && (
-            <>
-              <span className="sr-only">{item.label}</span>
-              <span
-                role="tooltip"
-                className="pointer-events-none absolute top-1/2 left-full z-50 ml-2.5 -translate-y-1/2 translate-x-1 scale-95 rounded-md bg-popover px-2.5 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground opacity-0 shadow-md ring-1 ring-foreground/10 transition-[opacity,transform] duration-150 group-hover/nav:translate-x-0 group-hover/nav:scale-100 group-hover/nav:opacity-100 group-focus-visible/nav:translate-x-0 group-focus-visible/nav:scale-100 group-focus-visible/nav:opacity-100 motion-reduce:transition-none"
+      {NAV_GROUPS.map((group) => {
+        const items = navigationItems.filter((item) => item.group === group);
+        if (items.length === 0) {
+          return null;
+        }
+        return (
+          <div key={group} className="flex flex-col gap-1">
+            {/* Encabezado del grupo (o separador cuando está colapsado). */}
+            {group !== "General" &&
+              (collapsed ? (
+                <div
+                  className="mx-2 my-1.5 border-t border-sidebar-border/60"
+                  aria-hidden="true"
+                />
+              ) : (
+                <p className="px-4 pt-3 pb-1 text-[11px] font-semibold tracking-wide text-sidebar-foreground/45 uppercase">
+                  {group}
+                </p>
+              ))}
+            {items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    "group/nav relative flex h-10 items-center gap-3 rounded-full text-sm font-medium text-sidebar-foreground/75 transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+                    collapsed ? "justify-center px-0" : "px-4",
+                    // El resaltado activo usa el color de marca de la subcuenta.
+                    isActive &&
+                      "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary",
+                  )
+                }
               >
-                {item.label}
-              </span>
-            </>
-          )}
-        </NavLink>
-      ))}
+                <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
+                {!collapsed && item.label}
+                {collapsed && (
+                  <>
+                    <span className="sr-only">{item.label}</span>
+                    <span
+                      role="tooltip"
+                      className="pointer-events-none absolute top-1/2 left-full z-50 ml-2.5 -translate-y-1/2 translate-x-1 scale-95 rounded-md bg-popover px-2.5 py-1 text-xs font-medium whitespace-nowrap text-popover-foreground opacity-0 shadow-md ring-1 ring-foreground/10 transition-[opacity,transform] duration-150 group-hover/nav:translate-x-0 group-hover/nav:scale-100 group-hover/nav:opacity-100 group-focus-visible/nav:translate-x-0 group-focus-visible/nav:scale-100 group-focus-visible/nav:opacity-100 motion-reduce:transition-none"
+                    >
+                      {item.label}
+                    </span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -276,12 +310,8 @@ export function AppLayout() {
             isFullBleed ? "px-4 py-4 md:px-6 md:py-5" : "px-4 py-6 md:px-8 md:py-8",
           )}
         >
-          <div
-            className={cn(
-              "mx-auto flex w-full flex-1 flex-col",
-              isFullBleed ? "max-w-none" : "max-w-6xl",
-            )}
-          >
+          <div className="flex w-full flex-1 flex-col">
+
             <Outlet />
           </div>
         </main>

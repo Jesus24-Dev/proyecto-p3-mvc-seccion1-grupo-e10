@@ -6,6 +6,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { AgencyProvider } from "./context/AgencyContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AgencyThemeBridge } from "./context/AgencyThemeBridge";
+import { Toaster } from "./components/ui/sonner";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
@@ -16,6 +17,7 @@ createRoot(document.getElementById("root")!).render(
           <AgencyProvider>
             <AgencyThemeBridge />
             <App />
+            <Toaster />
           </AgencyProvider>
         </AuthProvider>
       </ThemeProvider>

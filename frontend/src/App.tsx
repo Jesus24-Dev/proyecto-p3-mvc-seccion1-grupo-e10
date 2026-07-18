@@ -15,6 +15,7 @@ import { PackagesPage } from "@/pages/PackagesPage";
 import { PaymentsPage } from "@/pages/PaymentsPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { ReportsPage } from "@/pages/ReportsPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { ConfigurationPage } from "@/pages/ConfigurationPage";
 import { RolesPage } from "@/pages/RolesPage";
 import { TagsPage } from "@/pages/TagsPage";
@@ -65,6 +66,9 @@ function App() {
       <Route path="/" element={<LoginPage />} />
       <Route path="/track" element={<PublicTrackingPage />} />
       <Route path="/track/:code" element={<PublicTrackingPage />} />
+      {/* Alias público /tracking → misma página de rastreo por guía. */}
+      <Route path="/tracking" element={<PublicTrackingPage />} />
+      <Route path="/tracking/:code" element={<PublicTrackingPage />} />
       <Route path="/verify" element={<VerifyEmailPage />} />
       <Route path="/verify/:token" element={<VerifyEmailPage />} />
       <Route path="/forgot" element={<PasswordResetPage />} />
@@ -95,6 +99,7 @@ function App() {
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="contacts/:contactId" element={<ContactDetailPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="notifications" element={<NotificationsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="configuration" element={<ConfigurationPage />} />

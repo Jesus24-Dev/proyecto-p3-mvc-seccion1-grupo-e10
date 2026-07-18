@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BadgeCheck,
   Bell,
@@ -132,6 +133,12 @@ export function NotificationBell() {
             </ul>
           )}
         </div>
+        <Link
+          to="/admin/notifications"
+          className="block border-t px-3 py-2.5 text-center text-sm font-medium text-primary transition-colors hover:bg-muted/60"
+        >
+          Ver todas las notificaciones
+        </Link>
       </PopoverContent>
     </Popover>
   );

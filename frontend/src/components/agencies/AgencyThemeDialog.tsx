@@ -4,7 +4,12 @@ import { agenciesApi } from "@/api";
 import { useMutationHandler } from "@/hooks/usePageData";
 import { useTheme } from "@/context/ThemeContext";
 import { useActiveAgency } from "@/context/AgencyContext";
-import { ACCENT_PRESETS, DEFAULT_THEME } from "@/lib/themes";
+import {
+  ACCENT_PRESETS,
+  BACKGROUND_PRESETS,
+  DEFAULT_THEME,
+  FONT_SCALES,
+} from "@/lib/themes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,6 +126,65 @@ export function AgencyThemeDialog({
                 )}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label>Fondo</Label>
+          <div className="flex flex-wrap gap-2">
+            {BACKGROUND_PRESETS.map((preset) => {
+              const isActive =
+                (draft.background ?? DEFAULT_THEME.background) === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  aria-label={preset.label}
+                  aria-pressed={isActive}
+                  title={preset.label}
+                  onClick={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      background: preset.id,
+                    }))
+                  }
+                  className={cn(
+                    "flex size-10 items-center justify-center rounded-lg border-2 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                    isActive
+                      ? "border-foreground"
+                      : "border-border hover:scale-105",
+                  )}
+                  style={{ backgroundColor: preset.swatch }}
+                >
+                  {isActive && (
+                    <Check className="size-4 text-neutral-700" aria-hidden="true" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label>Tamaño de fuente</Label>
+          <div className="flex flex-wrap gap-2">
+            {FONT_SCALES.map((option) => {
+              const isActive =
+                (draft.fontScale ?? DEFAULT_THEME.fontScale) === option.id;
+              return (
+                <Button
+                  key={option.id}
+                  type="button"
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() =>
+                    setDraft((current) => ({ ...current, fontScale: option.id }))
+                  }
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
           </div>
         </div>
 

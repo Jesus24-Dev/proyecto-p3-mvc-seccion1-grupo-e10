@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Check } from "lucide-react";
 import { agenciesApi, authApi, contactsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -18,7 +18,12 @@ import { useAuth } from "@/context/AuthContext";
 import { useActiveAgency } from "@/context/AgencyContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useMutationHandler, usePageData } from "@/hooks/usePageData";
-import { ACCENT_PRESETS, DEFAULT_THEME } from "@/lib/themes";
+import {
+  ACCENT_PRESETS,
+  BACKGROUND_PRESETS,
+  DEFAULT_THEME,
+  FONT_SCALES,
+} from "@/lib/themes";
 import { toDateInputValue } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AgencyTheme } from "@/types";
@@ -172,6 +177,14 @@ export function SettingsPage() {
     setThemeDraft(activeAgency?.theme ?? DEFAULT_THEME);
   }
 
+  // Vista previa en vivo: aplica el borrador al instante al cambiar cualquier
+  // opción (se persiste solo al Guardar).
+  useEffect(() => {
+    if (activeAgency) {
+      setAgencyTheme(themeDraft);
+    }
+  }, [themeDraft, activeAgency, setAgencyTheme]);
+
   async function saveTheme() {
     if (!activeAgency) {
       return;
@@ -223,6 +236,14 @@ export function SettingsPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Grupo: Cuenta (perfil + acceso) */}
+      <div className="mb-3">
+        <h2 className="text-lg font-medium">Cuenta</h2>
+        <p className="text-sm text-muted-foreground">
+          Tu información personal y tus credenciales de acceso.
+        </p>
+      </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <Card>
@@ -381,89 +402,165 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Apariencia de la subcuenta</CardTitle>
-              <CardDescription>
-                {activeAgency
-                  ? `Color y forma de ${activeAgency.name}.`
-                  : "Elige una subcuenta activa para personalizar su apariencia."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {themeMsg && (
-                <Alert
-                  variant={themeMsg.tone === "danger" ? "destructive" : "default"}
-                >
-                  <AlertDescription>{themeMsg.text}</AlertDescription>
-                </Alert>
-              )}
-              <div className="grid gap-2">
-                <Label>Color de acento</Label>
-                <div className="flex flex-wrap gap-2">
-                  {ACCENT_PRESETS.map((preset) => (
+        </div>
+      </div>
+
+      {/* Grupo: Apariencia de la subcuenta */}
+      <div className="mt-8 mb-3">
+        <h2 className="text-lg font-medium">Apariencia de la subcuenta</h2>
+        <p className="text-sm text-muted-foreground">
+          {activeAgency
+            ? `Marca, fondo, tamaño y forma de ${activeAgency.name}. Se aplica cuando la subcuenta está activa.`
+            : "Elige una subcuenta activa para personalizar su apariencia."}
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="grid gap-6 pt-6">
+          {themeMsg && (
+            <Alert
+              variant={themeMsg.tone === "danger" ? "destructive" : "default"}
+            >
+              <AlertDescription>{themeMsg.text}</AlertDescription>
+            </Alert>
+          )}
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label>Color de acento</Label>
+              <div className="flex flex-wrap gap-2">
+                {ACCENT_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    aria-label={preset.label}
+                    aria-pressed={themeDraft.accent === preset.id}
+                    disabled={!activeAgency}
+                    onClick={() =>
+                      setThemeDraft((current) => ({
+                        ...current,
+                        accent: preset.id,
+                      }))
+                    }
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-full border-2 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
+                      themeDraft.accent === preset.id
+                        ? "border-foreground"
+                        : "border-transparent hover:scale-105",
+                    )}
+                    style={{ backgroundColor: preset.swatch }}
+                  >
+                    {themeDraft.accent === preset.id && (
+                      <Check className="size-4 text-white" aria-hidden="true" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Fondo</Label>
+              <div className="flex flex-wrap gap-2">
+                {BACKGROUND_PRESETS.map((preset) => {
+                  const isActive =
+                    (themeDraft.background ?? DEFAULT_THEME.background) ===
+                    preset.id;
+                  return (
                     <button
                       key={preset.id}
                       type="button"
                       aria-label={preset.label}
-                      aria-pressed={themeDraft.accent === preset.id}
+                      aria-pressed={isActive}
+                      title={preset.label}
                       disabled={!activeAgency}
                       onClick={() =>
                         setThemeDraft((current) => ({
                           ...current,
-                          accent: preset.id,
+                          background: preset.id,
                         }))
                       }
                       className={cn(
-                        "flex size-9 items-center justify-center rounded-full border-2 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
-                        themeDraft.accent === preset.id
+                        "flex size-9 items-center justify-center rounded-lg border-2 transition-transform outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-40",
+                        isActive
                           ? "border-foreground"
-                          : "border-transparent hover:scale-105",
+                          : "border-border hover:scale-105",
                       )}
                       style={{ backgroundColor: preset.swatch }}
                     >
-                      {themeDraft.accent === preset.id && (
-                        <Check className="size-4 text-white" aria-hidden="true" />
+                      {isActive && (
+                        <Check
+                          className="size-4 text-neutral-700"
+                          aria-hidden="true"
+                        />
                       )}
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-              <div className="grid gap-2">
-                <Label>Forma</Label>
-                <div className="flex flex-wrap gap-2">
-                  {RADIUS_OPTIONS.map((option) => (
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Tamaño de fuente</Label>
+              <div className="flex flex-wrap gap-2">
+                {FONT_SCALES.map((option) => {
+                  const isActive =
+                    (themeDraft.fontScale ?? DEFAULT_THEME.fontScale) ===
+                    option.id;
+                  return (
                     <Button
-                      key={option.value}
+                      key={option.id}
                       type="button"
-                      variant={
-                        themeDraft.radius === option.value ? "default" : "outline"
-                      }
+                      variant={isActive ? "default" : "outline"}
                       size="sm"
                       disabled={!activeAgency}
                       onClick={() =>
                         setThemeDraft((current) => ({
                           ...current,
-                          radius: option.value,
+                          fontScale: option.id,
                         }))
                       }
                     >
                       {option.label}
                     </Button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-              <Button
-                className="justify-self-start"
-                disabled={!activeAgency || themeSaving}
-                onClick={() => void saveTheme()}
-              >
-                {themeSaving ? "Guardando…" : "Guardar apariencia"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Forma</Label>
+              <div className="flex flex-wrap gap-2">
+                {RADIUS_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={
+                      themeDraft.radius === option.value ? "default" : "outline"
+                    }
+                    size="sm"
+                    disabled={!activeAgency}
+                    onClick={() =>
+                      setThemeDraft((current) => ({
+                        ...current,
+                        radius: option.value,
+                      }))
+                    }
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Button
+            className="justify-self-start"
+            disabled={!activeAgency || themeSaving}
+            onClick={() => void saveTheme()}
+          >
+            {themeSaving ? "Guardando…" : "Guardar apariencia"}
+          </Button>
+        </CardContent>
+      </Card>
     </>
   );
 }

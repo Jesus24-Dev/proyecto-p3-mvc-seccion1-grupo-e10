@@ -114,6 +114,27 @@ export function DashboardGrid({
     );
   }
 
+  // Empaqueta los widgets en filas: se acumulan hasta llenar 12 columnas y
+  // luego, dentro de cada fila, TODOS reparten el ancho por igual (flex-1).
+  // Así los widgets de una misma fila siempre tienen el mismo ancho; el
+  // colSpan decide cuántos caben por fila y el rowSpan controla el alto.
+  const rows: DashboardWidgetLayout[][] = [];
+  let current: DashboardWidgetLayout[] = [];
+  let sum = 0;
+  for (const entry of visible) {
+    const span = Math.min(MAX_COLS, Math.max(2, entry.colSpan));
+    if (current.length > 0 && sum + span > MAX_COLS) {
+      rows.push(current);
+      current = [];
+      sum = 0;
+    }
+    current.push(entry);
+    sum += span;
+  }
+  if (current.length > 0) {
+    rows.push(current);
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -124,26 +145,28 @@ export function DashboardGrid({
         items={visible.map((entry) => entry.id)}
         strategy={rectSortingStrategy}
       >
-        <div
-          ref={gridRef}
-          className="grid items-start gap-4"
-          style={{
-            gridTemplateColumns: `repeat(${MAX_COLS}, minmax(0, 1fr))`,
-            gridAutoFlow: "row dense",
-          }}
-        >
-          {visible.map((entry) => (
-            <SortableWidget
-              key={entry.id}
-              entry={entry}
-              title={byId.get(entry.id)!.title}
-              editing={editing}
-              gridRef={gridRef}
-              onResize={(colSpan, rowSpan) => patch(entry.id, { colSpan, rowSpan })}
-              onHide={() => patch(entry.id, { hidden: true })}
+        <div ref={gridRef} className="flex flex-col gap-4">
+          {rows.map((row, rowIndex) => (
+            <div
+              key={rowIndex}
+              className="flex flex-col items-stretch gap-4 sm:flex-row"
             >
-              {byId.get(entry.id)!.content}
-            </SortableWidget>
+              {row.map((entry) => (
+                <SortableWidget
+                  key={entry.id}
+                  entry={entry}
+                  title={byId.get(entry.id)!.title}
+                  editing={editing}
+                  gridRef={gridRef}
+                  onResize={(colSpan, rowSpan) =>
+                    patch(entry.id, { colSpan, rowSpan })
+                  }
+                  onHide={() => patch(entry.id, { hidden: true })}
+                >
+                  {byId.get(entry.id)!.content}
+                </SortableWidget>
+              ))}
+            </div>
           ))}
         </div>
       </SortableContext>
@@ -204,9 +227,11 @@ function SortableWidget({
   return (
     <div
       ref={setNodeRef}
-      className={cn("relative flex flex-col", isDragging && "z-10 opacity-80")}
+      className={cn(
+        "relative flex min-w-0 flex-[1_1_0] flex-col",
+        isDragging && "z-10 opacity-80",
+      )}
       style={{
-        gridColumn: `span ${entry.colSpan}`,
         minHeight: entry.rowSpan * ROW_UNIT,
         transform: CSS.Translate.toString(transform),
         transition,

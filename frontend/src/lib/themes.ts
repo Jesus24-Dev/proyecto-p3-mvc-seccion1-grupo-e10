@@ -92,10 +92,70 @@ export const ACCENT_PRESETS: AccentPreset[] = [
   },
 ];
 
-export const DEFAULT_THEME: AgencyTheme = { accent: "domesa", radius: 0.625 };
+/** Escalas de tamaño de fuente/interfaz (multiplican el font-size raíz). */
+export type FontScale = { id: string; label: string; scale: number };
+
+export const FONT_SCALES: FontScale[] = [
+  { id: "sm", label: "Compacto", scale: 0.92 },
+  { id: "base", label: "Normal", scale: 1 },
+  { id: "lg", label: "Cómodo", scale: 1.08 },
+  { id: "xl", label: "Grande", scale: 1.16 },
+];
+
+/** Tintes sutiles del fondo de la aplicación por subcuenta. */
+export type BackgroundPreset = {
+  id: string;
+  label: string;
+  swatch: string;
+  /** "" = usa el fondo base (sin override). */
+  light: string;
+  dark: string;
+};
+
+export const BACKGROUND_PRESETS: BackgroundPreset[] = [
+  { id: "paper", label: "Papel", swatch: "#faf9f7", light: "", dark: "" },
+  {
+    id: "warm",
+    label: "Cálido",
+    swatch: "#f5efe6",
+    light: "oklch(0.972 0.012 80)",
+    dark: "oklch(0.17 0.008 70)",
+  },
+  {
+    id: "cool",
+    label: "Frío",
+    swatch: "#eef2f7",
+    light: "oklch(0.972 0.008 250)",
+    dark: "oklch(0.17 0.01 255)",
+  },
+  {
+    id: "slate",
+    label: "Pizarra",
+    swatch: "#eceef1",
+    light: "oklch(0.965 0.002 260)",
+    dark: "oklch(0.16 0.004 260)",
+  },
+];
+
+export const DEFAULT_THEME: AgencyTheme = {
+  accent: "domesa",
+  radius: 0.625,
+  fontScale: "base",
+  background: "paper",
+};
 
 export function accentPreset(id: string): AccentPreset {
   return ACCENT_PRESETS.find((preset) => preset.id === id) ?? ACCENT_PRESETS[0];
+}
+
+export function fontScale(id: string | undefined): FontScale {
+  return FONT_SCALES.find((f) => f.id === id) ?? FONT_SCALES[1];
+}
+
+export function backgroundPreset(id: string | undefined): BackgroundPreset {
+  return (
+    BACKGROUND_PRESETS.find((b) => b.id === id) ?? BACKGROUND_PRESETS[0]
+  );
 }
 
 /**
@@ -116,4 +176,19 @@ export function applyAgencyTheme(theme: AgencyTheme | null, isDark: boolean) {
     "--radius",
     `${theme?.radius ?? DEFAULT_THEME.radius}rem`,
   );
+
+  // Tamaño de fuente/interfaz: escala el font-size raíz (afecta los rem).
+  const font = fontScale(theme?.fontScale);
+  root.style.fontSize = font.scale === 1 ? "" : `${(font.scale * 100).toFixed(2)}%`;
+
+  // Fondo de la app: tinte sutil (o base si es "papel"/default).
+  const bg = backgroundPreset(theme?.background);
+  const bgValue = isDark ? bg.dark : bg.light;
+  if (bgValue) {
+    root.style.setProperty("--background", bgValue);
+    root.style.setProperty("--sidebar", bgValue);
+  } else {
+    root.style.removeProperty("--background");
+    root.style.removeProperty("--sidebar");
+  }
 }

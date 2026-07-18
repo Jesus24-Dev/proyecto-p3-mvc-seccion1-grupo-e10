@@ -1,10 +1,25 @@
 import { useMemo, useState } from "react";
-import { Download, FileSpreadsheet, Printer } from "lucide-react";
+import {
+  BadgeDollarSign,
+  CalendarDays,
+  Download,
+  FileSpreadsheet,
+  Package,
+  Printer,
+  Receipt,
+  TrendingUp,
+  Truck,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { contactsApi, packagesApi, paymentsApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -29,6 +44,7 @@ type ReportKey =
 interface Report {
   key: ReportKey;
   label: string;
+  icon: LucideIcon;
   headers: string[];
   rows: string[][];
   summary: string;
@@ -114,18 +130,46 @@ export function ReportsPage() {
   const { data, isLoading, error } = usePageData(() =>
     Promise.all([contactsApi.list(), packagesApi.list(), paymentsApi.list()]),
   );
-  const contacts = data?.[0] ?? [];
-  const packages = data?.[1] ?? [];
-  const payments = data?.[2] ?? [];
+  const allContacts = data?.[0] ?? [];
+  const allPackages = data?.[1] ?? [];
+  const allPayments = data?.[2] ?? [];
 
   const [active, setActive] = useState<ReportKey>("clients");
+  // Filtro por rango de fechas (YYYY-MM-DD, vacío = sin límite).
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const inRange = useMemo(() => {
+    const fromTs = from ? new Date(`${from}T00:00:00`).getTime() : null;
+    const toTs = to ? new Date(`${to}T23:59:59`).getTime() : null;
+    return (iso: string) => {
+      const ts = new Date(iso).getTime();
+      if (fromTs !== null && ts < fromTs) return false;
+      if (toTs !== null && ts > toTs) return false;
+      return true;
+    };
+  }, [from, to]);
+
+  // Datos acotados al rango (cada entidad por su fecha relevante).
+  const contacts = useMemo(
+    () => allContacts.filter((c) => inRange(c.created_at)),
+    [allContacts, inRange],
+  );
+  const packages = useMemo(
+    () => allPackages.filter((p) => inRange(p.created_at)),
+    [allPackages, inRange],
+  );
+  const payments = useMemo(
+    () => allPayments.filter((p) => inRange(p.paid_at)),
+    [allPayments, inRange],
+  );
 
   const contactName = useMemo(() => {
     const map = new Map(
-      contacts.map((c) => [c.id, `${c.first_name} ${c.last_name}`]),
+      allContacts.map((c) => [c.id, `${c.first_name} ${c.last_name}`]),
     );
     return (id: string) => map.get(id) ?? "—";
-  }, [contacts]);
+  }, [allContacts]);
 
   const reports = useMemo<Record<ReportKey, Report>>(() => {
     const delivered = packages.filter((p) => p.status === "DELIVERED");
@@ -149,6 +193,7 @@ export function ReportsPage() {
       clients: {
         key: "clients",
         label: "Clientes",
+        icon: Users,
         headers: ["Nombre", "Cédula/RIF", "Teléfono", "Dirección", "Cliente desde"],
         rows: contacts.map((c) => [
           `${c.first_name} ${c.last_name}`,
@@ -162,6 +207,7 @@ export function ReportsPage() {
       packages: {
         key: "packages",
         label: "Paquetes",
+        icon: Package,
         headers: ["Tracking", "Descripción", "Peso (kg)", "Estado", "Fecha"],
         rows: packages.map((p) => [
           p.tracking_code,
@@ -175,6 +221,7 @@ export function ReportsPage() {
       transactions: {
         key: "transactions",
         label: "Transacciones",
+        icon: Receipt,
         headers: ["Referencia", "Cliente", "Banco", "Monto", "Estado", "Fecha"],
         rows: payments.map((p) => [
           p.reference,
@@ -189,6 +236,7 @@ export function ReportsPage() {
       deliveries: {
         key: "deliveries",
         label: "Entregas",
+        icon: Truck,
         headers: ["Tracking", "Cliente", "Descripción", "Fecha"],
         rows: delivered.map((p) => [
           p.tracking_code,
@@ -201,6 +249,7 @@ export function ReportsPage() {
       revenue: {
         key: "revenue",
         label: "Ingresos",
+        icon: TrendingUp,
         headers: ["Mes", "Pagos aprobados", "Ingresos"],
         rows: months.map(([month, v]) => [
           month,
@@ -213,13 +262,46 @@ export function ReportsPage() {
   }, [contacts, packages, payments, contactName]);
 
   const report = reports[active];
-  const tabs: { key: ReportKey; label: string }[] = [
-    { key: "clients", label: "Clientes" },
-    { key: "packages", label: "Paquetes" },
-    { key: "transactions", label: "Transacciones" },
-    { key: "deliveries", label: "Entregas" },
-    { key: "revenue", label: "Ingresos" },
-  ];
+
+  // Métricas resumen (KPIs) mostradas arriba, siempre visibles.
+  const kpis = useMemo(() => {
+    const delivered = packages.filter((p) => p.status === "DELIVERED").length;
+    const approved = payments.filter((p) => p.status === "APPROVED");
+    const approvedTotal = approved.reduce((sum, p) => sum + p.amount, 0);
+    return [
+      {
+        icon: Users,
+        label: "Clientes",
+        value: String(contacts.length),
+        detail: "Contactos registrados",
+        accent: false,
+      },
+      {
+        icon: Truck,
+        label: "Paquetes entregados",
+        value: `${delivered} / ${packages.length}`,
+        detail: "Entregados sobre el total",
+        accent: false,
+      },
+      {
+        icon: BadgeDollarSign,
+        label: "Pagos aprobados",
+        value: `${approved.length} / ${payments.length}`,
+        detail: "Validados contra el banco",
+        accent: false,
+      },
+      {
+        icon: TrendingUp,
+        label: "Ingresos validados",
+        value: formatAmount(approvedTotal),
+        detail: "Suma de pagos aprobados",
+        accent: true,
+      },
+    ];
+  }, [contacts, packages, payments]);
+
+  const tabs = (Object.keys(reports) as ReportKey[]).map((key) => reports[key]);
+  const ActiveIcon = report.icon;
 
   return (
     <>
@@ -249,79 +331,199 @@ export function ReportsPage() {
         </Alert>
       )}
 
-      <div className="mb-4 inline-flex flex-wrap rounded-lg border bg-muted/40 p-0.5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            aria-pressed={active === tab.key}
-            onClick={() => setActive(tab.key)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              active === tab.key
-                ? "bg-background text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
+      {/* Filtro por rango de fechas */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <CalendarDays
+          className="size-4 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Label htmlFor="rep-from" className="text-xs text-muted-foreground">
+          Desde
+        </Label>
+        <Input
+          id="rep-from"
+          type="date"
+          value={from}
+          max={to || undefined}
+          onChange={(event) => setFrom(event.target.value)}
+          className="h-9 w-40"
+        />
+        <Label htmlFor="rep-to" className="text-xs text-muted-foreground">
+          Hasta
+        </Label>
+        <Input
+          id="rep-to"
+          type="date"
+          value={to}
+          min={from || undefined}
+          onChange={(event) => setTo(event.target.value)}
+          className="h-9 w-40"
+        />
+        {(from || to) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFrom("");
+              setTo("");
+            }}
           >
-            {tab.label}
-          </button>
-        ))}
+            <X data-icon="inline-start" aria-hidden="true" />
+            Limpiar
+          </Button>
+        )}
       </div>
 
-      <Card className="py-0">
+      {/* KPIs de un vistazo */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-xl" />
+            ))
+          : kpis.map((kpi) => (
+              <ReportStat key={kpi.label} {...kpi} />
+            ))}
+      </div>
+
+      {/* Selector de reporte, con icono por tipo */}
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = active === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => setActive(tab.key)}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+                isActive
+                  ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              )}
+            >
+              <Icon className="size-4" aria-hidden="true" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <Card className="overflow-hidden py-0">
         <CardContent className="px-0">
+          {/* Banda de cabecera del reporte activo */}
+          <div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ActiveIcon className="size-4.5" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{report.label}</p>
+              <p className="text-xs text-muted-foreground">{report.summary}</p>
+            </div>
+            {!isLoading && (
+              <span className="ms-auto rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground tabular-nums">
+                {report.rows.length}{" "}
+                {report.rows.length === 1 ? "fila" : "filas"}
+              </span>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="grid gap-3 p-6">
               <Skeleton className="h-5 w-full" />
               <Skeleton className="h-5 w-11/12" />
               <Skeleton className="h-5 w-4/5" />
             </div>
-          ) : (
-            <>
-              <p className="border-b px-6 py-3 text-sm text-muted-foreground">
-                {report.summary}
+          ) : report.rows.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
+              <ActiveIcon
+                className="size-8 text-muted-foreground/50"
+                aria-hidden="true"
+              />
+              <p className="text-sm text-muted-foreground">
+                Sin datos para este reporte.
               </p>
-              {report.rows.length === 0 ? (
-                <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-                  Sin datos para este reporte.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {report.headers.map((header, index) => (
-                        <TableHead
-                          key={header}
-                          className={index === 0 ? "pl-6" : undefined}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {report.headers.map((header, index) => (
+                      <TableHead
+                        key={header}
+                        className={index === 0 ? "pl-5" : undefined}
+                      >
+                        {header}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report.rows.map((row, rowIndex) => (
+                    <TableRow key={rowIndex} className="even:bg-muted/25">
+                      {row.map((cell, cellIndex) => (
+                        <TableCell
+                          key={cellIndex}
+                          className={cn(
+                            "whitespace-nowrap",
+                            cellIndex === 0 && "pl-5 font-medium",
+                            cellIndex !== 0 && "text-muted-foreground",
+                          )}
                         >
-                          {header}
-                        </TableHead>
+                          {cell}
+                        </TableCell>
                       ))}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.rows.map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <TableCell
-                            key={cellIndex}
-                            className={cn(
-                              cellIndex === 0 && "pl-6 font-medium",
-                              cellIndex !== 0 && "text-muted-foreground",
-                            )}
-                          >
-                            {cell}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
     </>
+  );
+}
+
+type ReportStatProps = {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  detail: string;
+  accent: boolean;
+};
+
+// Tile de métrica del encabezado de Reportes; el acento (rojo Domesa) se
+// reserva para la métrica principal de ingresos (regla de un solo acento).
+function ReportStat({ icon: Icon, label, value, detail, accent }: ReportStatProps) {
+  return (
+    <Card className="h-full justify-center gap-3 py-5">
+      <CardContent className="grid gap-1 px-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground">{label}</span>
+          <span
+            className={cn(
+              "flex size-7 items-center justify-center rounded-md",
+              accent
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground",
+            )}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+        </div>
+        <span
+          className={cn(
+            "text-3xl font-medium tracking-tight tabular-nums",
+            accent && "text-primary",
+          )}
+        >
+          {value}
+        </span>
+        <span className="text-xs text-muted-foreground">{detail}</span>
+      </CardContent>
+    </Card>
   );
 }

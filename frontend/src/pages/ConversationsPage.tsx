@@ -67,9 +67,8 @@ const CHANNELS: Record<ChannelId, Channel> = {
     icon: MessageCircle,
     dot: "bg-emerald-500",
     iconClass: "text-emerald-600",
-    outBubble:
-      "rounded-br-sm bg-emerald-100 text-emerald-950 dark:bg-emerald-500/20 dark:text-emerald-50",
-    outMeta: "text-emerald-950/60 dark:text-emerald-100/60",
+    outBubble: "rounded-br-sm bg-primary/10 text-foreground",
+    outMeta: "text-muted-foreground",
   },
   instagram: {
     id: "instagram",
@@ -78,9 +77,8 @@ const CHANNELS: Record<ChannelId, Channel> = {
     icon: Camera,
     dot: "bg-fuchsia-500",
     iconClass: "text-fuchsia-600",
-    outBubble:
-      "rounded-br-sm bg-fuchsia-100 text-fuchsia-950 dark:bg-fuchsia-500/20 dark:text-fuchsia-50",
-    outMeta: "text-fuchsia-950/60 dark:text-fuchsia-100/60",
+    outBubble: "rounded-br-sm bg-primary/10 text-foreground",
+    outMeta: "text-muted-foreground",
   },
   messenger: {
     id: "messenger",
@@ -89,9 +87,8 @@ const CHANNELS: Record<ChannelId, Channel> = {
     icon: MessagesSquare,
     dot: "bg-blue-500",
     iconClass: "text-blue-600",
-    outBubble:
-      "rounded-br-sm bg-blue-100 text-blue-950 dark:bg-blue-500/20 dark:text-blue-50",
-    outMeta: "text-blue-950/60 dark:text-blue-100/60",
+    outBubble: "rounded-br-sm bg-primary/10 text-foreground",
+    outMeta: "text-muted-foreground",
   },
 };
 

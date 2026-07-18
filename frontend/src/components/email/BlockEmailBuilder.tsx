@@ -187,11 +187,11 @@ export function BlockEmailBuilder({
 
       {/* Lienzo */}
       <div
-        className="min-h-72 min-w-0 rounded-lg border p-3"
+        className="min-h-[36rem] min-w-0 rounded-lg border p-3"
         style={{ background: settings.pageBg }}
       >
         {blocks.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/70 bg-background/60 text-center">
+          <div className="flex min-h-[32rem] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border/70 bg-background/60 text-center">
             <Plus className="size-5 text-muted-foreground" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               Agrega bloques desde la izquierda para construir el correo.

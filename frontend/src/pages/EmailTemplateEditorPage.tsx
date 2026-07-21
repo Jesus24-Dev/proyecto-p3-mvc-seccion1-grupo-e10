@@ -1,12 +1,21 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, LayoutGrid, Sparkles, Type } from "lucide-react";
-import { aiApi, emailTemplatesApi } from "@/api";
+import { ArrowLeft, LayoutGrid, Send, Sparkles, Type } from "lucide-react";
+import { toast } from "sonner";
+import { aiApi, automationsApi, emailTemplatesApi } from "@/api";
 import { RichEmailEditor } from "@/components/email/RichEmailEditor";
 import { BlockEmailBuilder } from "@/components/email/BlockEmailBuilder";
 import { isBlockEmail } from "@/components/email/blockEmail";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,6 +89,37 @@ export function EmailTemplateEditorPage() {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  // --- Envío de prueba ---
+  const [testOpen, setTestOpen] = useState(false);
+  const [testTo, setTestTo] = useState("");
+  const [testSending, setTestSending] = useState(false);
+
+  async function sendTest() {
+    if (!testTo.trim()) {
+      return;
+    }
+    setTestSending(true);
+    try {
+      // Se envía con los valores de ejemplo ya rellenados, como se vería.
+      const result = await automationsApi.testSend({
+        channel: "send_email",
+        to: testTo.trim(),
+        subject: renderPreview(form.subject) || "Prueba de Dr Logistics",
+        html: renderPreview(toBodyHtml(form.body)),
+      });
+      toast.success(result.simulated ? "Prueba simulada" : "Prueba enviada", {
+        description: result.detail,
+      });
+      setTestOpen(false);
+    } catch (error) {
+      toast.error("No se pudo enviar la prueba", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setTestSending(false);
+    }
+  }
 
   async function generateWithAi() {
     if (!aiPrompt.trim()) {
@@ -164,6 +204,14 @@ export function EmailTemplateEditorPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setTestOpen(true)}
+            disabled={notFound}
+          >
+            <Send data-icon="inline-start" aria-hidden="true" />
+            Enviar prueba
+          </Button>
           <Button
             variant="outline"
             nativeButton={false}
@@ -351,6 +399,47 @@ export function EmailTemplateEditorPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={testOpen} onOpenChange={setTestOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar correo de prueba</DialogTitle>
+            <DialogDescription>
+              Enviamos este correo con los valores de ejemplo ya rellenados, tal
+              como lo recibiría un contacto.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="test-email">Correo de destino</Label>
+            <Input
+              id="test-email"
+              type="email"
+              autoFocus
+              value={testTo}
+              onChange={(event) => setTestTo(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && testTo.trim()) {
+                  event.preventDefault();
+                  void sendTest();
+                }
+              }}
+              placeholder="tucorreo@ejemplo.com"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTestOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => void sendTest()}
+              disabled={testSending || !testTo.trim()}
+            >
+              <Send data-icon="inline-start" aria-hidden="true" />
+              {testSending ? "Enviando…" : "Enviar prueba"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

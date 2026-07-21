@@ -165,7 +165,7 @@ export class AutomationEngine {
       if (!node || node.data.kind === "wait") {
         continue;
       }
-      const exec = await executeNode(node.data, ctx, this.runRepo);
+      const exec = await executeNode(node.data, ctx, this.runRepo, def.settings);
       await this.log(
         snapshot,
         node.id,
@@ -270,7 +270,7 @@ export class AutomationEngine {
 
       snapshot.current_node_id = node.id;
       await this.runRepo.updateRun(run.id, { current_node_id: node.id });
-      const exec = await executeNode(node.data, ctx, this.runRepo);
+      const exec = await executeNode(node.data, ctx, this.runRepo, def.settings);
       await this.log(snapshot, node.id, node.data.kind, exec.result, exec.detail);
 
       // Encadena el disparador tag_added si se aplicó una etiqueta nueva.

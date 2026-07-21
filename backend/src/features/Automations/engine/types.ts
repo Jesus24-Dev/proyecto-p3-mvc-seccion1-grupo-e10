@@ -14,6 +14,7 @@ export type StepKind =
   | "notify_team"
   | "create_note"
   | "send_webhook"
+  | "ai_generate"
   | "condition"
   | "switch";
 
@@ -35,6 +36,9 @@ export type StepData = {
   operator?: string;
   value?: string;
   cases?: string[];
+  /** ai_generate: instrucción para el modelo y variable donde guardar el texto. */
+  ai_prompt?: string;
+  ai_output?: string;
   label?: string;
   [key: string]: unknown;
 };

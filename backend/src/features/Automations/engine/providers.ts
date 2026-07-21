@@ -4,6 +4,8 @@
 // flujo. La interfaz permite conectar un proveedor real (SMTP, WhatsApp API)
 // sin tocar el motor.
 
+import { sendEmail } from "../../../shared/mailer.js";
+
 export class NoProviderError extends Error {
   constructor(channel: string) {
     super(`Canal "${channel}" sin proveedor configurado.`);

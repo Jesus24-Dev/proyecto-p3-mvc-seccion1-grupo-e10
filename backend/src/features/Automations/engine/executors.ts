@@ -1,8 +1,23 @@
 import type { AutomationRunRepository } from "../automation.run.repository.js";
 import { interpolate } from "./context.js";
 import { getMessageProvider, NoProviderError, type Channel } from "./providers.js";
+import { generateAiText } from "./aiText.js";
 import { notify } from "../../Notifications/notification.helper.js";
 import type { EngineContext, ExecResult, StepData } from "./types.js";
+
+// Ajustes globales del flujo relevantes para los ejecutores (IA, etc.).
+export type FlowSettings = Record<string, unknown> | undefined;
+
+// Convierte un nombre libre en un token de variable válido ({{token}}).
+function toVarToken(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/[^\w.]/g, "");
+}
 
 // Nombre de la variable de contexto que refleja un campo del contacto.
 const CONTACT_FIELD_VAR: Record<string, string> = {
@@ -84,6 +99,7 @@ export async function executeNode(
   data: StepData,
   ctx: EngineContext,
   repo: AutomationRunRepository,
+  settings?: FlowSettings,
 ): Promise<ExecResult> {
   switch (data.kind) {
     case "trigger": {
@@ -280,6 +296,46 @@ export async function executeNode(
         };
       } finally {
         clearTimeout(timeout);
+      }
+    }
+
+    case "ai_generate": {
+      const instruction = interpolate(data.ai_prompt ?? "", ctx);
+      if (!instruction.trim()) {
+        return {
+          result: "ERROR",
+          detail: "Falta la instrucción para la IA.",
+          branchId: "out",
+        };
+      }
+      try {
+        const text = await generateAiText(instruction, {
+          provider:
+            typeof settings?.ai_provider === "string"
+              ? settings.ai_provider
+              : undefined,
+          model:
+            typeof settings?.ai_model === "string"
+              ? settings.ai_model
+              : undefined,
+          apiKey:
+            typeof settings?.ai_api_key === "string"
+              ? settings.ai_api_key
+              : undefined,
+        });
+        const token = toVarToken(data.ai_output || "ia_respuesta") || "ia_respuesta";
+        ctx.vars[token] = text;
+        return {
+          result: "OK",
+          detail: `Texto generado y guardado en {{${token}}}`,
+          branchId: "out",
+        };
+      } catch (error) {
+        return {
+          result: "ERROR",
+          detail: error instanceof Error ? error.message : "Falló la generación con IA.",
+          branchId: "out",
+        };
       }
     }
 

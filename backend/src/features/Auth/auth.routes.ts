@@ -48,5 +48,15 @@ router.post(
   validate(ResetPasswordSchema),
   controller.resetPassword,
 );
+router.post(
+  "/magic-link",
+  validate(ForgotPasswordSchema),
+  controller.requestMagicLink,
+);
+router.post(
+  "/magic-login",
+  validate(VerifyEmailSchema),
+  controller.magicLogin,
+);
 
 export const AuthRoutes = router;

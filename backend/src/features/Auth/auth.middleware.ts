@@ -17,6 +17,19 @@ export function getAuthUser(request: Request): AuthUser | null {
   return (request as Request & { authUser?: AuthUser }).authUser ?? null;
 }
 
+/**
+ * Roles con acceso al panel de personal:
+ *  - SUPERADMIN / ADMIN: administrador de agencia (ve todas las subcuentas).
+ *  - DISTRIBUTOR: administrador de sede (acotado a sus agencias; ver agencyScope).
+ */
+function isStaffRole(role: roles): boolean {
+  return (
+    role === roles.ADMIN ||
+    role === roles.SUPERADMIN ||
+    role === roles.DISTRIBUTOR
+  );
+}
+
 function getBearerToken(request: Request) {
   const authorizationHeader = request.headers.authorization;
 
@@ -92,7 +105,7 @@ export function requireAdminQueryToken(
 
   try {
     const payload = jwt.verify(token, secret) as AuthTokenPayload;
-    if (payload.role !== roles.ADMIN) {
+    if (!isStaffRole(payload.role)) {
       return response.status(403).json({
         status: "error",
         message: "Necesitas una cuenta ADMIN para realizar esta acción.",
@@ -138,7 +151,7 @@ export function requireAdmin(
   try {
     const payload = jwt.verify(token, secret) as AuthTokenPayload;
 
-    if (payload.role !== roles.ADMIN) {
+    if (!isStaffRole(payload.role)) {
       return response.status(403).json({
         status: "error",
         message: "Necesitas una cuenta ADMIN para realizar esta acción.",
@@ -158,4 +171,31 @@ export function requireAdmin(
       message: "Tu sesión expiró o no es válida. Inicia sesión de nuevo.",
     });
   }
+}
+
+/**
+ * Exige el máximo nivel de permisos (SUPERADMIN). Se usa en operaciones
+ * destructivas como enviar contactos a la papelera o eliminarlos con todo su
+ * historial. Debe encadenarse DESPUÉS de `requireAdmin` en la ruta.
+ */
+export function requireSuperAdmin(
+  request: Request,
+  response: Response<ErrorResponse>,
+  next: NextFunction,
+) {
+  const authUser = getAuthUser(request);
+  if (!authUser) {
+    return response.status(401).json({
+      status: "error",
+      message: "Necesitas iniciar sesión para acceder a este recurso.",
+    });
+  }
+  if (authUser.role !== roles.SUPERADMIN) {
+    return response.status(403).json({
+      status: "error",
+      message:
+        "Solo un superadministrador puede enviar a la papelera o eliminar contactos.",
+    });
+  }
+  return next();
 }

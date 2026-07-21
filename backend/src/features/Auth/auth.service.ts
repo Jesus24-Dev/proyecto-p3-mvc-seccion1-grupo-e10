@@ -5,6 +5,11 @@ import { Prisma, roles } from "../../generated/prisma/client.js";
 import type { LoginBody, RegisterBody } from "./auth.schema.js";
 import type { AuthUser, LoginResponse } from "./auth.types.js";
 import type { AuthRepository } from "./auth.repository.js";
+import {
+  magicLinkEmail,
+  resetPasswordEmail,
+  sendEmail,
+} from "../../shared/mailer.js";
 
 export class AuthServiceError extends Error {
 	constructor(
@@ -139,6 +144,7 @@ export class AuthService {
 
 	async forgotPassword(
 		email: string,
+		baseUrl: string,
 	): Promise<{ reset_token: string | null }> {
 		const user = await this.authRepository.findUserByEmail(email);
 		// No revelamos si el correo existe; solo devolvemos enlace si aplica.
@@ -151,7 +157,50 @@ export class AuthService {
 			token,
 			new Date(Date.now() + 60 * 60 * 1000),
 		);
+		const link = `${baseUrl}/reset/${token}`;
+		const { subject, html } = resetPasswordEmail(link);
+		await sendEmail({ to: user.email, subject, html });
 		return { reset_token: token };
+	}
+
+	// Enlace mágico (passwordless). No revela si el correo existe.
+	async requestMagicLink(
+		email: string,
+		baseUrl: string,
+	): Promise<{ sent: true }> {
+		const user = await this.authRepository.findUserByEmail(email);
+		if (!user) {
+			return { sent: true };
+		}
+		const token = randomUUID();
+		await this.authRepository.setMagicToken(
+			email,
+			token,
+			new Date(Date.now() + 15 * 60 * 1000),
+		);
+		const link = `${baseUrl}/magic/${token}`;
+		const { subject, html } = magicLinkEmail(link);
+		await sendEmail({ to: user.email, subject, html });
+		return { sent: true };
+	}
+
+	async magicLogin(token: string): Promise<LoginResponse> {
+		const user = await this.authRepository.findByMagicToken(token);
+		if (!user) {
+			throw new AuthServiceError("El enlace ya no es válido.", 400);
+		}
+		if (user.magic_expires && user.magic_expires.getTime() < Date.now()) {
+			throw new AuthServiceError(
+				"El enlace expiró. Solicita uno nuevo.",
+				400,
+			);
+		}
+		await this.authRepository.consumeMagicToken(user.id);
+		return this.buildAuthResponse({
+			id: user.id,
+			email: user.email,
+			role: user.role,
+		});
 	}
 
 	async resetPassword(token: string, newPassword: string): Promise<void> {

@@ -96,4 +96,37 @@ export class AuthRepository {
             select: { id: true, email: true, reset_expires: true },
         });
     }
+
+    async setMagicToken(email: string, token: string, expires: Date) {
+        return prisma.users.update({
+            where: { email },
+            data: { magic_token: token, magic_expires: expires },
+            select: { id: true, email: true },
+        });
+    }
+
+    async findByMagicToken(token: string) {
+        return prisma.users.findUnique({
+            where: { magic_token: token },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                magic_expires: true,
+            },
+        });
+    }
+
+    async consumeMagicToken(id: string) {
+        // Un solo uso: limpia el token y marca el correo como verificado
+        // (recibir el enlace prueba la titularidad del correo).
+        await prisma.users.update({
+            where: { id },
+            data: {
+                magic_token: null,
+                magic_expires: null,
+                email_verified: true,
+            },
+        });
+    }
 }

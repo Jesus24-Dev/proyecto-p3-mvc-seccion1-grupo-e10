@@ -119,12 +119,56 @@ export class AuthController {
 		res: Response,
 	) => {
 		try {
-			const result = await this.authService.forgotPassword(req.body.email);
+			const result = await this.authService.forgotPassword(
+				req.body.email,
+				this.frontendBaseUrl(req),
+			);
 			return res.status(200).json(result);
 		} catch (error) {
 			return this.fail(res, error);
 		}
 	};
+
+	public requestMagicLink = async (
+		req: Request<{}, unknown, ForgotPasswordBody>,
+		res: Response,
+	) => {
+		try {
+			const result = await this.authService.requestMagicLink(
+				req.body.email,
+				this.frontendBaseUrl(req),
+			);
+			return res.status(200).json(result);
+		} catch (error) {
+			return this.fail(res, error);
+		}
+	};
+
+	public magicLogin = async (
+		req: Request<{}, unknown, { token: string }>,
+		res: Response,
+	) => {
+		try {
+			const result = await this.authService.magicLogin(req.body.token);
+			return res.status(200).json(result);
+		} catch (error) {
+			return this.fail(res, error);
+		}
+	};
+
+	// URL base del frontend para armar enlaces de correo. Prioriza
+	// FRONTEND_URL; si no, usa el Origin de la petición; si no, un valor local.
+	private frontendBaseUrl(req: Request): string {
+		const fromEnv = process.env.FRONTEND_URL?.trim();
+		if (fromEnv) {
+			return fromEnv.replace(/\/$/, "");
+		}
+		const origin = req.get("origin");
+		if (origin) {
+			return origin.replace(/\/$/, "");
+		}
+		return "http://localhost:5173";
+	}
 
 	public resetPassword = async (
 		req: Request<{}, unknown, ResetPasswordBody>,

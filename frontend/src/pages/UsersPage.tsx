@@ -10,6 +10,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { usersApi } from "@/api";
 import { UserAccessDialog } from "@/components/users/UserAccessDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -84,10 +85,6 @@ export function UsersPage() {
     link: string;
   } | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [notice, setNotice] = useState<{
-    text: string;
-    tone: "success" | "danger";
-  } | null>(null);
 
   const filteredUsers = useMemo(() => {
     const list = users ?? [];
@@ -139,6 +136,7 @@ export function UsersPage() {
         await usersApi.update(editingUser.id, {
           email: form.email,
           ...(form.password ? { password: form.password } : {}),
+          role: form.role,
         });
       } else {
         const created = await usersApi.create(form);
@@ -162,12 +160,11 @@ export function UsersPage() {
         link: `${window.location.origin}/verify/${verificationToken}`,
       });
     }
-    setNotice({
-      text: editingUser
+    toast.success(
+      editingUser
         ? "Usuario actualizado correctamente."
         : "Usuario creado. Envíale el enlace de verificación para que pueda iniciar sesión.",
-      tone: "success",
-    });
+    );
     void reload();
   }
 
@@ -178,11 +175,11 @@ export function UsersPage() {
 
     const failure = await runMutation(() => usersApi.remove(userToDelete.id));
     setUserToDelete(null);
-    setNotice(
-      failure
-        ? { text: failure, tone: "danger" }
-        : { text: "Usuario eliminado correctamente.", tone: "success" },
-    );
+    if (failure) {
+      toast.error(failure);
+    } else {
+      toast.success("Usuario eliminado correctamente.");
+    }
     void reload();
   }
 
@@ -198,14 +195,6 @@ export function UsersPage() {
         </Button>
       </PageHeader>
 
-      {notice && (
-        <Alert
-          variant={notice.tone === "danger" ? "destructive" : "default"}
-          className="mb-4"
-        >
-          <AlertDescription>{notice.text}</AlertDescription>
-        </Alert>
-      )}
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
@@ -399,7 +388,6 @@ export function UsersPage() {
                     role: value as UserRole,
                   }))
                 }
-                disabled={Boolean(editingUser)}
               >
                 <SelectTrigger id="user-role" className="w-full">
                   <SelectValue />
@@ -414,7 +402,8 @@ export function UsersPage() {
               </Select>
               {editingUser && (
                 <p className="text-xs text-muted-foreground">
-                  El rol no puede cambiarse después de crear la cuenta.
+                  Cambia el rol global de la cuenta. El acceso por subcuenta se
+                  gestiona en Agencias → Miembros.
                 </p>
               )}
             </div>

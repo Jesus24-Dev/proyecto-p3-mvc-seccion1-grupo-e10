@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Camera,
@@ -294,6 +295,11 @@ export function ConversationsPage() {
   );
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  // Filtro por contacto (item 7). Se puede fijar por URL (?contact=<id>).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [contactFilter, setContactFilter] = useState<string>(
+    () => searchParams.get("contact") ?? "all",
+  );
   /** Conversación activa: clave compuesta "contactId::canal". */
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   /** Conversaciones iniciadas por el usuario (además de las de canal por defecto). */
@@ -336,6 +342,17 @@ export function ConversationsPage() {
 
   const defaultChannelId = (contactId: string): ChannelId =>
     defaultChannelIdFor(contactIndexById.get(contactId) ?? 0);
+
+  // Deep-link desde Contactos (?contact=<id>): abre su conversación al cargar.
+  useEffect(() => {
+    if (contactFilter === "all") return;
+    const contact = contactById.get(contactFilter);
+    if (!contact) return;
+    const key = convoKey(contact.id, defaultChannelId(contact.id));
+    setSelectedKey(key);
+    setReadKeys((current) => new Set(current).add(key));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactFilter, contactById]);
 
   // Lista de conversaciones (contacto × canal): la de canal por defecto de
   // cada contacto + las que el usuario haya iniciado en otros canales.
@@ -411,7 +428,24 @@ export function ConversationsPage() {
   const filteredConversations = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return conversations.filter(({ contact, channel }) => {
+    // Al filtrar por un contacto, muestra TODOS sus canales (item 7),
+    // no solo su conversación por defecto.
+    let base = conversations;
+    if (contactFilter !== "all") {
+      const contact = contactById.get(contactFilter);
+      base = contact
+        ? (Object.keys(CHANNELS) as ChannelId[]).map((channel) => ({
+            key: convoKey(contact.id, channel),
+            contact,
+            channel,
+          }))
+        : [];
+    }
+
+    return base.filter(({ contact, channel }) => {
+      if (contactFilter !== "all" && contact.id !== contactFilter) {
+        return false;
+      }
       if (
         agencyFilterValue !== "all" &&
         agencyIdByUserId.get(contact.user_id) !== agencyFilterValue
@@ -425,6 +459,8 @@ export function ConversationsPage() {
     });
   }, [
     conversations,
+    contactFilter,
+    contactById,
     search,
     agencyFilterValue,
     agencyIdByUserId,
@@ -638,6 +674,47 @@ export function ConversationsPage() {
                         </SelectItem>
                       );
                     })}
+                  </SelectContent>
+                </Select>
+                <Select
+                  items={[
+                    { value: "all", label: "Todos los contactos" },
+                    ...contacts.map((contact) => ({
+                      value: contact.id,
+                      label: fullName(contact),
+                    })),
+                  ]}
+                  value={contactFilter}
+                  onValueChange={(value) => {
+                    const next = (value as string) ?? "all";
+                    setContactFilter(next);
+                    // Refleja el filtro en la URL (compartible / deep-link).
+                    setSearchParams(
+                      (params) => {
+                        if (next === "all") {
+                          params.delete("contact");
+                        } else {
+                          params.set("contact", next);
+                        }
+                        return params;
+                      },
+                      { replace: true },
+                    );
+                  }}
+                >
+                  <SelectTrigger
+                    className="w-full"
+                    aria-label="Filtrar por contacto"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los contactos</SelectItem>
+                    {contacts.map((contact) => (
+                      <SelectItem key={contact.id} value={contact.id}>
+                        {fullName(contact)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <div className="relative">

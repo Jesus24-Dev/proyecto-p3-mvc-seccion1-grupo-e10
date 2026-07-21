@@ -8,7 +8,9 @@ import {
   Trash2,
   Users2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { agenciesApi, usersApi } from "@/api";
+import { useActiveAgency } from "@/context/AgencyContext";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ActivePill } from "@/components/shared/pills";
@@ -94,6 +96,14 @@ export function AgenciesPage() {
     text: string;
     tone: "success" | "danger";
   } | null>(null);
+
+  const { activeAgencyId, setActiveAgencyId } = useActiveAgency();
+
+  // Cambia la subcuenta activa desde la tabla (acota los datos del panel).
+  function switchToAgency(agency: Agency) {
+    setActiveAgencyId(agency.id);
+    toast.success(`Subcuenta activa: ${agency.name}`);
+  }
 
   const userById = useMemo(
     () => new Map(users.map((user) => [user.id, user])),
@@ -327,7 +337,19 @@ export function AgenciesPage() {
                   return (
                     <TableRow key={agency.id}>
                       <TableCell className="pl-6 font-medium">
-                        {agency.name}
+                        <button
+                          type="button"
+                          onClick={() => switchToAgency(agency)}
+                          title="Cambiar a esta subcuenta"
+                          className="rounded-sm text-left underline-offset-4 outline-none hover:text-primary hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
+                          {agency.name}
+                        </button>
+                        {activeAgencyId === agency.id && (
+                          <span className="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary align-middle">
+                            Activa
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>{agency.location}</TableCell>
                       <TableCell className="hidden md:table-cell">

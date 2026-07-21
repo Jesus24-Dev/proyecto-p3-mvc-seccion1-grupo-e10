@@ -158,14 +158,16 @@ export function NotificationsPage() {
                 "inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                 isActive
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  : "border-border bg-card text-foreground hover:border-primary/40 hover:bg-muted/50",
               )}
             >
               {option.label}
               <span
                 className={cn(
-                  "rounded-full px-1.5 text-xs tabular-nums",
-                  isActive ? "bg-primary-foreground/20" : "bg-muted",
+                  "rounded-full px-1.5 text-xs font-semibold tabular-nums",
+                  isActive
+                    ? "bg-primary-foreground/25 text-primary-foreground"
+                    : "bg-muted text-foreground",
                 )}
               >
                 {counts[option.id]}

@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { ScrollText, Search } from "lucide-react";
+import { Download, ScrollText, Search } from "lucide-react";
+import { toast } from "sonner";
 import { auditApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { downloadCsv } from "@/lib/csv";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -87,12 +90,41 @@ export function AuditPage() {
     action: (log) => actionMeta(log.action).label.toLowerCase(),
   });
 
+  function exportLogs() {
+    if (sorted.length === 0) {
+      toast.error("No hay registros para exportar.");
+      return;
+    }
+    downloadCsv(
+      `auditoria-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { header: "Fecha", value: (log) => formatDateTime(log.created_at) },
+        { header: "Usuario", value: (log) => log.user_email },
+        { header: "Acción", value: (log) => actionMeta(log.action).label },
+        { header: "Entidad", value: (log) => log.entity },
+        { header: "ID entidad", value: (log) => log.entity_id ?? "" },
+        { header: "Detalle", value: (log) => log.detail },
+      ],
+      sorted,
+    );
+    toast.success(`${sorted.length} registro(s) exportado(s).`);
+  }
+
   return (
     <>
       <PageHeader
         title="Auditoría"
         description="Bitácora de acciones críticas del personal: quién hizo qué y cuándo."
-      />
+      >
+        <Button
+          variant="outline"
+          onClick={exportLogs}
+          disabled={isLoading || sorted.length === 0}
+        >
+          <Download data-icon="inline-start" aria-hidden="true" />
+          Exportar CSV
+        </Button>
+      </PageHeader>
 
       {error && (
         <Alert variant="destructive" className="mb-4">

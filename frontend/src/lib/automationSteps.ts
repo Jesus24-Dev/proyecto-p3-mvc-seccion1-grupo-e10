@@ -4,12 +4,16 @@ import {
   Clock,
   Eraser,
   GitBranch,
+  KanbanSquare,
   Mail,
   MessageCircle,
   MessagesSquare,
   NotebookPen,
+  PackageCheck,
   Split,
   Tag,
+  Truck,
+  UserPlus,
   UserCog,
   Webhook,
   Zap,
@@ -67,13 +71,25 @@ export type StepData = {
 };
 
 /** Colores disponibles para el icono del nodo (clases completas de Tailwind). */
+// Presets de color (chips claros; se ven bien sobre fondo oscuro y claro).
+// Las clases son literales para que Tailwind las detecte al compilar.
 export const NODE_COLORS = [
   { id: "slate", label: "Gris", chip: "bg-muted text-foreground", dot: "#64748b" },
-  { id: "red", label: "Rojo", chip: "bg-red-100 text-red-700", dot: "#dc2626" },
-  { id: "amber", label: "Ámbar", chip: "bg-amber-100 text-amber-700", dot: "#d97706" },
-  { id: "emerald", label: "Verde", chip: "bg-emerald-100 text-emerald-700", dot: "#059669" },
-  { id: "blue", label: "Azul", chip: "bg-blue-100 text-blue-700", dot: "#2563eb" },
-  { id: "violet", label: "Violeta", chip: "bg-violet-100 text-violet-700", dot: "#7c3aed" },
+  { id: "red", label: "Rojo", chip: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300", dot: "#dc2626" },
+  { id: "orange", label: "Naranja", chip: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300", dot: "#ea580c" },
+  { id: "amber", label: "Ámbar", chip: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300", dot: "#d97706" },
+  { id: "yellow", label: "Amarillo", chip: "bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300", dot: "#ca8a04" },
+  { id: "lime", label: "Lima", chip: "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-300", dot: "#65a30d" },
+  { id: "emerald", label: "Verde", chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300", dot: "#059669" },
+  { id: "teal", label: "Turquesa", chip: "bg-teal-100 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300", dot: "#0d9488" },
+  { id: "cyan", label: "Cian", chip: "bg-cyan-100 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300", dot: "#0891b2" },
+  { id: "sky", label: "Celeste", chip: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300", dot: "#0284c7" },
+  { id: "blue", label: "Azul", chip: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300", dot: "#2563eb" },
+  { id: "indigo", label: "Índigo", chip: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300", dot: "#4f46e5" },
+  { id: "violet", label: "Violeta", chip: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300", dot: "#7c3aed" },
+  { id: "fuchsia", label: "Fucsia", chip: "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-500/15 dark:text-fuchsia-300", dot: "#c026d3" },
+  { id: "pink", label: "Rosado", chip: "bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300", dot: "#db2777" },
+  { id: "rose", label: "Rosa", chip: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300", dot: "#e11d48" },
 ] as const;
 
 export function nodeChipClass(color: string | undefined): string {
@@ -241,11 +257,42 @@ export function branchesFor(data: StepData): StepBranch[] {
 }
 
 export const TRIGGER_OPTIONS = [
-  { value: "contact_created", label: "Contacto creado" },
-  { value: "tag_added", label: "Etiqueta agregada a un contacto" },
-  { value: "package_delivered", label: "Paquete entregado" },
-  { value: "order_completed", label: "Envío completado" },
-  { value: "webhook_received", label: "Webhook recibido" },
+  {
+    value: "contact_created",
+    label: "Contacto creado",
+    description: "Al registrar un nuevo contacto.",
+    icon: UserPlus,
+  },
+  {
+    value: "tag_added",
+    label: "Etiqueta agregada a un contacto",
+    description: "Cuando se aplica una etiqueta a un contacto.",
+    icon: Tag,
+  },
+  {
+    value: "package_delivered",
+    label: "Paquete entregado",
+    description: "Cuando un paquete llega a estado Entregado.",
+    icon: PackageCheck,
+  },
+  {
+    value: "package_stage_changed",
+    label: "Paquete cambió de etapa",
+    description: "Al mover un paquete a otra etapa logística.",
+    icon: KanbanSquare,
+  },
+  {
+    value: "order_completed",
+    label: "Envío completado",
+    description: "Cuando un envío se marca como completado.",
+    icon: Truck,
+  },
+  {
+    value: "webhook_received",
+    label: "Webhook recibido",
+    description: "Cuando llega una petición al webhook del flujo.",
+    icon: Webhook,
+  },
 ] as const;
 
 export const WAIT_UNITS = [

@@ -7,7 +7,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { contactsApi, paymentsApi } from "@/api";
+import { contactsApi, packagesApi, paymentsApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -54,7 +54,12 @@ import { useMutationHandler, usePageData } from "@/hooks/usePageData";
 import { ariaSort, SortButton, useSortable } from "@/hooks/useSortable";
 import { formatAmount, formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Payment, PaymentStatus } from "@/types";
+import type {
+  Payment,
+  PaymentKind,
+  PaymentMethod,
+  PaymentStatus,
+} from "@/types";
 
 const STATUS_META: Record<
   PaymentStatus,
@@ -75,11 +80,31 @@ const STATUS_FILTERS: { value: "ALL" | PaymentStatus; label: string }[] = [
   { value: "REJECTED", label: "Rechazados" },
 ];
 
+const METHOD_META: Record<PaymentMethod, string> = {
+  TRANSFER: "Transferencia",
+  MOBILE_PAYMENT: "Pago móvil",
+  CASH: "Efectivo",
+};
+
+const KIND_META: Record<PaymentKind, { label: string; className: string }> = {
+  PREPAID: {
+    label: "Envío pagado",
+    className: "bg-primary/10 text-primary",
+  },
+  COLLECT: {
+    label: "Cobro destino",
+    className: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+};
+
 const emptyForm = {
   reference: "",
   amount: "",
   paid_at: new Date().toISOString().slice(0, 10),
   contact_id: "",
+  package_id: "",
+  method: "TRANSFER" as PaymentMethod,
+  kind: "PREPAID" as PaymentKind,
   note: "",
 };
 
@@ -90,10 +115,11 @@ function contactName(payment: Payment): string {
 
 export function PaymentsPage() {
   const { data, isLoading, error, reload } = usePageData(() =>
-    Promise.all([paymentsApi.list(), contactsApi.list()]),
+    Promise.all([paymentsApi.list(), contactsApi.list(), packagesApi.list()]),
   );
   const payments = data?.[0] ?? [];
   const contacts = data?.[1] ?? [];
+  const packages = data?.[2] ?? [];
   const runMutation = useMutationHandler();
 
   const [search, setSearch] = useState("");
@@ -151,7 +177,8 @@ export function PaymentsPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!form.reference.trim()) {
+    // La referencia solo es obligatoria fuera del efectivo.
+    if (form.method !== "CASH" && !form.reference.trim()) {
       setFormError("Ingresa la referencia bancaria.");
       return;
     }
@@ -168,10 +195,13 @@ export function PaymentsPage() {
     setFormError(null);
     const failure = await runMutation(async () => {
       await paymentsApi.create({
-        reference: form.reference.trim(),
+        reference: form.reference.trim() || undefined,
         amount,
         paid_at: new Date(form.paid_at).toISOString(),
         contact_id: form.contact_id,
+        package_id: form.package_id || undefined,
+        method: form.method,
+        kind: form.kind,
         note: form.note.trim(),
       });
     });
@@ -389,11 +419,24 @@ export function PaymentsPage() {
                       <TableCell className="pl-6">
                         <span className="font-mono text-sm">{payment.reference}</span>
                         <span className="block text-xs text-muted-foreground">
-                          {payment.bank}
+                          {payment.bank} · {METHOD_META[payment.method]}
                         </span>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {contactName(payment)}
+                        <span className="block">{contactName(payment)}</span>
+                        <span className="mt-1 inline-flex items-center gap-1.5">
+                          <Badge className={cn("text-[11px]", KIND_META[payment.kind].className)}>
+                            {KIND_META[payment.kind].label}
+                          </Badge>
+                          {payment.package && (
+                            <span
+                              className="font-mono text-xs text-muted-foreground"
+                              title={payment.package.description}
+                            >
+                              {payment.package.tracking_code}
+                            </span>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell className="hidden tabular-nums md:table-cell">
                         {formatAmount(payment.amount)}
@@ -479,16 +522,114 @@ export function PaymentsPage() {
               </Alert>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="pay-reference">Referencia bancaria</Label>
-              <Input
-                id="pay-reference"
-                value={form.reference}
-                onChange={(event) =>
-                  setForm((c) => ({ ...c, reference: event.target.value }))
-                }
-                placeholder="p. ej. 01234567"
-                autoFocus
-              />
+              <Label>Concepto del pago</Label>
+              <div className="inline-flex w-full rounded-lg border bg-muted/40 p-0.5">
+                {(
+                  [
+                    { value: "PREPAID", label: "Envío pagado" },
+                    { value: "COLLECT", label: "Cobro destino" },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={form.kind === option.value}
+                    onClick={() =>
+                      setForm((c) => ({ ...c, kind: option.value }))
+                    }
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      form.kind === option.value
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {form.kind === "PREPAID"
+                  ? "El remitente paga el envío en origen."
+                  : "El destinatario paga al recibir el paquete."}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="pay-method">Medio de pago</Label>
+                <Select
+                  items={(
+                    Object.keys(METHOD_META) as PaymentMethod[]
+                  ).map((value) => ({ value, label: METHOD_META[value] }))}
+                  value={form.method}
+                  onValueChange={(value) =>
+                    setForm((c) => ({ ...c, method: value as PaymentMethod }))
+                  }
+                >
+                  <SelectTrigger id="pay-method" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(METHOD_META) as PaymentMethod[]).map((value) => (
+                      <SelectItem key={value} value={value}>
+                        {METHOD_META[value]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="pay-reference">
+                  {form.method === "CASH"
+                    ? "Referencia (opcional)"
+                    : "Referencia"}
+                </Label>
+                <Input
+                  id="pay-reference"
+                  value={form.reference}
+                  onChange={(event) =>
+                    setForm((c) => ({ ...c, reference: event.target.value }))
+                  }
+                  placeholder={
+                    form.method === "CASH" ? "Recibo / caja" : "p. ej. 01234567"
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pay-package">Paquete (opcional)</Label>
+              <Select
+                items={[
+                  { value: "none", label: "Sin paquete" },
+                  ...packages.map((pkg) => ({
+                    value: pkg.id,
+                    label: `${pkg.tracking_code} · ${pkg.description}`,
+                  })),
+                ]}
+                value={form.package_id || "none"}
+                onValueChange={(value) => {
+                  const packageId = value === "none" ? "" : (value ?? "");
+                  const pkg = packages.find((p) => p.id === packageId);
+                  setForm((c) => ({
+                    ...c,
+                    package_id: packageId,
+                    // Al elegir un paquete, hereda su contacto destinatario.
+                    contact_id: pkg ? pkg.contact_id : c.contact_id,
+                  }));
+                }}
+              >
+                <SelectTrigger id="pay-package" className="w-full">
+                  <SelectValue placeholder="Sin paquete" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin paquete</SelectItem>
+                  {packages.map((pkg) => (
+                    <SelectItem key={pkg.id} value={pkg.id}>
+                      {pkg.tracking_code} · {pkg.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="pay-contact">Cliente</Label>

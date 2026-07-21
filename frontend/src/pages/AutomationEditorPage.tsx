@@ -169,6 +169,8 @@ export function AutomationEditorPage() {
   const [name, setName] = useState("Nueva automatización");
   const [folder, setFolder] = useState(searchParams.get("folder") ?? "");
   const [folderOptions, setFolderOptions] = useState<string[]>([]);
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(!isNew);
   const [isSaving, setIsSaving] = useState(false);
@@ -1042,19 +1044,88 @@ export function AutomationEditorPage() {
           aria-label="Nombre de la automatización"
           className="h-9 max-w-xs font-medium"
         />
-        <Input
-          value={folder}
-          onChange={(event) => setFolder(event.target.value)}
-          list="automation-folders"
-          placeholder="Carpeta (escribe o elige)"
-          aria-label="Carpeta"
-          className="h-9 max-w-44"
-        />
-        <datalist id="automation-folders">
-          {folderOptions.map((option) => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
+        {/* Carpeta = grupo para organizar los flujos en la lista. */}
+        <Select
+          items={[
+            { value: "__none__", label: "Sin carpeta" },
+            ...[...new Set([...folderOptions, folder].filter(Boolean))].map(
+              (option) => ({ value: option, label: option }),
+            ),
+            { value: "__new__", label: "＋ Nueva carpeta…" },
+          ]}
+          value={folder || "__none__"}
+          onValueChange={(value) => {
+            if (value === "__new__") {
+              setNewFolderName("");
+              setNewFolderOpen(true);
+              return;
+            }
+            setFolder(value === "__none__" ? "" : (value as string));
+          }}
+        >
+          <SelectTrigger
+            aria-label="Carpeta para organizar el flujo"
+            title="Carpeta: agrupa este flujo con otros en la lista de automatizaciones"
+            className="h-9 w-44"
+          >
+            <SelectValue placeholder="Sin carpeta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Sin carpeta</SelectItem>
+            {[...new Set([...folderOptions, folder].filter(Boolean))].map(
+              (option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ),
+            )}
+            <SelectItem value="__new__">＋ Nueva carpeta…</SelectItem>
+          </SelectContent>
+        </Select>
+        <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Nueva carpeta</DialogTitle>
+              <DialogDescription>
+                Agrupa automatizaciones relacionadas para encontrarlas fácil.
+              </DialogDescription>
+            </DialogHeader>
+            <Input
+              autoFocus
+              value={newFolderName}
+              onChange={(event) => setNewFolderName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && newFolderName.trim()) {
+                  event.preventDefault();
+                  const name = newFolderName.trim();
+                  setFolderOptions((current) => [...new Set([...current, name])]);
+                  setFolder(name);
+                  setNewFolderOpen(false);
+                }
+              }}
+              placeholder="p. ej. Bienvenida, Postventa…"
+            />
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setNewFolderOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={!newFolderName.trim()}
+                onClick={() => {
+                  const name = newFolderName.trim();
+                  setFolderOptions((current) => [...new Set([...current, name])]);
+                  setFolder(name);
+                  setNewFolderOpen(false);
+                }}
+              >
+                Crear carpeta
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <label className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm text-muted-foreground select-none">
           <Switch
             checked={isActive}
@@ -1706,23 +1777,48 @@ function StepConfig({
 
       {data.kind === "trigger" && (
         <div className="grid gap-2">
-          <Label htmlFor="cfg-trigger">Evento</Label>
-          <Select
-            items={TRIGGER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            value={data.trigger ?? "contact_created"}
-            onValueChange={(value) => onChange({ trigger: value as string })}
-          >
-            <SelectTrigger id="cfg-trigger" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TRIGGER_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Evento</Label>
+          <p className="text-xs text-muted-foreground">
+            Elige un solo evento que inicia este flujo.
+          </p>
+          <div className="grid gap-2" role="radiogroup" aria-label="Evento disparador">
+            {TRIGGER_OPTIONS.map((option) => {
+              const selected = (data.trigger ?? "contact_created") === option.value;
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onChange({ trigger: option.value })}
+                  className={cn(
+                    "flex items-start gap-3 rounded-lg border p-3 text-left transition-colors",
+                    selected
+                      ? "border-primary bg-primary/5 ring-1 ring-primary/40"
+                      : "hover:border-primary/40 hover:bg-muted/50",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-md",
+                      selected
+                        ? "bg-primary/15 text-primary"
+                        : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    <Icon className="size-4" aria-hidden="true" />
+                  </span>
+                  <span className="grid gap-0.5">
+                    <span className="text-sm font-medium">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

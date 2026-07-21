@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarRange,
   Check,
+  ChevronDown,
   DollarSign,
   LayoutGrid,
   Package,
@@ -141,6 +142,94 @@ function StatTile({ icon: Icon, label, value, detail }: StatTileProps) {
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm text-muted-foreground">{label}</span>
           <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <span className="text-3xl font-medium tracking-tight tabular-nums">
+          {value}
+        </span>
+        <span className="text-xs text-muted-foreground">{detail}</span>
+      </CardContent>
+    </Card>
+  );
+}
+
+type AmountSource = { label: string; value: number };
+
+// KPI "Monto en envíos" con una flecha para desplegar las fuentes que lo
+// componen (por agencia o por estado), en un popover para no reflujar el grid.
+function AmountTile({
+  value,
+  detail,
+  sources,
+  sourcesLabel,
+}: {
+  value: string;
+  detail: string;
+  sources: AmountSource[];
+  sourcesLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const total = sources.reduce((sum, source) => sum + source.value, 0);
+
+  return (
+    <Card className="h-full justify-center gap-3 py-5">
+      <CardContent className="grid gap-1 px-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground">Monto en envíos</span>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger
+              className="-me-1 inline-flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+              aria-label="Ver las fuentes del monto"
+            >
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform",
+                  open && "rotate-180",
+                )}
+                aria-hidden="true"
+              />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72">
+              <div className="grid gap-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium">{sourcesLabel}</p>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {value}
+                  </span>
+                </div>
+                {sources.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aún no hay envíos que sumar.
+                  </p>
+                ) : (
+                  <ul className="grid gap-2.5">
+                    {sources.map((source) => (
+                      <li key={source.label} className="grid gap-1">
+                        <div className="flex items-baseline justify-between gap-2 text-xs">
+                          <span className="min-w-0 truncate text-muted-foreground">
+                            {source.label}
+                          </span>
+                          <span className="shrink-0 font-medium tabular-nums">
+                            {formatAmount(source.value)}
+                          </span>
+                        </div>
+                        <div
+                          className="h-1.5 overflow-hidden rounded-full bg-muted"
+                          role="presentation"
+                        >
+                          <div
+                            className="h-full rounded-full bg-primary"
+                            style={{
+                              width: `${total > 0 ? (source.value / total) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <span className="text-3xl font-medium tracking-tight tabular-nums">
           {value}
@@ -705,6 +794,34 @@ export function DashboardPage() {
     );
   }, [scopedOrders]);
 
+  // Fuentes que suman el "Monto en envíos": por agencia de origen en la vista
+  // agregada, o por estado del envío cuando hay una subcuenta activa.
+  const amountSources = useMemo(() => {
+    const sums = new Map<string, number>();
+    if (activeAgency) {
+      for (const order of scopedOrders) {
+        sums.set(order.status, (sums.get(order.status) ?? 0) + order.amount);
+      }
+      return ORDER_STATUSES.filter((status) => sums.has(status)).map(
+        (status) => ({
+          label: orderStatusLabel(status),
+          value: sums.get(status) ?? 0,
+        }),
+      );
+    }
+    const agencyName = new Map(agencies.map((a) => [a.id, a.name]));
+    for (const order of scopedOrders) {
+      const key = order.origin_agency_id;
+      sums.set(key, (sums.get(key) ?? 0) + order.amount);
+    }
+    return [...sums.entries()]
+      .map(([id, value]) => ({
+        label: agencyName.get(id) ?? "Sin agencia",
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [scopedOrders, agencies, activeAgency]);
+
   // Reparto de paquetes por estado físico, para la dona.
   const packageDonut = useMemo(() => {
     const tones: Record<string, string> = {
@@ -899,15 +1016,15 @@ export function DashboardPage() {
       id: "kpi-amount",
       title: "Monto en envíos",
       content: (
-        <StatTile
-          icon={DollarSign}
-          label="Monto en envíos"
+        <AmountTile
           value={formatAmount(stats.totalAmount)}
           detail={
             activeAgency
               ? "Suma de las órdenes de la agencia activa"
               : "Suma de todas las órdenes registradas"
           }
+          sources={amountSources}
+          sourcesLabel={activeAgency ? "Por estado del envío" : "Por agencia de origen"}
         />
       ),
     },

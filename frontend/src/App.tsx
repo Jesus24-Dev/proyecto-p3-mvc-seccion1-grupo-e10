@@ -12,6 +12,7 @@ import { ContactsPage } from "@/pages/ContactsPage";
 import { ContactDetailPage } from "@/pages/ContactDetailPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PackagesPage } from "@/pages/PackagesPage";
+import { PipelinePage } from "@/pages/PipelinePage";
 import { PaymentsPage } from "@/pages/PaymentsPage";
 import { AuditPage } from "@/pages/AuditPage";
 import { ReportsPage } from "@/pages/ReportsPage";
@@ -25,6 +26,7 @@ import { PackageTrackingPage } from "@/pages/PackageTrackingPage";
 import { PublicTrackingPage } from "@/pages/PublicTrackingPage";
 import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 import { PasswordResetPage } from "@/pages/PasswordResetPage";
+import { MagicLinkPage } from "@/pages/MagicLinkPage";
 import { ConversationsPage } from "@/pages/ConversationsPage";
 import { AutomationsPage } from "@/pages/AutomationsPage";
 
@@ -40,6 +42,10 @@ const AutomationEditorPage = lazy(() =>
     default: m.AutomationEditorPage,
   })),
 );
+// Diagrama ER: carga mermaid bajo demanda, fuera del bundle inicial.
+const DiagramPage = lazy(() =>
+  import("@/pages/DiagramPage").then((m) => ({ default: m.DiagramPage })),
+);
 
 function EditorFallback() {
   return (
@@ -50,10 +56,13 @@ function EditorFallback() {
   );
 }
 
+// Acceso al panel: administrador de agencia y administrador de sede.
+const STAFF_ROLES = new Set(["ADMIN", "SUPERADMIN", "DISTRIBUTOR"]);
+
 function RequireAdmin({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
 
-  if (session?.user.role !== "ADMIN") {
+  if (!session || !STAFF_ROLES.has(session.user.role)) {
     return <Navigate to="/" replace />;
   }
 
@@ -73,6 +82,7 @@ function App() {
       <Route path="/verify/:token" element={<VerifyEmailPage />} />
       <Route path="/forgot" element={<PasswordResetPage />} />
       <Route path="/reset/:token" element={<PasswordResetPage />} />
+      <Route path="/magic/:token" element={<MagicLinkPage />} />
       <Route
         path="/admin"
         element={
@@ -87,6 +97,7 @@ function App() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="orders/:orderId" element={<OrderDetailPage />} />
         <Route path="packages" element={<PackagesPage />} />
+        <Route path="pipeline" element={<PipelinePage />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route
           path="packages/:trackingCode"
@@ -104,6 +115,14 @@ function App() {
         <Route path="settings" element={<SettingsPage />} />
         <Route path="configuration" element={<ConfigurationPage />} />
         <Route path="roles" element={<RolesPage />} />
+        <Route
+          path="diagram"
+          element={
+            <Suspense fallback={<EditorFallback />}>
+              <DiagramPage />
+            </Suspense>
+          }
+        />
       </Route>
       {/* Editores a pantalla completa, sin el marco del panel. */}
       <Route

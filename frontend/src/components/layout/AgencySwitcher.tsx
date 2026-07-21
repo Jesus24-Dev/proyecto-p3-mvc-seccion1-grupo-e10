@@ -50,9 +50,11 @@ export function AgencySwitcher() {
     () => new Set(accessible.map((agency) => agency.id)),
     [accessible],
   );
-  // Acceso "de agencia": puede ver todas las subcuentas de la red.
-  const hasFullAccess =
-    agencies.length > 0 && accessible.length === agencies.length;
+  // Acceso "de agencia" por ROL: ADMIN/SUPERADMIN ven todas las subcuentas y
+  // pueden elegir "Todas las agencias". El administrador de sede (DISTRIBUTOR)
+  // queda acotado a sus agencias (el backend ya filtra los datos igualmente).
+  const role = session?.user.role;
+  const hasFullAccess = role === "ADMIN" || role === "SUPERADMIN";
 
   const activeAgency =
     agencies.find((agency) => agency.id === activeAgencyId) ?? null;

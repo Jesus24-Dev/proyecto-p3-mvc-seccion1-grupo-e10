@@ -10,9 +10,11 @@ import {
   LayoutDashboard,
   LogOut,
   Mail,
+  KanbanSquare,
   Menu,
   MessageCircle,
   Moon,
+  Network,
   FileBarChart2,
   Package,
   PanelLeft,
@@ -55,6 +57,7 @@ const navigationItems = [
   { to: "/admin", label: "Inicio", icon: LayoutDashboard, end: true, group: "General" },
   { to: "/admin/orders", label: "Envíos", icon: Package, group: "Operaciones" },
   { to: "/admin/packages", label: "Paquetes", icon: Boxes, group: "Operaciones" },
+  { to: "/admin/pipeline", label: "Pipeline", icon: KanbanSquare, group: "Operaciones" },
   { to: "/admin/payments", label: "Transacciones", icon: Banknote, group: "Operaciones" },
   { to: "/admin/contacts", label: "Contactos", icon: BookUser, group: "CRM" },
   { to: "/admin/conversations", label: "Conversaciones", icon: MessageCircle, group: "CRM" },
@@ -67,6 +70,7 @@ const navigationItems = [
   { to: "/admin/users", label: "Usuarios", icon: Users, group: "Administración" },
   { to: "/admin/agencies", label: "Agencias", icon: Building2, group: "Administración" },
   { to: "/admin/roles", label: "Roles y permisos", icon: ShieldCheck, group: "Administración" },
+  { to: "/admin/diagram", label: "Diagrama del modelo", icon: Network, group: "Administración" },
   { to: "/admin/configuration", label: "Configuración", icon: Cog, group: "Administración" },
 ];
 

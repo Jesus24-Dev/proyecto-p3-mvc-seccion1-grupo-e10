@@ -1,4 +1,4 @@
-export type UserRole = "USER" | "ADMIN" | "DISTRIBUTOR";
+export type UserRole = "USER" | "ADMIN" | "DISTRIBUTOR" | "SUPERADMIN";
 
 export interface User {
   id: string;
@@ -26,6 +26,8 @@ export interface UpdateUserPayload {
   email: string;
   /** Opcional: si se omite, la contraseña actual se mantiene. */
   password?: string;
+  /** Opcional: cambiar el rol global de la cuenta. */
+  role?: UserRole;
 }
 
 export interface AgencyTheme {
@@ -118,10 +120,27 @@ export interface UserInformation {
   birthday: string;
   created_at: string;
   tags: string[];
+  /** Fecha en que se envió a la papelera (soft-delete); null/ausente = activo. */
+  deleted_at?: string | null;
+  /** Agencia (subcuenta) dueña del contacto. Todo contacto pertenece a una. */
+  agency_id: string | null;
+  agency: { id: string; name: string } | null;
+}
+
+/** Contacto en la papelera + cuánto arrastra su eliminación definitiva. */
+export interface TrashedContact extends UserInformation {
+  deleted_at: string;
+  _count: { packages: number; transactions: number };
 }
 
 export interface CreateUserInformationPayload {
-  user_id: string;
+  // Opcional: vincular a una cuenta existente. Si se omite, el backend crea
+  // una cuenta de respaldo (contacto suelto).
+  user_id?: string;
+  // Opcional: correo del contacto (para la cuenta de respaldo).
+  email?: string;
+  // Agencia (subcuenta) dueña del contacto. Se envía la subcuenta activa.
+  agency_id?: string;
   first_name: string;
   last_name: string;
   document_id?: string;
@@ -132,7 +151,7 @@ export interface CreateUserInformationPayload {
 
 export type UpdateUserInformationPayload = Omit<
   CreateUserInformationPayload,
-  "user_id"
+  "user_id" | "email"
 >;
 
 export type PackageStatus =
@@ -150,9 +169,11 @@ export interface Package {
   weight_kg: number;
   dimensions: string;
   status: PackageStatus;
+  image_urls: string[];
   created_at: string;
   contact_id: string;
   order_id: string | null;
+  stage_id: string | null;
 }
 
 export interface CreatePackagePayload {
@@ -162,6 +183,29 @@ export interface CreatePackagePayload {
   contact_id: string;
   order_id?: string;
   status?: PackageStatus;
+  image_urls?: string[];
+}
+
+/** Etapa del pipeline (estado logístico personalizable). */
+export interface PipelineStage {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  is_active: boolean;
+  is_system: boolean;
+  status: PackageStatus | null;
+}
+
+export interface CreateStagePayload {
+  name: string;
+  color?: string;
+}
+
+export interface UpdateStagePayload {
+  name?: string;
+  color?: string;
+  is_active?: boolean;
 }
 
 /** Agencia (ubicación) resumida de un checkpoint. */
@@ -189,6 +233,7 @@ export interface TrackingResponse {
   description: string;
   weight_kg: number;
   status: PackageStatus;
+  image_urls: string[];
   created_at: string;
   contact_id: string;
   order_id: string | null;
@@ -250,6 +295,8 @@ export interface SystemConfig {
   support_email: string;
   bank_api_key: string;
   ml_api_key: string;
+  /** Tasa de cambio manual Bs/USD (bolívares por 1 USD). 0 = sin configurar. */
+  bs_rate: number;
   updated_at: string;
 }
 
@@ -303,6 +350,8 @@ export interface AuditLog {
 }
 
 export type PaymentStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type PaymentMethod = "TRANSFER" | "MOBILE_PAYMENT" | "CASH";
+export type PaymentKind = "PREPAID" | "COLLECT";
 
 export interface Payment {
   id: string;
@@ -310,23 +359,30 @@ export interface Payment {
   bank: string;
   amount: number;
   status: PaymentStatus;
+  method: PaymentMethod;
+  kind: PaymentKind;
   paid_at: string;
   validated_at: string | null;
   note: string;
   created_at: string;
   contact_id: string;
   order_id: string | null;
+  package_id: string | null;
   contact: { id: string; first_name: string; last_name: string } | null;
   order: { id: string; description: string } | null;
+  package: { id: string; tracking_code: string; description: string } | null;
 }
 
 export interface CreatePaymentPayload {
-  reference: string;
+  reference?: string;
   bank?: string;
   amount: number;
   paid_at: string;
   contact_id: string;
   order_id?: string;
+  package_id?: string;
+  method: PaymentMethod;
+  kind: PaymentKind;
   note?: string;
 }
 

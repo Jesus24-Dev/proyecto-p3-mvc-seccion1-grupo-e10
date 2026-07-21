@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiRequestError } from "../api";
 import { useAuth } from "../context/AuthContext";
+import { useActiveAgency } from "../context/AgencyContext";
 
 /**
  * Carga los datos de una página y centraliza el manejo de errores:
@@ -8,6 +9,9 @@ import { useAuth } from "../context/AuthContext";
  */
 export function usePageData<T>(loader: () => Promise<T>) {
   const { expireSession } = useAuth();
+  // La subcuenta activa viaja como cabecera en cada petición; al cambiarla hay
+  // que recargar para reflejar el nuevo alcance (vista agregada ↔ subcuenta).
+  const { activeAgencyId } = useActiveAgency();
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +45,8 @@ export function usePageData<T>(loader: () => Promise<T>) {
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+    // Recarga también cuando cambia la subcuenta activa.
+  }, [reload, activeAgencyId]);
 
   return { data, isLoading, error, reload };
 }

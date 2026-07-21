@@ -37,6 +37,9 @@ import type {
   Membership,
   Order,
   Package,
+  PipelineStage,
+  CreateStagePayload,
+  UpdateStagePayload,
   PublicTracking,
   SaveAutomationPayload,
   SaveSmartListPayload,
@@ -50,6 +53,7 @@ import type {
   UpdateUserPayload,
   User,
   UserInformation,
+  TrashedContact,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -163,6 +167,17 @@ async function request<T>(
     if (session?.token) {
       headers.set("Authorization", `Bearer ${session.token}`);
     }
+
+    // Subcuenta activa: el backend acota los datos a esta agencia (vista de
+    // subcuenta). Sin cabecera = vista agregada (todas las agencias permitidas).
+    if (typeof window !== "undefined") {
+      const activeAgency = window.localStorage.getItem(
+        "dr-logistics-active-agency",
+      );
+      if (activeAgency) {
+        headers.set("X-Active-Agency", activeAgency);
+      }
+    }
   }
 
   let response: Response;
@@ -240,6 +255,18 @@ export const authApi = {
     request<{ status: string }>(
       "/auth/reset-password",
       { method: "POST", body: JSON.stringify({ token, new_password: newPassword }) },
+      false,
+    ),
+  requestMagicLink: (email: string) =>
+    request<{ sent: boolean }>(
+      "/auth/magic-link",
+      { method: "POST", body: JSON.stringify({ email }) },
+      false,
+    ),
+  magicLogin: (token: string) =>
+    request<AuthSession>(
+      "/auth/magic-login",
+      { method: "POST", body: JSON.stringify({ token }) },
       false,
     ),
 };
@@ -327,10 +354,41 @@ export const packagesApi = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  moveStage: (id: string, stageId: string) =>
+    request<Package>(`/packages/${id}/stage`, {
+      method: "PUT",
+      body: JSON.stringify({ stage_id: stageId }),
+    }),
+  // Eliminar un movimiento del recorrido (solo superadmin).
+  deleteEvent: (id: string, eventId: string) =>
+    request<TrackingResponse>(`/packages/${id}/events/${eventId}`, {
+      method: "DELETE",
+    }),
   remove: (id: string) =>
     request<void>(`/packages/${id}`, {
       method: "DELETE",
     }),
+};
+
+export const pipelineStagesApi = {
+  list: () => request<PipelineStage[]>("/pipeline-stages"),
+  create: (payload: CreateStagePayload) =>
+    request<PipelineStage>("/pipeline-stages", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: string, payload: UpdateStagePayload) =>
+    request<PipelineStage>(`/pipeline-stages/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  reorder: (ids: string[]) =>
+    request<PipelineStage[]>("/pipeline-stages/reorder", {
+      method: "PUT",
+      body: JSON.stringify({ ids }),
+    }),
+  remove: (id: string) =>
+    request<void>(`/pipeline-stages/${id}`, { method: "DELETE" }),
 };
 
 // Rastreo público: sin token de administrador (includeAuth = false).
@@ -415,10 +473,18 @@ export const contactsApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  // Eliminación definitiva (solo superadmin): borra el contacto con sus
+  // paquetes, pagos y notas. Irreversible.
   remove: (userId: string) =>
     request<void>(`/info/${userId}`, {
       method: "DELETE",
     }),
+  // Papelera (solo superadmin).
+  listTrashed: () => request<TrashedContact[]>("/info/trash"),
+  trash: (userId: string) =>
+    request<void>(`/info/${userId}/trash`, { method: "POST" }),
+  restore: (userId: string) =>
+    request<void>(`/info/${userId}/restore`, { method: "POST" }),
   // Etiquetas del contacto (por su id de contacto, no user_id).
   addTag: (contactId: string, tag: string) =>
     request<{ tags: string[] }>(`/info/${contactId}/tags`, {

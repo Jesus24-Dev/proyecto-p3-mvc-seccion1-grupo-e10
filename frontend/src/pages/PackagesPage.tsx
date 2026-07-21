@@ -6,6 +6,7 @@ import {
   Copy,
   ImageIcon,
   Pencil,
+  Route,
   Plus,
   Search,
   Trash2,
@@ -64,20 +65,88 @@ const NO_ORDER = "none";
 type FormState = {
   description: string;
   weight_kg: string;
-  dimensions: string;
+  // Dimensiones en campos separados (cm). Se componen en la cadena "L × A × H cm".
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
   contact_id: string;
   order_id: string;
   status: PackageStatus;
+  image_urls: string[];
 };
 
 const emptyForm: FormState = {
   description: "",
   weight_kg: "",
-  dimensions: "",
+  length_cm: "",
+  width_cm: "",
+  height_cm: "",
   contact_id: "",
   order_id: NO_ORDER,
   status: "RECEIVED",
+  image_urls: [],
 };
+
+// Compone las dimensiones a partir de los tres campos (vacío si no hay ninguno).
+function composeDimensions(l: string, w: string, h: string): string {
+  const parts = [l, w, h].map((v) => v.trim());
+  if (parts.every((v) => !v)) return "";
+  return `${parts.map((v) => v || "?").join(" × ")} cm`;
+}
+
+// Extrae largo/ancho/alto de una cadena "30 × 20 × 15 cm" para editar.
+function parseDimensions(value: string): {
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
+} {
+  const nums = (value.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) =>
+    n.replace(",", "."),
+  );
+  return {
+    length_cm: nums[0] ?? "",
+    width_cm: nums[1] ?? "",
+    height_cm: nums[2] ?? "",
+  };
+}
+
+// Lee un archivo de imagen y lo reduce (máx 1600px, JPEG 0.8) antes de
+// convertirlo a data-URI, para no guardar fotos de varios MB en la base.
+const MAX_IMAGE_DIMENSION = 1600;
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(
+          1,
+          MAX_IMAGE_DIMENSION / Math.max(img.width, img.height),
+        );
+        // Si ya es pequeña, conserva el original tal cual.
+        if (scale >= 1) {
+          resolve(String(reader.result));
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(String(reader.result));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = () => reject(new Error("No se pudo procesar la imagen."));
+      img.src = String(reader.result);
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.readAsDataURL(file);
+  });
+}
 
 function TrackingCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -169,26 +238,20 @@ export function PackagesPage() {
   const [contactSaving, setContactSaving] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const [newContact, setNewContact] = useState({
-    user_id: "",
+    email: "",
     first_name: "",
     last_name: "",
     address: "",
     birthday: "",
   });
 
-  // Cuentas sin ficha de contacto (relación 1 a 1 con users_information).
-  const usersWithoutContact = useMemo(() => {
-    const withContact = new Set(contacts.map((contact) => contact.user_id));
-    return users.filter((user) => !withContact.has(user.id));
-  }, [contacts, users]);
-
   async function submitNewContact() {
-    if (
-      !newContact.user_id ||
-      !newContact.first_name.trim() ||
-      !newContact.last_name.trim()
-    ) {
-      setContactError("Elige una cuenta e ingresa nombre y apellido.");
+    if (!newContact.first_name.trim() || !newContact.last_name.trim()) {
+      setContactError("Ingresa al menos nombre y apellido.");
+      return;
+    }
+    if (!newContact.address.trim() || !newContact.birthday) {
+      setContactError("La dirección y la fecha de nacimiento son obligatorias.");
       return;
     }
     setContactSaving(true);
@@ -196,7 +259,7 @@ export function PackagesPage() {
     let createdId: string | null = null;
     const failure = await runMutation(async () => {
       const created = await contactsApi.create({
-        user_id: newContact.user_id,
+        email: newContact.email.trim() || undefined,
         first_name: newContact.first_name.trim(),
         last_name: newContact.last_name.trim(),
         address: newContact.address.trim(),
@@ -215,7 +278,7 @@ export function PackagesPage() {
     }
     setShowNewContact(false);
     setNewContact({
-      user_id: "",
+      email: "",
       first_name: "",
       last_name: "",
       address: "",
@@ -295,13 +358,38 @@ export function PackagesPage() {
     setForm({
       description: item.description,
       weight_kg: String(item.weight_kg),
-      dimensions: item.dimensions,
+      ...parseDimensions(item.dimensions),
       contact_id: item.contact_id,
       order_id: item.order_id ?? NO_ORDER,
       status: item.status,
+      image_urls: item.image_urls ?? [],
     });
     setFormError(null);
     setIsFormOpen(true);
+  }
+
+  async function addImages(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    try {
+      const urls = await Promise.all(
+        Array.from(files)
+          .filter((f) => f.type.startsWith("image/"))
+          .map(readAsDataUrl),
+      );
+      setForm((current) => ({
+        ...current,
+        image_urls: [...current.image_urls, ...urls],
+      }));
+    } catch {
+      setFormError("No se pudo cargar una de las imágenes.");
+    }
+  }
+
+  function removeImage(index: number) {
+    setForm((current) => ({
+      ...current,
+      image_urls: current.image_urls.filter((_, i) => i !== index),
+    }));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -312,10 +400,15 @@ export function PackagesPage() {
     const payload = {
       description: form.description,
       weight_kg: Number(form.weight_kg),
-      dimensions: form.dimensions.trim(),
+      dimensions: composeDimensions(
+        form.length_cm,
+        form.width_cm,
+        form.height_cm,
+      ),
       contact_id: form.contact_id,
       ...(form.order_id !== NO_ORDER ? { order_id: form.order_id } : {}),
       status: form.status,
+      image_urls: form.image_urls,
     };
 
     let createdTracking: string | null = null;
@@ -507,12 +600,27 @@ export function PackagesPage() {
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="pl-6">
-                        <span
-                          className="flex size-10 items-center justify-center rounded-md border bg-muted text-muted-foreground"
-                          aria-label="Sin foto del paquete"
-                        >
-                          <ImageIcon className="size-4" aria-hidden="true" />
-                        </span>
+                        {item.image_urls.length > 0 ? (
+                          <span className="relative block size-10 overflow-hidden rounded-md border">
+                            <img
+                              src={item.image_urls[0]}
+                              alt={`Foto de ${item.tracking_code}`}
+                              className="size-full object-cover"
+                            />
+                            {item.image_urls.length > 1 && (
+                              <span className="absolute right-0 bottom-0 rounded-tl bg-background/85 px-1 text-[10px] font-medium tabular-nums">
+                                {item.image_urls.length}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span
+                            className="flex size-10 items-center justify-center rounded-md border bg-muted text-muted-foreground"
+                            aria-label="Sin foto del paquete"
+                          >
+                            <ImageIcon className="size-4" aria-hidden="true" />
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <TrackingCode code={item.tracking_code} />
@@ -553,7 +661,22 @@ export function PackagesPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
+                            nativeButton={false}
+                            aria-label={`Ver recorrido de ${item.tracking_code}`}
+                            title="Ver recorrido"
+                            render={
+                              <Link
+                                to={`/admin/packages/${encodeURIComponent(item.tracking_code)}`}
+                              />
+                            }
+                          >
+                            <Route aria-hidden="true" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             aria-label={`Editar paquete ${item.tracking_code}`}
+                            title="Editar"
                             onClick={() => openEdit(item)}
                           >
                             <Pencil aria-hidden="true" />
@@ -607,18 +730,83 @@ export function PackagesPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="package-dimensions">Dimensiones</Label>
-              <Input
-                id="package-dimensions"
-                value={form.dimensions}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    dimensions: event.target.value,
-                  }))
-                }
-                placeholder="p. ej. 30 × 20 × 15 cm"
-              />
+              <Label>Dimensiones (cm)</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { key: "length_cm", label: "Largo" },
+                    { key: "width_cm", label: "Ancho" },
+                    { key: "height_cm", label: "Alto" },
+                  ] as const
+                ).map((field) => (
+                  <div key={field.key} className="grid gap-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      inputMode="decimal"
+                      aria-label={`${field.label} en centímetros`}
+                      value={form[field.key]}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          [field.key]: event.target.value,
+                        }))
+                      }
+                      placeholder={field.label}
+                    />
+                    <span className="text-center text-xs text-muted-foreground">
+                      {field.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="package-images">Fotos del paquete</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                {form.image_urls.map((url, index) => (
+                  <span
+                    key={index}
+                    className="group relative size-16 overflow-hidden rounded-md border"
+                  >
+                    <img
+                      src={url}
+                      alt={`Foto ${index + 1}`}
+                      className="size-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Quitar foto ${index + 1}`}
+                      onClick={() => removeImage(index)}
+                      className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+                <label
+                  htmlFor="package-images"
+                  className="flex size-16 cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                >
+                  <Plus className="size-4" aria-hidden="true" />
+                  <span className="text-[10px]">Añadir</span>
+                </label>
+                <input
+                  id="package-images"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => {
+                    void addImages(event.target.files);
+                    event.target.value = "";
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Evidencia del contenido o estado del paquete.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
@@ -716,36 +904,21 @@ export function PackagesPage() {
                     </Alert>
                   )}
                   <div className="grid gap-2">
-                    <Label htmlFor="new-contact-account">Cuenta</Label>
-                    <Select
-                      items={usersWithoutContact.map((user) => ({
-                        value: user.id,
-                        label: user.email,
-                      }))}
-                      value={newContact.user_id}
-                      onValueChange={(value) =>
+                    <Label htmlFor="new-contact-email">
+                      Correo electrónico (opcional)
+                    </Label>
+                    <Input
+                      id="new-contact-email"
+                      type="email"
+                      value={newContact.email}
+                      onChange={(event) =>
                         setNewContact((current) => ({
                           ...current,
-                          user_id: value as string,
+                          email: event.target.value,
                         }))
                       }
-                    >
-                      <SelectTrigger id="new-contact-account" className="w-full">
-                        <SelectValue placeholder="Elige una cuenta sin ficha" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {usersWithoutContact.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {usersWithoutContact.length === 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Todas las cuentas ya tienen ficha de contacto.
-                      </p>
-                    )}
+                      placeholder="contacto@correo.com"
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="grid gap-2">
@@ -809,7 +982,7 @@ export function PackagesPage() {
                     size="sm"
                     className="justify-self-start"
                     onClick={() => void submitNewContact()}
-                    disabled={contactSaving || usersWithoutContact.length === 0}
+                    disabled={contactSaving}
                   >
                     {contactSaving ? "Guardando…" : "Guardar contacto"}
                   </Button>

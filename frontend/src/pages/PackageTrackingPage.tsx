@@ -1,8 +1,21 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, Copy, MapPin, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { agenciesApi, packagesApi } from "@/api";
+import { useAuth } from "@/context/AuthContext";
+import { isSuperAdmin } from "@/lib/roles";
 import { PackageStatusPill } from "@/components/shared/pills";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { StatusStepper } from "@/components/tracking/StatusStepper";
 import { TrackingTimeline } from "@/components/tracking/TrackingTimeline";
 import { RouteMap } from "@/components/tracking/RouteMap";
@@ -40,6 +53,10 @@ import type { PackageStatus } from "@/types";
 export function PackageTrackingPage() {
   const { trackingCode } = useParams();
   const runMutation = useMutationHandler();
+  const { session } = useAuth();
+  const canDeleteEvents = isSuperAdmin(session?.user.role);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [confirmDelivered, setConfirmDelivered] = useState(false);
 
   const { data, isLoading, error, reload } = usePageData(() =>
     Promise.all([
@@ -88,8 +105,17 @@ export function PackageTrackingPage() {
     setDialogOpen(true);
   }
 
-  async function submitCheckpoint(event: FormEvent) {
+  function submitCheckpoint(event: FormEvent) {
     event.preventDefault();
+    // "Entregado" es terminal: confirmar antes de finalizar el paquete.
+    if (form.status === "DELIVERED") {
+      setConfirmDelivered(true);
+      return;
+    }
+    void runCheckpoint();
+  }
+
+  async function runCheckpoint() {
     if (!tracking) return;
     setSaving(true);
     setFormError(null);
@@ -105,7 +131,22 @@ export function PackageTrackingPage() {
       setFormError(failure);
       return;
     }
+    setConfirmDelivered(false);
     setDialogOpen(false);
+    await reload();
+  }
+
+  async function confirmDeleteEvent() {
+    if (!tracking || !eventToDelete) return;
+    const failure = await runMutation(async () => {
+      await packagesApi.deleteEvent(tracking.id, eventToDelete);
+    });
+    setEventToDelete(null);
+    if (failure) {
+      toast.error("No se pudo eliminar el movimiento", { description: failure });
+      return;
+    }
+    toast.success("Movimiento eliminado");
     await reload();
   }
 
@@ -202,6 +243,34 @@ export function PackageTrackingPage() {
         </CardContent>
       </Card>
 
+      {tracking.image_urls.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Fotos del paquete</CardTitle>
+            <CardDescription>
+              Evidencia registrada del contenido o estado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            {tracking.image_urls.map((url, index) => (
+              <a
+                key={index}
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className="block size-24 overflow-hidden rounded-lg border transition-opacity hover:opacity-90"
+              >
+                <img
+                  src={url}
+                  alt={`Foto ${index + 1} de ${tracking.tracking_code}`}
+                  className="size-full object-cover"
+                />
+              </a>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -211,7 +280,12 @@ export function PackageTrackingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TrackingTimeline events={tracking.events} />
+            <TrackingTimeline
+              events={tracking.events}
+              onDelete={
+                canDeleteEvents ? (id) => setEventToDelete(id) : undefined
+              }
+            />
           </CardContent>
         </Card>
 
@@ -330,6 +404,53 @@ export function PackageTrackingPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmación de estado terminal "Entregado". */}
+      <AlertDialog
+        open={confirmDelivered}
+        onOpenChange={(open) => !open && setConfirmDelivered(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Marcar como entregado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Entregado es el estado final del paquete: se dará por finalizado.
+              Asegúrate de que la entrega se completó antes de continuar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void runCheckpoint()}>
+              Sí, marcar entregado
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmación de borrado de un movimiento (solo superadmin). */}
+      <AlertDialog
+        open={Boolean(eventToDelete)}
+        onOpenChange={(open) => !open && setEventToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este movimiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se quitará del recorrido del paquete. Esta acción no se puede
+              deshacer y no cambia el estado actual del paquete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void confirmDeleteEvent()}
+            >
+              Eliminar movimiento
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

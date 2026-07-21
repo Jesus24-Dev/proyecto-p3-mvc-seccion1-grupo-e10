@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Check } from "lucide-react";
-import { agenciesApi, authApi, contactsApi, usersApi } from "@/api";
+import { agenciesApi, authApi, configApi, contactsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -41,9 +41,9 @@ export function SettingsPage() {
   const { setAgencyTheme } = useTheme();
   const runMutation = useMutationHandler();
   const { data, isLoading, error, reload } = usePageData(() =>
-    Promise.all([contactsApi.list(), agenciesApi.list()]),
+    Promise.all([contactsApi.list(), agenciesApi.list(), configApi.get()]),
   );
-  const [contacts, agencies] = data ?? [[], []];
+  const [contacts, agencies, config] = data ?? [[], [], null];
 
   const userId = session?.user.id ?? "";
   const myContact = useMemo(
@@ -160,6 +160,44 @@ export function SettingsPage() {
     }
     setPassword({ current: "", next: "", confirm: "" });
     setPasswordMsg({ text: "Contraseña actualizada.", tone: "success" });
+  }
+
+  // --- Tasa de cambio Bs/USD (configuración global) ---
+  const [rateDraft, setRateDraft] = useState("");
+  const [calcUsd, setCalcUsd] = useState("1");
+  const [rateMsg, setRateMsg] = useState<{
+    text: string;
+    tone: "success" | "danger";
+  } | null>(null);
+  const [rateSaving, setRateSaving] = useState(false);
+  const [rateLoaded, setRateLoaded] = useState(false);
+  if (!isLoading && config && !rateLoaded) {
+    setRateLoaded(true);
+    setRateDraft(config.bs_rate ? String(config.bs_rate) : "");
+  }
+
+  const rateValue = Number(rateDraft) || 0;
+  const calcResult = (Number(calcUsd) || 0) * rateValue;
+
+  async function saveRate(event: FormEvent) {
+    event.preventDefault();
+    const value = Number(rateDraft);
+    if (!Number.isFinite(value) || value < 0) {
+      setRateMsg({ text: "Ingresa una tasa válida (Bs por 1 USD).", tone: "danger" });
+      return;
+    }
+    setRateSaving(true);
+    setRateMsg(null);
+    const failure = await runMutation(async () => {
+      await configApi.update({ bs_rate: value });
+    });
+    setRateSaving(false);
+    setRateMsg(
+      failure
+        ? { text: failure, tone: "danger" }
+        : { text: "Tasa de cambio guardada.", tone: "success" },
+    );
+    void reload();
   }
 
   // --- Tema de la subcuenta ---
@@ -404,6 +442,86 @@ export function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Grupo: Moneda y tasa de cambio (global) */}
+      <div className="mt-8 mb-3">
+        <h2 className="text-lg font-medium">Moneda</h2>
+        <p className="text-sm text-muted-foreground">
+          Tasa de cambio Bs/USD que usa el panel para mostrar montos en
+          bolívares. Es una configuración global.
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          <form onSubmit={saveRate} className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-3">
+              {rateMsg && (
+                <Alert
+                  variant={rateMsg.tone === "danger" ? "destructive" : "default"}
+                >
+                  <AlertDescription>{rateMsg.text}</AlertDescription>
+                </Alert>
+              )}
+              <div className="grid gap-2">
+                <Label htmlFor="bs-rate">Tasa de cambio (Bs por 1 USD)</Label>
+                <Input
+                  id="bs-rate"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={rateDraft}
+                  onChange={(event) => setRateDraft(event.target.value)}
+                  placeholder="p. ej. 40.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {rateValue > 0
+                    ? `1 USD = ${new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(rateValue)} Bs`
+                    : "Sin tasa configurada: el panel mostrará solo USD."}
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="justify-self-start"
+                disabled={rateSaving}
+              >
+                {rateSaving ? "Guardando…" : "Guardar tasa"}
+              </Button>
+            </div>
+
+            {/* Calculadora de conversión en vivo. */}
+            <div className="grid content-start gap-2 rounded-xl border bg-muted/30 p-4">
+              <Label htmlFor="calc-usd" className="text-muted-foreground">
+                Calculadora rápida
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="calc-usd"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={calcUsd}
+                  onChange={(event) => setCalcUsd(event.target.value)}
+                  className="max-w-32"
+                />
+                <span className="text-sm font-medium text-muted-foreground">
+                  USD
+                </span>
+              </div>
+              <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+                {rateValue > 0
+                  ? `${new Intl.NumberFormat("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(calcResult)} Bs`
+                  : "— Bs"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Precio del envío en bolívares según la tasa actual.
+              </p>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Grupo: Apariencia de la subcuenta */}
       <div className="mt-8 mb-3">

@@ -15,7 +15,7 @@ import {
   Plus,
   Users,
 } from "lucide-react";
-import { agenciesApi, ordersApi, packagesApi, paymentsApi, usersApi } from "@/api";
+import { agenciesApi, configApi, ordersApi, packagesApi, paymentsApi, usersApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { OrderStatusPill } from "@/components/shared/pills";
 import {
@@ -373,27 +373,38 @@ function TrendLineChart({
   labels,
   values,
   formatTitleValue,
+  formatAxis,
 }: {
   labels: string[];
   values: number[];
   formatTitleValue: (value: number) => string;
+  // Formato compacto para las etiquetas del eje Y (p. ej. "1,2 k").
+  formatAxis?: (value: number) => string;
 }) {
   const width = 460;
-  const height = 200;
-  const padX = 32;
-  const padY = 24;
+  const height = 210;
+  const padL = 56;
+  const padR = 16;
+  const padTop = 16;
+  const padBottom = 28;
   const max = Math.max(...values, 1);
-  const stepX =
-    values.length > 1 ? (width - padX * 2) / (values.length - 1) : 0;
+  const innerW = width - padL - padR;
+  const innerH = height - padTop - padBottom;
+  const stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
+  const yOf = (value: number) => padTop + innerH - (value / max) * innerH;
+  const axisFmt = formatAxis ?? formatTitleValue;
 
   const points = values.map((value, index) => ({
-    x: padX + index * stepX,
-    y: height - padY - (value / max) * (height - padY * 2),
+    x: padL + index * stepX,
+    y: yOf(value),
   }));
   const line = points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
     .join(" ");
-  const area = `${line} L ${points[points.length - 1].x} ${height - padY} L ${points[0].x} ${height - padY} Z`;
+  const area = `${line} L ${points[points.length - 1].x} ${padTop + innerH} L ${points[0].x} ${padTop + innerH} Z`;
+
+  // Marcas del eje Y: 0, ¼, ½, ¾ y máximo.
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => max * f);
 
   return (
     <svg
@@ -402,14 +413,31 @@ function TrendLineChart({
       role="img"
       aria-label="Tendencia de ingresos por mes"
     >
-      <line
-        x1={padX}
-        y1={height - padY}
-        x2={width - padX}
-        y2={height - padY}
-        className="stroke-border"
-        strokeWidth={1}
-      />
+      {/* Rejilla horizontal + etiquetas de valor del eje Y. */}
+      {ticks.map((tick, index) => {
+        const y = yOf(tick);
+        return (
+          <g key={`t-${index}`}>
+            <line
+              x1={padL}
+              y1={y}
+              x2={width - padR}
+              y2={y}
+              className={index === 0 ? "stroke-border" : "stroke-border/50"}
+              strokeWidth={1}
+              strokeDasharray={index === 0 ? undefined : "3 4"}
+            />
+            <text
+              x={padL - 8}
+              y={y + 3}
+              textAnchor="end"
+              className="fill-muted-foreground text-[10px] tabular-nums"
+            >
+              {axisFmt(tick)}
+            </text>
+          </g>
+        );
+      })}
       <path d={area} fill={CHART_NAVY} opacity={0.12} />
       <path
         d={line}
@@ -430,7 +458,7 @@ function TrendLineChart({
         <text
           key={`l-${index}`}
           x={point.x}
-          y={height - padY + 16}
+          y={padTop + innerH + 18}
           textAnchor="middle"
           className="fill-muted-foreground text-xs"
         >
@@ -503,15 +531,20 @@ export function DashboardPage() {
       ordersApi.list(),
       packagesApi.list(),
       paymentsApi.list(),
+      configApi.get(),
     ]),
   );
-  const [users, agencies, orders, packages, payments] = data ?? [
+  const [users, agencies, orders, packages, payments, config] = data ?? [
     [],
     [],
     [],
     [],
     [],
+    null,
   ];
+  // Tasa Bs/USD para el conmutador de moneda del gráfico de ingresos.
+  const bsRate = config?.bs_rate ?? 0;
+  const [revenueCurrency, setRevenueCurrency] = useState<"USD" | "BS">("USD");
 
   const agencyById = useMemo(
     () => new Map(agencies.map((agency) => [agency.id, agency])),
@@ -905,42 +938,86 @@ export function DashboardPage() {
     {
       id: "revenue",
       title: "Ingresos por mes",
-      content: (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ingresos por mes</CardTitle>
-            <CardDescription>
-              Montos (USD) de órdenes por mes de recepción · {rangeLabel.toLowerCase()}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {hasRevenue ? (
-              <TrendLineChart
-                labels={monthBuckets.map((bucket) => bucket.label)}
-                values={monthlyRevenue}
-                formatTitleValue={formatAmount}
-              />
-            ) : (
-              <ChartEmptyMessage>
-                Sin ingresos registrados en los últimos 6 meses.
-              </ChartEmptyMessage>
-            )}
-          </CardContent>
-        </Card>
-      ),
+      content: (() => {
+        const useBs = revenueCurrency === "BS" && bsRate > 0;
+        const factor = useBs ? bsRate : 1;
+        const chartValues = monthlyRevenue.map((value) => value * factor);
+        const fmtFull = (value: number) =>
+          useBs
+            ? `${new Intl.NumberFormat("es-VE", { maximumFractionDigits: 0 }).format(value)} Bs`
+            : formatAmount(value);
+        const fmtAxis = (value: number) =>
+          new Intl.NumberFormat("es-VE", {
+            notation: "compact",
+            maximumFractionDigits: 1,
+          }).format(value);
+        return (
+          <Card>
+            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+              <div className="grid gap-1.5">
+                <CardTitle>Ingresos por mes</CardTitle>
+                <CardDescription>
+                  Montos en {useBs ? "bolívares" : "USD"} de órdenes por mes de
+                  recepción · {rangeLabel.toLowerCase()}.
+                </CardDescription>
+              </div>
+              {/* Conmutador de moneda (solo si hay tasa configurada). */}
+              <div className="inline-flex shrink-0 rounded-lg border bg-muted/40 p-0.5">
+                {(["USD", "BS"] as const).map((currency) => (
+                  <button
+                    key={currency}
+                    type="button"
+                    aria-pressed={revenueCurrency === currency}
+                    disabled={currency === "BS" && bsRate <= 0}
+                    title={
+                      currency === "BS" && bsRate <= 0
+                        ? "Configura la tasa Bs/USD en Configuración"
+                        : undefined
+                    }
+                    onClick={() => setRevenueCurrency(currency)}
+                    className={cn(
+                      "rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40",
+                      revenueCurrency === currency
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {currency === "USD" ? "USD" : "Bs"}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {hasRevenue ? (
+                <TrendLineChart
+                  labels={monthBuckets.map((bucket) => bucket.label)}
+                  values={chartValues}
+                  formatTitleValue={fmtFull}
+                  formatAxis={fmtAxis}
+                />
+              ) : (
+                <ChartEmptyMessage>
+                  Sin ingresos registrados en los últimos 6 meses.
+                </ChartEmptyMessage>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })(),
     },
     {
       id: "packages-donut",
       title: "Paquetes por estado",
       content: (
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <CardTitle>Paquetes por estado</CardTitle>
             <CardDescription>
               Reparto del ciclo físico de los paquetes.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          {/* Centra el donut en el espacio disponible (evita el hueco inferior). */}
+          <CardContent className="flex flex-1 items-center justify-center">
             {packageDonut.length > 0 ? (
               <DonutChart slices={packageDonut} />
             ) : (

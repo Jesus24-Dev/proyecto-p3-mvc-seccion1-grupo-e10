@@ -1,5 +1,6 @@
-import { MapPin } from "lucide-react";
+import { MapPin, Trash2 } from "lucide-react";
 import { PackageStatusPill } from "@/components/shared/pills";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PackageEvent } from "@/types";
 
@@ -17,7 +18,14 @@ function formatDateTime(iso: string): string {
  * Línea de tiempo vertical del recorrido: cada movimiento con su estado,
  * ubicación (agencia), fecha y nota. El último evento es la ubicación actual.
  */
-export function TrackingTimeline({ events }: { events: PackageEvent[] }) {
+export function TrackingTimeline({
+  events,
+  onDelete,
+}: {
+  events: PackageEvent[];
+  /** Si se pasa, muestra un botón para eliminar cada movimiento (superadmin). */
+  onDelete?: (eventId: string) => void;
+}) {
   if (events.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -62,6 +70,18 @@ export function TrackingTimeline({ events }: { events: PackageEvent[] }) {
                   <span className="text-xs font-medium text-primary">
                     Ubicación actual
                   </span>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="ml-auto text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    aria-label="Eliminar este movimiento"
+                    title="Eliminar movimiento"
+                    onClick={() => onDelete(event.id)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                  </Button>
                 )}
               </div>
               {event.agency && (

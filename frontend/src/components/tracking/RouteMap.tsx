@@ -1,154 +1,124 @@
-import { cn } from "@/lib/utils";
+import { useEffect, useMemo } from "react";
+import {
+  CircleMarker,
+  MapContainer,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
+import type { LatLngExpression } from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { PackageEvent } from "@/types";
 
-// Caja geográfica (aprox. Venezuela) usada para proyectar lat/long al lienzo.
-const LON_MIN = -73.5;
-const LON_MAX = -59.5;
-const LAT_MIN = 0.5;
-const LAT_MAX = 12.6;
-
-// Lienzo SVG con la misma proporción que la caja (14° lon × 12.1° lat).
-const W = 280;
-const H = 242;
-
-function project(lon: number, lat: number): { x: number; y: number } {
-  const x = ((lon - LON_MIN) / (LON_MAX - LON_MIN)) * W;
-  const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * H;
-  return { x, y };
-}
-
-// Contorno aproximado de Venezuela (lon, lat), trazado a grandes rasgos.
-const VENEZUELA_BORDER: Array<[number, number]> = [
-  [-71.3, 12.2],
-  [-70.2, 11.6],
-  [-68.3, 11.2],
-  [-67.0, 10.6],
-  [-64.5, 10.6],
-  [-61.9, 10.7],
-  [-60.0, 9.8],
-  [-60.0, 8.5],
-  [-61.4, 5.9],
-  [-61.0, 4.5],
-  [-63.4, 3.9],
-  [-64.5, 1.5],
-  [-66.3, 0.7],
-  [-67.8, 1.3],
-  [-67.4, 6.2],
-  [-70.7, 7.0],
-  [-72.5, 9.0],
-  [-72.9, 11.0],
-];
+// Acento de marca para la ruta y los marcadores (independiente del tema).
+const ROUTE_COLOR = "#7c5cff";
 
 type MapPoint = {
   id: string;
   name: string;
-  x: number;
-  y: number;
+  position: [number, number];
 };
 
+// Ajusta el encuadre a los puntos del recorrido cuando cambian.
+function FitToPoints({ points }: { points: MapPoint[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 1) {
+      map.setView(points[0].position, 11);
+    } else if (points.length > 1) {
+      map.fitBounds(
+        points.map((p) => p.position),
+        { padding: [48, 48] },
+      );
+    }
+    // Recalcula el tamaño por si el contenedor cambió (p. ej. al montar).
+    map.invalidateSize();
+  }, [map, points]);
+  return null;
+}
+
 /**
- * Mapa esquemático (SVG, sin librerías ni tiles externos) del recorrido:
- * silueta de Venezuela + marcadores de cada agencia visitada, unidos por la
- * ruta; el último punto (ubicación actual) se resalta. Se oculta si ningún
- * evento tiene coordenadas.
+ * Mapa real (Leaflet + OpenStreetMap) del recorrido: un marcador por agencia
+ * visitada, unidos por la ruta; el último punto (ubicación actual) se resalta.
+ * Se oculta si ningún evento tiene coordenadas.
  */
 export function RouteMap({ events }: { events: PackageEvent[] }) {
   // Puntos ordenados con coordenadas, colapsando agencias consecutivas iguales.
-  const points: MapPoint[] = [];
-  for (const event of events) {
-    const agency = event.agency;
-    if (
-      !agency ||
-      agency.latitude == null ||
-      agency.longitude == null
-    ) {
-      continue;
+  const points = useMemo<MapPoint[]>(() => {
+    const result: MapPoint[] = [];
+    for (const event of events) {
+      const agency = event.agency;
+      if (!agency || agency.latitude == null || agency.longitude == null) {
+        continue;
+      }
+      const previous = result[result.length - 1];
+      if (previous && previous.id === agency.id) {
+        continue;
+      }
+      result.push({
+        id: agency.id,
+        name: agency.name,
+        position: [agency.latitude, agency.longitude],
+      });
     }
-    const previous = points[points.length - 1];
-    if (previous && previous.id === agency.id) {
-      continue;
-    }
-    const { x, y } = project(agency.longitude, agency.latitude);
-    points.push({ id: agency.id, name: agency.name, x, y });
-  }
+    return result;
+  }, [events]);
 
   if (points.length === 0) {
     return null;
   }
 
-  const borderPath =
-    VENEZUELA_BORDER.map(([lon, lat], index) => {
-      const { x, y } = project(lon, lat);
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    }).join(" ") + " Z";
-
-  const routePath = points
-    .map((p, index) => `${index === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
-    .join(" ");
-
+  const line: LatLngExpression[] = points.map((p) => p.position);
   const lastIndex = points.length - 1;
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="h-auto w-full"
-      role="img"
-      aria-label="Mapa del recorrido del paquete"
-    >
-      {/* Silueta del país. */}
-      <path
-        d={borderPath}
-        className="fill-muted stroke-border"
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-      />
-
-      {/* Ruta entre agencias visitadas. */}
-      {points.length > 1 && (
-        <path
-          d={routePath}
-          className="stroke-primary"
-          fill="none"
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="1 6"
+    <div className="relative z-0 h-72 overflow-hidden rounded-lg border dark:[&_.leaflet-tile-pane]:[filter:invert(1)_hue-rotate(180deg)_brightness(0.95)_contrast(0.9)]">
+      <MapContainer
+        center={points[0].position}
+        zoom={9}
+        scrollWheelZoom={false}
+        className="size-full"
+        aria-label="Mapa del recorrido del paquete"
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-      )}
-
-      {/* Marcadores. */}
-      {points.map((point, index) => {
-        const isCurrent = index === lastIndex;
-        return (
-          <g key={`${point.id}-${index}`}>
-            {isCurrent && (
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r={9}
-                className="fill-primary/20"
-              />
-            )}
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={isCurrent ? 5 : 4}
-              className={cn(
-                isCurrent ? "fill-primary" : "fill-background stroke-primary",
-              )}
-              strokeWidth={2}
-            />
-            <text
-              x={point.x}
-              y={point.y - 9}
-              textAnchor="middle"
-              className="fill-foreground text-[10px] font-medium"
+        {points.length > 1 && (
+          <Polyline
+            positions={line}
+            pathOptions={{
+              color: ROUTE_COLOR,
+              weight: 3,
+              opacity: 0.9,
+              dashArray: "6 8",
+            }}
+          />
+        )}
+        {points.map((point, index) => {
+          const isCurrent = index === lastIndex;
+          return (
+            <CircleMarker
+              key={`${point.id}-${index}`}
+              center={point.position}
+              radius={isCurrent ? 9 : 6}
+              pathOptions={{
+                color: ROUTE_COLOR,
+                weight: 2,
+                fillColor: isCurrent ? ROUTE_COLOR : "#ffffff",
+                fillOpacity: 1,
+              }}
             >
-              {point.name}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+              <Tooltip direction="top" offset={[0, -8]} permanent>
+                {point.name}
+                {isCurrent ? " · actual" : ""}
+              </Tooltip>
+            </CircleMarker>
+          );
+        })}
+        <FitToPoints points={points} />
+      </MapContainer>
+    </div>
   );
 }

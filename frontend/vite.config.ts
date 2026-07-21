@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => {
           target: backendTarget,
           changeOrigin: true,
         },
+        "/pipeline-stages": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
         "/memberships": {
           target: backendTarget,
           changeOrigin: true,
@@ -94,6 +98,10 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         "/roles": {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        "/smart-lists": {
           target: backendTarget,
           changeOrigin: true,
         },

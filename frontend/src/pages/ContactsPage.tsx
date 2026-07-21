@@ -1,19 +1,31 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
+  Archive,
   BookUser,
+  IdCard,
   ListFilter,
+  MessageCircle,
   Pencil,
   Plus,
   Save,
   Search,
   Tag,
   Trash2,
+  Undo2,
   X,
 } from "lucide-react";
-import { contactsApi, smartListsApi, tagsApi, usersApi } from "@/api";
+import { agenciesApi, contactsApi, smartListsApi, tagsApi, usersApi } from "@/api";
 import { toast } from "sonner";
-import type { SmartList, SmartListCondition, UserInformation } from "@/types";
+import type {
+  SmartList,
+  SmartListCondition,
+  TrashedContact,
+  UserInformation,
+} from "@/types";
+import { useAuth } from "@/context/AuthContext";
+import { useActiveAgency } from "@/context/AgencyContext";
+import { isSuperAdmin } from "@/lib/roles";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,7 +80,8 @@ import { nodeChipClass } from "@/lib/automationSteps";
 import { cn } from "@/lib/utils";
 
 type FormState = {
-  user_id: string;
+  email: string;
+  agency_id: string;
   first_name: string;
   last_name: string;
   document_id: string;
@@ -78,7 +91,8 @@ type FormState = {
 };
 
 const emptyForm: FormState = {
-  user_id: "",
+  email: "",
+  agency_id: "",
   first_name: "",
   last_name: "",
   document_id: "",
@@ -144,13 +158,21 @@ export function ContactsPage() {
       usersApi.list(),
       tagsApi.list(),
       smartListsApi.list(),
+      agenciesApi.list(),
     ]),
   );
   const contacts = data?.[0] ?? [];
   const users = data?.[1] ?? [];
   const tagCatalog = data?.[2] ?? [];
   const smartLists = data?.[3] ?? [];
+  const agencies = data?.[4] ?? [];
   const runMutation = useMutationHandler();
+  const { session } = useAuth();
+  const { activeAgencyId } = useActiveAgency();
+  const activeAgency = agencies.find((a) => a.id === activeAgencyId) ?? null;
+  // Solo el superadministrador puede enviar a la papelera, restaurar o eliminar
+  // contactos definitivamente (con sus paquetes y pagos).
+  const canManageTrash = isSuperAdmin(session?.user.role);
 
   // Filtro rápido por etiqueta ("all" = todas) y color por etiqueta.
   const [tagFilter, setTagFilter] = useState("all");
@@ -222,23 +244,41 @@ export function ContactsPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [contactToDelete, setContactToDelete] =
+  // Contacto por enviar a la papelera (confirm) y por eliminar definitivamente.
+  const [contactToTrash, setContactToTrash] =
     useState<UserInformation | null>(null);
+  const [contactToPurge, setContactToPurge] =
+    useState<TrashedContact | null>(null);
   const [notice, setNotice] = useState<{
     text: string;
     tone: "success" | "danger";
   } | null>(null);
 
+  // Papelera de contactos (solo superadmin).
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashed, setTrashed] = useState<TrashedContact[]>([]);
+  const [trashLoading, setTrashLoading] = useState(false);
+
+  async function loadTrashed() {
+    setTrashLoading(true);
+    const failure = await runMutation(async () => {
+      setTrashed(await contactsApi.listTrashed());
+    });
+    setTrashLoading(false);
+    if (failure) {
+      toast.error("No se pudo cargar la papelera", { description: failure });
+    }
+  }
+
+  function openTrash() {
+    setTrashOpen(true);
+    void loadTrashed();
+  }
+
   const userById = useMemo(
     () => new Map(users.map((user) => [user.id, user])),
     [users],
   );
-
-  /** Solo los usuarios que aún no tienen ficha de contacto (relación 1 a 1). */
-  const usersWithoutContact = useMemo(() => {
-    const withContact = new Set(contacts.map((contact) => contact.user_id));
-    return users.filter((user) => !withContact.has(user.id));
-  }, [contacts, users]);
 
   const filteredContacts = useMemo(() => {
     // 1) Filtra por lista inteligente y por etiqueta rápida.
@@ -291,7 +331,8 @@ export function ContactsPage() {
 
   function openCreate() {
     setEditingContact(null);
-    setForm({ ...emptyForm, user_id: usersWithoutContact[0]?.id ?? "" });
+    // Precarga la subcuenta activa; si estamos en vista agregada, se pide elegir.
+    setForm({ ...emptyForm, agency_id: activeAgencyId ?? "" });
     setFormError(null);
     setIsFormOpen(true);
   }
@@ -299,7 +340,8 @@ export function ContactsPage() {
   function openEdit(contact: UserInformation) {
     setEditingContact(contact);
     setForm({
-      user_id: contact.user_id,
+      email: userById.get(contact.user_id)?.email ?? "",
+      agency_id: contact.agency_id ?? "",
       first_name: contact.first_name,
       last_name: contact.last_name,
       document_id: contact.document_id,
@@ -316,6 +358,14 @@ export function ContactsPage() {
     setIsSaving(true);
     setFormError(null);
 
+    // Todo contacto pertenece a una agencia. Al crear desde la vista agregada
+    // (sin subcuenta activa) hay que elegir una.
+    if (!editingContact && !form.agency_id) {
+      setIsSaving(false);
+      setFormError("Selecciona la agencia a la que pertenece el contacto.");
+      return;
+    }
+
     const failure = await runMutation(async () => {
       if (editingContact) {
         await contactsApi.update(editingContact.user_id, {
@@ -327,7 +377,16 @@ export function ContactsPage() {
           birthday: form.birthday,
         });
       } else {
-        await contactsApi.create(form);
+        await contactsApi.create({
+          email: form.email.trim() || undefined,
+          agency_id: form.agency_id,
+          first_name: form.first_name,
+          last_name: form.last_name,
+          document_id: form.document_id,
+          phone: form.phone,
+          address: form.address,
+          birthday: form.birthday,
+        });
       }
     });
 
@@ -348,20 +407,56 @@ export function ContactsPage() {
     void reload();
   }
 
-  async function handleDelete() {
-    if (!contactToDelete) {
+  // Enviar a la papelera (soft-delete): oculta el contacto y arrastra sus
+  // paquetes y pagos, sin perder el historial.
+  async function handleTrash() {
+    if (!contactToTrash) {
       return;
     }
-
     const failure = await runMutation(() =>
-      contactsApi.remove(contactToDelete.user_id),
+      contactsApi.trash(contactToTrash.user_id),
     );
-    setContactToDelete(null);
+    setContactToTrash(null);
     setNotice(
       failure
         ? { text: failure, tone: "danger" }
-        : { text: "Contacto eliminado correctamente.", tone: "success" },
+        : {
+            text: "Contacto enviado a la papelera (con sus paquetes y pagos).",
+            tone: "success",
+          },
     );
+    void reload();
+  }
+
+  async function handleRestore(contact: TrashedContact) {
+    const failure = await runMutation(() =>
+      contactsApi.restore(contact.user_id),
+    );
+    if (failure) {
+      toast.error("No se pudo restaurar", { description: failure });
+      return;
+    }
+    toast.success(`${contact.first_name} ${contact.last_name} restaurado`);
+    void loadTrashed();
+    void reload();
+  }
+
+  // Eliminación definitiva (irreversible): borra el contacto con todo su
+  // historial (paquetes, pagos y notas).
+  async function handlePurge() {
+    if (!contactToPurge) {
+      return;
+    }
+    const failure = await runMutation(() =>
+      contactsApi.remove(contactToPurge.user_id),
+    );
+    setContactToPurge(null);
+    if (failure) {
+      toast.error("No se pudo eliminar", { description: failure });
+      return;
+    }
+    toast.success("Contacto eliminado definitivamente");
+    void loadTrashed();
     void reload();
   }
 
@@ -442,7 +537,13 @@ export function ContactsPage() {
         title="Contactos"
         description="Ficha personal de cada usuario: nombre, dirección y fecha de nacimiento."
       >
-        <Button onClick={openCreate} disabled={usersWithoutContact.length === 0}>
+        {canManageTrash && (
+          <Button variant="outline" onClick={openTrash}>
+            <Archive data-icon="inline-start" aria-hidden="true" />
+            Papelera
+          </Button>
+        )}
+        <Button onClick={openCreate}>
           <Plus data-icon="inline-start" aria-hidden="true" />
           Registrar contacto
         </Button>
@@ -562,12 +663,10 @@ export function ContactsPage() {
               hint={
                 search
                   ? "Ningún contacto coincide con la búsqueda."
-                  : usersWithoutContact.length === 0
-                    ? "Todos los usuarios ya tienen su ficha de contacto."
-                    : "Registra la ficha personal de un usuario para completar su perfil."
+                  : "Registra la ficha personal de un contacto para completar su perfil."
               }
               action={
-                search || usersWithoutContact.length === 0 ? undefined : (
+                search ? undefined : (
                   <Button variant="outline" onClick={openCreate}>
                     <Plus data-icon="inline-start" aria-hidden="true" />
                     Registrar contacto
@@ -600,6 +699,7 @@ export function ContactsPage() {
                       onToggle={toggle}
                     />
                   </TableHead>
+                  <TableHead className="hidden lg:table-cell">Agencia</TableHead>
                   <TableHead
                     className="hidden md:table-cell"
                     aria-sort={ariaSort("address", sortKey, direction)}
@@ -625,7 +725,7 @@ export function ContactsPage() {
                     />
                   </TableHead>
                   <TableHead>Etiquetas</TableHead>
-                  <TableHead className="w-24 pr-6 text-right">
+                  <TableHead className="w-36 pr-6 text-right">
                     Acciones
                   </TableHead>
                 </TableRow>
@@ -645,6 +745,9 @@ export function ContactsPage() {
                         </Link>
                       </TableCell>
                       <TableCell>{owner?.email ?? "—"}</TableCell>
+                      <TableCell className="hidden text-muted-foreground lg:table-cell">
+                        {contact.agency?.name ?? "—"}
+                      </TableCell>
                       <TableCell className="hidden max-w-64 truncate text-muted-foreground md:table-cell">
                         {contact.address}
                       </TableCell>
@@ -754,20 +857,50 @@ export function ContactsPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            aria-label={`Editar contacto de ${contact.first_name} ${contact.last_name}`}
-                            onClick={() => openEdit(contact)}
+                            nativeButton={false}
+                            aria-label={`Ver ficha de ${contact.first_name} ${contact.last_name}`}
+                            title="Ver ficha"
+                            render={
+                              <Link to={`/admin/contacts/${contact.id}`} />
+                            }
                           >
-                            <Pencil aria-hidden="true" />
+                            <IdCard aria-hidden="true" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            aria-label={`Eliminar contacto de ${contact.first_name} ${contact.last_name}`}
-                            onClick={() => setContactToDelete(contact)}
+                            nativeButton={false}
+                            aria-label={`Ver conversaciones de ${contact.first_name} ${contact.last_name}`}
+                            title="Conversaciones"
+                            render={
+                              <Link
+                                to={`/admin/conversations?contact=${contact.id}`}
+                              />
+                            }
                           >
-                            <Trash2 aria-hidden="true" />
+                            <MessageCircle aria-hidden="true" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Editar contacto de ${contact.first_name} ${contact.last_name}`}
+                            title="Editar"
+                            onClick={() => openEdit(contact)}
+                          >
+                            <Pencil aria-hidden="true" />
+                          </Button>
+                          {canManageTrash && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              aria-label={`Enviar a la papelera el contacto de ${contact.first_name} ${contact.last_name}`}
+                              title="Enviar a la papelera"
+                              onClick={() => setContactToTrash(contact)}
+                            >
+                              <Trash2 aria-hidden="true" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -791,40 +924,58 @@ export function ContactsPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="contact-user">Usuario</Label>
-              {editingContact ? (
-                <Input
-                  id="contact-user"
-                  value={userById.get(editingContact.user_id)?.email ?? ""}
-                  disabled
-                />
-              ) : (
+              <Label htmlFor="contact-user">Correo electrónico</Label>
+              <Input
+                id="contact-user"
+                type="email"
+                value={form.email}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
+                }
+                placeholder="contacto@correo.com"
+                disabled={Boolean(editingContact)}
+              />
+              {!editingContact && (
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Si lo dejas en blanco, se genera uno automáticamente
+                  para el contacto.
+                </p>
+              )}
+            </div>
+            {!editingContact && (
+              <div className="grid gap-2">
+                <Label htmlFor="contact-agency">Agencia</Label>
                 <Select
-                  items={usersWithoutContact.map((user) => ({
-                    value: user.id,
-                    label: user.email,
-                  }))}
-                  value={form.user_id}
+                  items={agencies.map((a) => ({ value: a.id, label: a.name }))}
+                  value={form.agency_id}
                   onValueChange={(value) =>
                     setForm((current) => ({
                       ...current,
-                      user_id: value as string,
+                      agency_id: value as string,
                     }))
                   }
                 >
-                  <SelectTrigger id="contact-user" className="w-full">
-                    <SelectValue />
+                  <SelectTrigger id="contact-agency" aria-label="Agencia">
+                    <SelectValue placeholder="Selecciona una agencia" />
                   </SelectTrigger>
                   <SelectContent>
-                    {usersWithoutContact.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.email}
+                    {agencies.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
-            </div>
+                <p className="text-xs text-muted-foreground">
+                  {activeAgency
+                    ? `Se asignará a la subcuenta activa (${activeAgency.name}). Puedes cambiarla.`
+                    : "Todo contacto pertenece a una agencia."}
+                </p>
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="contact-first-name">Nombre</Label>
@@ -944,29 +1095,126 @@ export function ContactsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Enviar a la papelera (reversible). */}
       <AlertDialog
-        open={Boolean(contactToDelete)}
-        onOpenChange={(open) => !open && setContactToDelete(null)}
+        open={Boolean(contactToTrash)}
+        onOpenChange={(open) => !open && setContactToTrash(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar este contacto?</AlertDialogTitle>
+            <AlertDialogTitle>¿Enviar a la papelera?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará la ficha de {contactToDelete?.first_name}{" "}
-              {contactToDelete?.last_name}. Esta acción no se puede deshacer.
+              {contactToTrash?.first_name} {contactToTrash?.last_name} y sus
+              paquetes y pagos dejarán de aparecer en los listados. Podrás
+              restaurarlo desde la papelera cuando quieras.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleTrash()}>
+              Enviar a la papelera
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Eliminación definitiva (irreversible). */}
+      <AlertDialog
+        open={Boolean(contactToPurge)}
+        onOpenChange={(open) => !open && setContactToPurge(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar definitivamente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borrará la ficha de {contactToPurge?.first_name}{" "}
+              {contactToPurge?.last_name} junto con{" "}
+              {contactToPurge?._count.packages ?? 0} paquete(s) y{" "}
+              {contactToPurge?._count.transactions ?? 0} pago(s). Esta acción no
+              se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => void handleDelete()}
+              onClick={() => void handlePurge()}
             >
-              Eliminar contacto
+              Eliminar definitivamente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Papelera de contactos (solo superadmin). */}
+      <Dialog open={trashOpen} onOpenChange={setTrashOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Papelera de contactos</DialogTitle>
+            <DialogDescription>
+              Contactos enviados a la papelera. Restaurar los devuelve con sus
+              paquetes y pagos; eliminar es definitivo.
+            </DialogDescription>
+          </DialogHeader>
+          {trashLoading ? (
+            <div className="grid gap-3 py-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : trashed.length === 0 ? (
+            <EmptyState
+              icon={Archive}
+              title="La papelera está vacía"
+              hint="Los contactos que envíes a la papelera aparecerán aquí."
+            />
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {trashed.map((contact) => (
+                <li
+                  key={contact.id}
+                  className="flex items-center justify-between gap-3 p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">
+                      {contact.first_name} {contact.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {contact._count.packages} paquete(s) ·{" "}
+                      {contact._count.transactions} pago(s) · en papelera desde{" "}
+                      {formatDate(contact.deleted_at)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleRestore(contact)}
+                    >
+                      <Undo2 data-icon="inline-start" aria-hidden="true" />
+                      Restaurar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Eliminar definitivamente a ${contact.first_name} ${contact.last_name}`}
+                      title="Eliminar definitivamente"
+                      onClick={() => setContactToPurge(contact)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTrashOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={listDialogOpen} onOpenChange={setListDialogOpen}>
         <DialogContent className="sm:max-w-lg">

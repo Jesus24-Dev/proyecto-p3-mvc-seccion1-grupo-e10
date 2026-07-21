@@ -203,11 +203,25 @@ export function ContactDetailPage() {
   );
 
   const contactAgencies = useMemo(() => {
-    const agencyById = new Map(agencies.map((agency) => [agency.id, agency]));
-    return memberships
-      .filter((membership) => membership.user_id === contact?.user_id)
-      .map((membership) => agencyById.get(membership.agency_id))
-      .filter((agency): agency is (typeof agencies)[number] => Boolean(agency));
+    const byId = new Map(agencies.map((agency) => [agency.id, agency]));
+    const result: (typeof agencies)[number][] = [];
+    const seen = new Set<string>();
+    // La agencia dueña del contacto va primero.
+    const home = contact?.agency_id ? byId.get(contact.agency_id) : undefined;
+    if (home) {
+      result.push(home);
+      seen.add(home.id);
+    }
+    // Además, cualquier agencia donde el usuario de respaldo sea miembro.
+    for (const membership of memberships) {
+      if (membership.user_id !== contact?.user_id) continue;
+      const agency = byId.get(membership.agency_id);
+      if (agency && !seen.has(agency.id)) {
+        result.push(agency);
+        seen.add(agency.id);
+      }
+    }
+    return result;
   }, [memberships, agencies, contact]);
 
   if (isLoading) {
@@ -328,7 +342,9 @@ export function ContactDetailPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+      {/* Distribución tipo masonry: reparte las tarjetas en columnas de altura
+          equilibrada para que no queden huecos ni celdas vacías. */}
+      <div className="columns-1 gap-6 md:columns-2 lg:columns-3 [&>*]:mb-6 [&>*]:break-inside-avoid">
         <Card>
           <CardHeader>
             <CardTitle>Ficha</CardTitle>

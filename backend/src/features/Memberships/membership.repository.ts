@@ -14,7 +14,7 @@ const membershipSelect = {
 export class MembershipRepository {
   async findAll(agencyId?: string): Promise<MembershipEntity[]> {
     return await prisma.agency_members.findMany({
-      where: agencyId ? { agency_id: agencyId } : undefined,
+      where: agencyId ? { agency_id: agencyId } : {},
       select: membershipSelect,
       orderBy: { created_at: "asc" },
     });

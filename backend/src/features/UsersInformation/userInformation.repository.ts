@@ -27,7 +27,8 @@ export class UserInformationRepository{
             select: {
                 id: true, user_id: true, first_name: true, last_name: true,
                 document_id: true, phone: true, address: true, birthday: true,
-                created_at: true, tags: true, deleted_at: true,
+                created_at: true, tags: true, deleted_at: true, agency_id: true,
+                agency: { select: { id: true, name: true } },
                 _count: { select: { packages: true, transactions: true } },
             },
         });

@@ -27,5 +27,7 @@ export interface UserInformationResponse {
     created_at: Date;
     tags: string[];
     agency_id: string | null;
-    agency: { id: string; name: string } | null;
+    // La relación solo viene en las lecturas (findAll/findById); en las
+    // escrituras (create/update) puede omitirse.
+    agency?: { id: string; name: string } | null;
 }

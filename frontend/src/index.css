@@ -149,3 +149,38 @@
     @apply font-sans;
     }
 }
+
+/* Pantalla de acceso: emblema flotante y resplandor pulsante del hero. */
+@keyframes login-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+@keyframes login-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.06); }
+}
+.login-float { animation: login-float 7s ease-in-out infinite; }
+.login-glow { animation: login-glow 6s ease-in-out infinite; }
+/* Textura de rejilla de puntos, difuminada hacia los bordes. */
+.login-grid {
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in oklch, white 8%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, black 30%, transparent 78%);
+}
+
+/* Respeta la preferencia de movimiento reducido (WCAG 2.3.3): reduce
+   animaciones y transiciones a un cambio casi instantáneo. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

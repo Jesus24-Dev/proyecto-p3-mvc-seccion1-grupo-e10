@@ -6,6 +6,7 @@ import type {
   PublicTrackingResponse,
   TrackingResponse,
 } from "./package.types.js";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class PackageServiceError extends Error {
   constructor(
@@ -27,8 +28,8 @@ function generateTrackingCode(): string {
 export class PackageService {
   constructor(private packageRepository: PackageRepository) {}
 
-  async getAllPackages() {
-    return await this.packageRepository.findAll();
+  async getAllPackages(scope?: AgencyScope) {
+    return await this.packageRepository.findAll(scope);
   }
 
   async getPackageById(id: string) {
@@ -92,6 +93,30 @@ export class PackageService {
     }
   }
 
+  /** Elimina un movimiento del recorrido (solo superadmin, gated en la ruta). */
+  async deleteCheckpoint(
+    packageId: string,
+    eventId: string,
+  ): Promise<TrackingResponse> {
+    try {
+      const tracking = await this.packageRepository.deleteEvent(
+        packageId,
+        eventId,
+      );
+      if (!tracking) {
+        throw new PackageServiceError("El paquete solicitado no existe.", 404);
+      }
+      return tracking;
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === "P2001" || e.code === "P2025") {
+          throw new PackageServiceError("El movimiento no existe o ya fue eliminado.", 404);
+        }
+      }
+      throw e;
+    }
+  }
+
   async createPackage(body: CreatePackageBody) {
     // Reintenta ante la improbable colisión del código único.
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -139,6 +164,21 @@ export class PackageService {
             400,
           );
         }
+      }
+      throw e;
+    }
+  }
+
+  /** Mueve el paquete a una etapa del tablero. */
+  async moveToStage(id: string, stageId: string) {
+    try {
+      return await this.packageRepository.setStage(id, stageId);
+    } catch (e) {
+      if (e instanceof Error && e.message === "PACKAGE_NOT_FOUND") {
+        throw new PackageServiceError("El paquete solicitado no existe.", 404);
+      }
+      if (e instanceof Error && e.message === "STAGE_NOT_FOUND") {
+        throw new PackageServiceError("La etapa indicada no existe.", 400);
       }
       throw e;
     }

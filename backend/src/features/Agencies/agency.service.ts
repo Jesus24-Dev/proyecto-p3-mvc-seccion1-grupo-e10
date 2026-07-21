@@ -1,12 +1,13 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { AgencyRepository } from "./agency.repository.js";
 import type { CreateAgencyBody } from "./agency.schema.js";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class AgencyService {
   constructor(private agencyRepository: AgencyRepository) {}
 
-  async getAllAgencies() {
-    return await this.agencyRepository.findAll();
+  async getAllAgencies(scope?: AgencyScope) {
+    return await this.agencyRepository.findAll(scope);
   }
 
   async getAgencyById(id: string) {

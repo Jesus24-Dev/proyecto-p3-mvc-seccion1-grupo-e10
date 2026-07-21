@@ -4,12 +4,14 @@ import type { OrderResponse } from './order.types';
 import type { ErrorResponse } from '../../shared/error.responses.types';
 import type { CreateOrderBody } from './order.schema';
 import { fireOrderCompleted, safeFire } from '../Automations/engine/index.js';
+import { resolveAgencyScope } from '../Auth/agencyScope.js';
 
 export class OrderController {
     constructor (private orderService: OrderService){}
 
-    public getOrders = async (_req: Request, res: Response<OrderResponse[]>) => {
-        const orders = await this.orderService.getAllOrders();
+    public getOrders = async (req: Request, res: Response<OrderResponse[]>) => {
+        const scope = await resolveAgencyScope(req);
+        const orders = await this.orderService.getAllOrders(scope);
         return res.status(200).json(orders);
     }
 

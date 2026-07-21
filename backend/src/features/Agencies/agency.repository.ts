@@ -1,6 +1,7 @@
 import {prisma} from "../../database/prisma";
 import type { CreateAgencyBody } from "./agency.schema";
 import type { AgencyEntity } from "./agency.types";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 const agencySelect = {
     id: true,
@@ -15,8 +16,9 @@ const agencySelect = {
 } as const;
 
 export class AgencyRepository {
-    async findAll(): Promise<AgencyEntity[]>{
+    async findAll(scope?: AgencyScope): Promise<AgencyEntity[]>{
         return await prisma.agencies.findMany({
+            where: scope && !scope.all ? { id: { in: scope.ids } } : {},
             select: agencySelect,
         });
     }

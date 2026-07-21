@@ -2,16 +2,18 @@ import type { Request, Response } from "express";
 import { PackageService, PackageServiceError } from "./package.service.js";
 import type { PackageResponse, TrackingResponse } from "./package.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
-import type { AddCheckpointBody, CreatePackageBody } from "./package.schema.js";
+import type { AddCheckpointBody, CreatePackageBody, MoveStageBody } from "./package.schema.js";
 import { recordAudit } from "../Audit/audit.helper.js";
 import { notify } from "../Notifications/notification.helper.js";
-import { firePackageDelivered, safeFire } from "../Automations/engine/index.js";
+import { firePackageDelivered, fireStageChanged, safeFire } from "../Automations/engine/index.js";
+import { resolveAgencyScope } from "../Auth/agencyScope.js";
 
 export class PackageController {
     constructor(private packageService: PackageService) {}
 
-    public getPackages = async (_req: Request, res: Response<PackageResponse[]>) => {
-        const packages = await this.packageService.getAllPackages();
+    public getPackages = async (req: Request, res: Response<PackageResponse[]>) => {
+        const scope = await resolveAgencyScope(req);
+        const packages = await this.packageService.getAllPackages(scope);
         return res.status(200).json(packages);
     }
 
@@ -69,6 +71,25 @@ export class PackageController {
         }
     }
 
+    public deleteCheckpoint = async (req: Request<{id: string, eventId: string}>, res: Response<TrackingResponse | ErrorResponse>) => {
+        try {
+            const {id, eventId} = req.params;
+            const tracking = await this.packageService.deleteCheckpoint(id, eventId);
+            await recordAudit(req, {
+                action: "package.event_delete",
+                entity: "package",
+                entity_id: id,
+                detail: `Eliminó un movimiento del paquete ${tracking.tracking_code}`,
+            });
+            return res.status(200).json(tracking);
+        } catch (error) {
+            if (error instanceof PackageServiceError) {
+                return res.status(error.statusCode).json({"status": "error", "message": error.message})
+            }
+            return res.status(400).json({"status": "error", "message": "No se pudo eliminar el movimiento."})
+        }
+    }
+
     public createPackage = async (req: Request<{}, {}, CreatePackageBody>, res: Response<PackageResponse | ErrorResponse>) => {
         try {
             const createdPackage = await this.packageService.createPackage(req.body);
@@ -107,6 +128,31 @@ export class PackageController {
                 return res.status(error.statusCode).json({"status": "error", "message": error.message})
             }
             return res.status(400).json({"status": "error", "message": "No se pudo actualizar el paquete. Revisa los datos enviados."})
+        }
+    }
+
+    public moveStage = async (req: Request<{id: string}, {}, MoveStageBody>, res: Response<PackageResponse | ErrorResponse>) => {
+        try {
+            const {id} = req.params;
+            const {stage_id} = req.body;
+            const {package: moved, backingStatus} = await this.packageService.moveToStage(id, stage_id);
+            await recordAudit(req, {
+                action: "package.stage_change",
+                entity: "package",
+                entity_id: id,
+                detail: `Movió el paquete ${moved.tracking_code} en el tablero`,
+            });
+            // Dispara automatizaciones por cambio de etapa (y de entrega).
+            safeFire(fireStageChanged(id, stage_id), "package_stage_changed");
+            if (backingStatus === "DELIVERED") {
+                safeFire(firePackageDelivered(id), "package_delivered");
+            }
+            return res.status(200).json(moved);
+        } catch (error) {
+            if (error instanceof PackageServiceError) {
+                return res.status(error.statusCode).json({"status": "error", "message": error.message})
+            }
+            return res.status(400).json({"status": "error", "message": "No se pudo mover el paquete."})
         }
     }
 

@@ -11,6 +11,8 @@ export const CreatePackageSchema = z.object({
       message: "El peso debe ser mayor que cero.",
     }),
     dimensions: z.optional(z.string()),
+    // Fotos del paquete (URLs o data-URIs).
+    image_urls: z.optional(z.array(z.string())),
     contact_id: z.guid({
       message: "Ingrese un ID de contacto válido",
     }),
@@ -44,5 +46,13 @@ export const AddCheckpointSchema = z.object({
   }),
 });
 
+// Mover un paquete a una etapa del pipeline (tablero drag-and-drop).
+export const MoveStageSchema = z.object({
+  body: z.object({
+    stage_id: z.guid({ message: "Ingrese un ID de etapa válido" }),
+  }),
+});
+
 export type CreatePackageBody = z.infer<typeof CreatePackageSchema>["body"];
 export type AddCheckpointBody = z.infer<typeof AddCheckpointSchema>["body"];
+export type MoveStageBody = z.infer<typeof MoveStageSchema>["body"];

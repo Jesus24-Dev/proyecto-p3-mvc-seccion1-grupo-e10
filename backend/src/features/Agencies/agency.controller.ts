@@ -3,12 +3,16 @@ import { AgencyService } from './agency.service';
 import type { AgencyResponse } from './agency.types';
 import type { ErrorResponse } from '../../shared/error.responses.types';
 import type { CreateAgencyBody } from './agency.schema';
+import { resolveAgencyScope } from '../Auth/agencyScope.js';
 
 export class AgencyController {
     constructor (private agencyService: AgencyService){}
 
-    public getAgencies = async (_req: Request, res: Response<AgencyResponse[]>) => {
-        const agencies = await this.agencyService.getAllAgencies();
+    public getAgencies = async (req: Request, res: Response<AgencyResponse[]>) => {
+        // Ignora la subcuenta activa: el selector debe ver TODAS las agencias
+        // permitidas para poder cambiar entre ellas.
+        const scope = await resolveAgencyScope(req, { applyActive: false });
+        const agencies = await this.agencyService.getAllAgencies(scope);
         return res.status(200).json(agencies);
     }
 

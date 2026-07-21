@@ -5,10 +5,11 @@ import { PackageRepository } from "./package.repository.js";
 import {
   AddCheckpointSchema,
   CreatePackageSchema,
+  MoveStageSchema,
   UpdatePackageSchema,
 } from "./package.schema.js";
 import { validate } from "../../shared/validate.js";
-import { requireAdmin } from "../Auth/auth.middleware.js";
+import { requireAdmin, requireSuperAdmin } from "../Auth/auth.middleware.js";
 
 const router = Router();
 
@@ -23,6 +24,9 @@ router.get('/tracking/:code', controller.getPackageByTrackingCode);
 router.get('/:id', controller.getPackageById);
 router.post('/', validate(CreatePackageSchema), controller.createPackage);
 router.post('/:id/events', validate(AddCheckpointSchema), controller.addCheckpoint);
+// Eliminar un movimiento del recorrido: solo superadmin.
+router.delete('/:id/events/:eventId', requireSuperAdmin, controller.deleteCheckpoint);
+router.put('/:id/stage', validate(MoveStageSchema), controller.moveStage);
 router.put('/:id', validate(UpdatePackageSchema), controller.updatePackage);
 router.delete('/:id', controller.deletePackage);
 

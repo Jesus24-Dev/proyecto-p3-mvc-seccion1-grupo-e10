@@ -1,6 +1,7 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { PaymentRepository } from "./payment.repository.js";
 import type { CreatePaymentBody } from "./payment.schema.js";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class PaymentServiceError extends Error {
   constructor(
@@ -15,8 +16,8 @@ export class PaymentServiceError extends Error {
 export class PaymentService {
   constructor(private paymentRepository: PaymentRepository) {}
 
-  async getAllPayments() {
-    return await this.paymentRepository.findAll();
+  async getAllPayments(scope?: AgencyScope) {
+    return await this.paymentRepository.findAll(scope);
   }
 
   async createPayment(body: CreatePaymentBody) {
@@ -41,16 +42,26 @@ export class PaymentService {
       throw new PaymentServiceError("El pago ya fue procesado.", 409);
     }
 
+    // El efectivo no se valida contra el banco: se aprueba directo.
+    if (payment.method === "CASH") {
+      return await this.paymentRepository.setStatus(
+        id,
+        "APPROVED",
+        "Pago en efectivo confirmado en caja.",
+      );
+    }
+
     const referenceFound = /\d{6,}/.test(payment.reference);
     const amountOk = payment.amount > 0;
     const approved = referenceFound && amountOk;
 
+    const channel = payment.method === "MOBILE_PAYMENT" ? "Pago Móvil" : "Banco Mercantil";
     return await this.paymentRepository.setStatus(
       id,
       approved ? "APPROVED" : "REJECTED",
       approved
-        ? "Validado automáticamente con Banco Mercantil (simulado)."
-        : "El banco no encontró la referencia o el monto no coincide (simulado).",
+        ? `Validado automáticamente con ${channel} (simulado).`
+        : `${channel} no encontró la referencia o el monto no coincide (simulado).`,
     );
   }
 

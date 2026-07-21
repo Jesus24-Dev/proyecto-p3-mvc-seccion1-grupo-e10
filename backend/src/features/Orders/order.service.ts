@@ -1,12 +1,13 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { OrderRepository } from "./order.repository.js";
 import type { CreateOrderBody } from "./order.schema.js";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class OrderService {
   constructor(private orderRepository: OrderRepository) {}
 
-  async getAllOrders() {
-    return await this.orderRepository.findAll();
+  async getAllOrders(scope?: AgencyScope) {
+    return await this.orderRepository.findAll(scope);
   }
 
   async getOrderById(id: string) {

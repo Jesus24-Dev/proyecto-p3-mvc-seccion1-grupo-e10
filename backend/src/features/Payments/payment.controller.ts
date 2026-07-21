@@ -5,15 +5,17 @@ import type { ErrorResponse } from "../../shared/error.responses.types.js";
 import type { CreatePaymentBody } from "./payment.schema.js";
 import { recordAudit } from "../Audit/audit.helper.js";
 import { notify } from "../Notifications/notification.helper.js";
+import { resolveAgencyScope } from "../Auth/agencyScope.js";
 
 export class PaymentController {
   constructor(private paymentService: PaymentService) {}
 
   public getPayments = async (
-    _req: Request,
+    req: Request,
     res: Response<PaymentResponse[]>,
   ) => {
-    const payments = await this.paymentService.getAllPayments();
+    const scope = await resolveAgencyScope(req);
+    const payments = await this.paymentService.getAllPayments(scope);
     return res.status(200).json(payments as PaymentResponse[]);
   };
 

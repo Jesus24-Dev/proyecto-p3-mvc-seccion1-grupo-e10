@@ -12,9 +12,11 @@ export interface PackageResponse {
   weight_kg: number;
   dimensions: string;
   status: PackageStatus;
+  image_urls: string[];
   created_at: Date;
   contact_id: string;
   order_id: string | null;
+  stage_id: string | null;
 }
 
 /** Agencia (ubicación) resumida para un checkpoint del recorrido. */

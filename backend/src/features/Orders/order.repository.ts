@@ -1,10 +1,16 @@
 import {prisma} from "../../database/prisma";
 import type { CreateOrderBody } from "./order.schema";
 import type { OrderEntity } from "./order.types";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class OrderRepository {
-    async findAll(): Promise<OrderEntity[]>{
+    async findAll(scope?: AgencyScope): Promise<OrderEntity[]>{
         return await prisma.orders.findMany({
+            // Acota a envíos cuya agencia de origen o destino esté en el alcance.
+            where: scope && !scope.all ? { OR: [
+                { origin_agency_id: { in: scope.ids } },
+                { destination_agency_id: { in: scope.ids } },
+            ] } : {},
             select: {
                 id: true, 
                 user_id: true, 

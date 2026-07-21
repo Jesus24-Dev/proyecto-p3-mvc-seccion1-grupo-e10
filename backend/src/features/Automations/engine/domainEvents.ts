@@ -50,6 +50,35 @@ export async function fireOrderCompleted(orderId: string): Promise<void> {
   await fireForContact("order_completed", contactId);
 }
 
+// Inscribe en las automatizaciones que escuchan "paquete cambió de etapa".
+// Si el disparador fija una etapa (data.stageId), solo coincide esa etapa;
+// si no, coincide cualquier cambio de etapa.
+export async function fireStageChanged(
+  packageId: string,
+  stageId: string,
+): Promise<void> {
+  const contactId = await runRepo.contactIdForPackage(packageId);
+  const all = await automationRepo.findAll();
+  const matches = all.filter((automation) => {
+    if (!automation.is_active) {
+      return false;
+    }
+    const node = triggerNode(parseDefinition(automation.definition));
+    if (node?.data?.trigger !== "package_stage_changed") {
+      return false;
+    }
+    const target = (node.data as { stageId?: string }).stageId;
+    return !target || target === stageId;
+  });
+  for (const automation of matches) {
+    await engine.enroll({
+      automationId: automation.id,
+      contactId,
+      trigger: "package_stage_changed",
+    });
+  }
+}
+
 // Envoltura segura para llamar desde los controladores sin await ni riesgo:
 // registra el error y sigue.
 export function safeFire(promise: Promise<void>, label: string): void {

@@ -11,6 +11,8 @@ export const UpdateConfigSchema = z.object({
     support_email: z.optional(z.string()),
     bank_api_key: z.optional(z.string()),
     ml_api_key: z.optional(z.string()),
+    // Tasa de cambio manual Bs/USD (bolívares por 1 USD).
+    bs_rate: z.optional(z.number().nonnegative()),
   }),
 });
 

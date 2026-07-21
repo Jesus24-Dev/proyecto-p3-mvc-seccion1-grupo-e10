@@ -2,6 +2,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { AutomationRepository } from "./automation.repository.js";
 import type { CreateAutomationBody } from "./automation.schema.js";
 import { engine } from "./engine/index.js";
+import type { AgencyScope } from "../Auth/agencyScope.js";
 
 export class AutomationServiceError extends Error {
   constructor(
@@ -16,16 +17,16 @@ export class AutomationServiceError extends Error {
 export class AutomationService {
   constructor(private automationRepository: AutomationRepository) {}
 
-  async getAllAutomations() {
-    return await this.automationRepository.findAll();
+  async getAllAutomations(scope?: AgencyScope) {
+    return await this.automationRepository.findAll(scope);
   }
 
   async getAutomationById(id: string) {
     return await this.automationRepository.findById(id);
   }
 
-  async createAutomation(body: CreateAutomationBody) {
-    return await this.automationRepository.create(body);
+  async createAutomation(body: CreateAutomationBody, agencyId?: string | null) {
+    return await this.automationRepository.create(body, agencyId);
   }
 
   async updateAutomation(id: string, body: CreateAutomationBody) {

@@ -12,12 +12,14 @@ import {
   subscribeAutomationUpdates,
   type AutomationUpdate,
 } from "./engine/index.js";
+import { resolveAgencyScope } from "../Auth/agencyScope.js";
 
 export class AutomationController {
     constructor(private automationService: AutomationService) {}
 
-    public getAutomations = async (_req: Request, res: Response<AutomationResponse[]>) => {
-        const automations = await this.automationService.getAllAutomations();
+    public getAutomations = async (req: Request, res: Response<AutomationResponse[]>) => {
+        const scope = await resolveAgencyScope(req);
+        const automations = await this.automationService.getAllAutomations(scope);
         return res.status(200).json(automations);
     }
 
@@ -34,7 +36,10 @@ export class AutomationController {
 
     public createAutomation = async (req: Request<{}, {}, CreateAutomationBody>, res: Response<AutomationResponse | ErrorResponse>) => {
         try {
-            const automation = await this.automationService.createAutomation(req.body);
+            // Asigna la subcuenta activa (si hay una) como dueña del flujo.
+            const scope = await resolveAgencyScope(req);
+            const agencyId = !scope.all && scope.ids.length === 1 ? scope.ids[0] : null;
+            const automation = await this.automationService.createAutomation(req.body, agencyId);
             return res.status(201).json(automation);
         } catch (error) {
             return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo guardar la automatización. Revisa los datos enviados."})

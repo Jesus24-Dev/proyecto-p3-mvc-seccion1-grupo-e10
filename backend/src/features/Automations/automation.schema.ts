@@ -21,6 +21,8 @@ export const CreateAutomationSchema = z.object({
     folder: z.optional(z.string()),
     is_active: z.optional(z.boolean()),
     definition: DefinitionSchema,
+    // Subcuenta (agencia) dueña del flujo; normalmente la subcuenta activa.
+    agency_id: z.optional(z.string()),
   }),
 });
 

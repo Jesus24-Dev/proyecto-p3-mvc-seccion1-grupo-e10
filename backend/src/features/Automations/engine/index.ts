@@ -16,6 +16,7 @@ export {
   fireTagAdded,
   firePackageDelivered,
   fireOrderCompleted,
+  fireStageChanged,
   safeFire,
 } from "./domainEvents.js";
 export { startScheduler, stopScheduler } from "./scheduler.js";

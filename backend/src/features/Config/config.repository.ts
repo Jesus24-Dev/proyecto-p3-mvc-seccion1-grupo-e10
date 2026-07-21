@@ -5,10 +5,10 @@ import type { UpdateConfigBody } from "./config.schema.js";
 const SINGLETON_ID = "singleton";
 
 /** Elimina claves con valor undefined (incompatibles con exactOptionalPropertyTypes). */
-function definedOnly(body: UpdateConfigBody): Record<string, string> {
+function definedOnly(body: UpdateConfigBody): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(body).filter(([, value]) => value !== undefined),
-  ) as Record<string, string>;
+  ) as Record<string, unknown>;
 }
 
 export class ConfigRepository {

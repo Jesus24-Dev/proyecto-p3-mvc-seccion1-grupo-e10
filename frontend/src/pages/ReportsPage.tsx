@@ -15,7 +15,9 @@ import {
 } from "lucide-react";
 import { contactsApi, packagesApi, paymentsApi } from "@/api";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { PackageStatusPill } from "@/components/shared/pills";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,9 +32,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { usePageData } from "@/hooks/usePageData";
-import { formatAmount, formatDate, packageStatusLabel } from "@/lib/format";
+import {
+  PACKAGE_STATUSES,
+  formatAmount,
+  formatDate,
+  packageStatusLabel,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { PaymentStatus } from "@/types";
+import type { PackageStatus, PaymentStatus } from "@/types";
 
 type ReportKey =
   | "clients"
@@ -41,11 +48,26 @@ type ReportKey =
   | "deliveries"
   | "revenue";
 
+// Tipo de columna: define alineación y estilo de la celda (código monoespaciado,
+// monto enfatizado, insignia de estado…). Las exportaciones siguen usando texto.
+type ColumnKind =
+  | "text"
+  | "mono"
+  | "amount"
+  | "count"
+  | "package-status"
+  | "payment-status";
+
+interface ReportColumn {
+  label: string;
+  kind?: ColumnKind;
+}
+
 interface Report {
   key: ReportKey;
   label: string;
   icon: LucideIcon;
-  headers: string[];
+  columns: ReportColumn[];
   rows: string[][];
   summary: string;
 }
@@ -55,6 +77,64 @@ const PAYMENT_LABEL: Record<PaymentStatus, string> = {
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
 };
+
+// Tono de la insignia por estado de pago (mismos tonos que las píldoras).
+const PAYMENT_TONE: Record<PaymentStatus, string> = {
+  PENDING: "bg-warning text-warning-foreground",
+  APPROVED: "bg-success text-success-foreground",
+  REJECTED: "bg-destructive/10 text-destructive",
+};
+
+// Mapas inversos etiqueta → clave, para reconstruir la insignia desde el texto
+// de la celda (que ya viene localizado para las exportaciones).
+const PACKAGE_STATUS_BY_LABEL = new Map<string, PackageStatus>(
+  PACKAGE_STATUSES.map((status) => [packageStatusLabel(status), status]),
+);
+const PAYMENT_STATUS_BY_LABEL = new Map<string, PaymentStatus>(
+  (Object.keys(PAYMENT_LABEL) as PaymentStatus[]).map((status) => [
+    PAYMENT_LABEL[status],
+    status,
+  ]),
+);
+
+// Columnas numéricas: se alinean a la derecha y usan cifras tabulares.
+function isNumericColumn(kind: ColumnKind | undefined): boolean {
+  return kind === "amount" || kind === "count";
+}
+
+// Clase de la celda (columnas no iniciales) según el tipo de columna.
+function cellClass(kind: ColumnKind | undefined): string {
+  switch (kind) {
+    case "mono":
+      return "font-mono text-xs text-foreground";
+    case "amount":
+      return "font-medium text-foreground";
+    case "count":
+      return "text-foreground";
+    case "package-status":
+    case "payment-status":
+      return "";
+    default:
+      return "text-muted-foreground";
+  }
+}
+
+// Renderiza la celda: insignias para estados, texto para el resto.
+function renderReportCell(kind: ColumnKind | undefined, value: string) {
+  if (kind === "package-status") {
+    const status = PACKAGE_STATUS_BY_LABEL.get(value);
+    return status ? <PackageStatusPill status={status} /> : value;
+  }
+  if (kind === "payment-status") {
+    const status = PAYMENT_STATUS_BY_LABEL.get(value);
+    return status ? (
+      <Badge className={PAYMENT_TONE[status]}>{value}</Badge>
+    ) : (
+      value
+    );
+  }
+  return value;
+}
 
 function escapeCsv(value: string): string {
   if (/[",\n]/.test(value)) {
@@ -76,7 +156,8 @@ function download(filename: string, content: string, mime: string) {
 }
 
 function exportCsv(report: Report) {
-  const lines = [report.headers, ...report.rows].map((row) =>
+  const headers = report.columns.map((column) => column.label);
+  const lines = [headers, ...report.rows].map((row) =>
     row.map(escapeCsv).join(","),
   );
   // BOM para que Excel respete los acentos.
@@ -88,7 +169,7 @@ function exportCsv(report: Report) {
 }
 
 function exportExcel(report: Report) {
-  const head = report.headers.map((h) => `<th>${h}</th>`).join("");
+  const head = report.columns.map((c) => `<th>${c.label}</th>`).join("");
   const body = report.rows
     .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`)
     .join("");
@@ -101,7 +182,7 @@ function exportExcel(report: Report) {
 }
 
 function printReport(report: Report) {
-  const head = report.headers.map((h) => `<th>${h}</th>`).join("");
+  const head = report.columns.map((c) => `<th>${c.label}</th>`).join("");
   const body = report.rows
     .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`)
     .join("");
@@ -194,7 +275,13 @@ export function ReportsPage() {
         key: "clients",
         label: "Clientes",
         icon: Users,
-        headers: ["Nombre", "Cédula/RIF", "Teléfono", "Dirección", "Cliente desde"],
+        columns: [
+          { label: "Nombre" },
+          { label: "Cédula/RIF", kind: "mono" },
+          { label: "Teléfono", kind: "mono" },
+          { label: "Dirección" },
+          { label: "Cliente desde" },
+        ],
         rows: contacts.map((c) => [
           `${c.first_name} ${c.last_name}`,
           c.document_id || "—",
@@ -208,7 +295,13 @@ export function ReportsPage() {
         key: "packages",
         label: "Paquetes",
         icon: Package,
-        headers: ["Tracking", "Descripción", "Peso (kg)", "Estado", "Fecha"],
+        columns: [
+          { label: "Tracking", kind: "mono" },
+          { label: "Descripción" },
+          { label: "Peso (kg)", kind: "count" },
+          { label: "Estado", kind: "package-status" },
+          { label: "Fecha" },
+        ],
         rows: packages.map((p) => [
           p.tracking_code,
           p.description,
@@ -222,7 +315,14 @@ export function ReportsPage() {
         key: "transactions",
         label: "Transacciones",
         icon: Receipt,
-        headers: ["Referencia", "Cliente", "Banco", "Monto", "Estado", "Fecha"],
+        columns: [
+          { label: "Referencia", kind: "mono" },
+          { label: "Cliente" },
+          { label: "Banco" },
+          { label: "Monto", kind: "amount" },
+          { label: "Estado", kind: "payment-status" },
+          { label: "Fecha" },
+        ],
         rows: payments.map((p) => [
           p.reference,
           p.contact ? `${p.contact.first_name} ${p.contact.last_name}` : "—",
@@ -237,7 +337,12 @@ export function ReportsPage() {
         key: "deliveries",
         label: "Entregas",
         icon: Truck,
-        headers: ["Tracking", "Cliente", "Descripción", "Fecha"],
+        columns: [
+          { label: "Tracking", kind: "mono" },
+          { label: "Cliente" },
+          { label: "Descripción" },
+          { label: "Fecha" },
+        ],
         rows: delivered.map((p) => [
           p.tracking_code,
           contactName(p.contact_id),
@@ -250,7 +355,11 @@ export function ReportsPage() {
         key: "revenue",
         label: "Ingresos",
         icon: TrendingUp,
-        headers: ["Mes", "Pagos aprobados", "Ingresos"],
+        columns: [
+          { label: "Mes" },
+          { label: "Pagos aprobados", kind: "count" },
+          { label: "Ingresos", kind: "amount" },
+        ],
         rows: months.map(([month, v]) => [
           month,
           String(v.count),
@@ -449,32 +558,48 @@ export function ReportsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    {report.headers.map((header, index) => (
+                  <TableRow className="hover:bg-transparent">
+                    {report.columns.map((column, index) => (
                       <TableHead
-                        key={header}
-                        className={index === 0 ? "pl-5" : undefined}
+                        key={column.label}
+                        className={cn(
+                          "bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase",
+                          index === 0 && "pl-5",
+                          isNumericColumn(column.kind) && "text-right",
+                          index === report.columns.length - 1 && "pr-5",
+                        )}
                       >
-                        {header}
+                        {column.label}
                       </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {report.rows.map((row, rowIndex) => (
-                    <TableRow key={rowIndex} className="even:bg-muted/25">
-                      {row.map((cell, cellIndex) => (
-                        <TableCell
-                          key={cellIndex}
-                          className={cn(
-                            "whitespace-nowrap",
-                            cellIndex === 0 && "pl-5 font-medium",
-                            cellIndex !== 0 && "text-muted-foreground",
-                          )}
-                        >
-                          {cell}
-                        </TableCell>
-                      ))}
+                    <TableRow
+                      key={rowIndex}
+                      className="odd:bg-muted/15 hover:bg-muted/40"
+                    >
+                      {row.map((cell, cellIndex) => {
+                        const column = report.columns[cellIndex];
+                        const kind = column?.kind;
+                        return (
+                          <TableCell
+                            key={cellIndex}
+                            className={cn(
+                              "whitespace-nowrap",
+                              cellIndex === 0 && "pl-5",
+                              cellIndex === row.length - 1 && "pr-5",
+                              isNumericColumn(kind) && "text-right tabular-nums",
+                              cellIndex === 0
+                                ? "font-medium text-foreground"
+                                : cellClass(kind),
+                            )}
+                          >
+                            {renderReportCell(kind, cell)}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>

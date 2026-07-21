@@ -31,3 +31,24 @@ export const UpdateAutomationSchema = CreateAutomationSchema;
 export type CreateAutomationBody = z.infer<
   typeof CreateAutomationSchema
 >["body"];
+
+// Envío de prueba: usado por el editor de flujos y el constructor de correos
+// para probar un mensaje real (o simulado) contra una dirección/número.
+export const TestSendSchema = z.object({
+  body: z.object({
+    channel: z.enum([
+      "send_email",
+      "send_whatsapp",
+      "send_instagram",
+      "send_messenger",
+    ]),
+    to: z.string().min(1, { message: "Indica el destinatario de la prueba." }),
+    subject: z.optional(z.string()),
+    // Texto plano (mensajería) o cuerpo del mensaje.
+    message: z.optional(z.string()),
+    // HTML ya renderizado (constructor de correos); tiene prioridad para email.
+    html: z.optional(z.string()),
+  }),
+});
+
+export type TestSendBody = z.infer<typeof TestSendSchema>["body"];

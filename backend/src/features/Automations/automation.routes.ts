@@ -5,6 +5,7 @@ import { AutomationRepository } from "./automation.repository.js";
 import {
   CreateAutomationSchema,
   UpdateAutomationSchema,
+  TestSendSchema,
 } from "./automation.schema.js";
 import { RunAutomationSchema } from "./run.schema.js";
 import { validate } from "../../shared/validate.js";
@@ -22,6 +23,7 @@ router.get('/:id/stream', requireAdminQueryToken, controller.streamAutomation);
 
 router.use(requireAdmin);
 router.get('/', controller.getAutomations);
+router.post('/test-send', validate(TestSendSchema), controller.testSend);
 router.get('/contact/:contactId/runs', controller.listRunsByContact);
 router.get('/:id', controller.getAutomationById);
 router.get('/:id/runs', controller.listRuns);

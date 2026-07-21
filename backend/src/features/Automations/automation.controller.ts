@@ -5,13 +5,19 @@ import {
 } from "./automation.service.js";
 import type { AutomationResponse } from "./automation.types.js";
 import type { ErrorResponse } from "../../shared/error.responses.types.js";
-import type { CreateAutomationBody } from "./automation.schema.js";
+import type { CreateAutomationBody, TestSendBody } from "./automation.schema.js";
 import type { RunAutomationBody } from "./run.schema.js";
 import {
   runRepo,
   subscribeAutomationUpdates,
   type AutomationUpdate,
 } from "./engine/index.js";
+import {
+  getMessageProvider,
+  NoProviderError,
+  type Channel,
+} from "./engine/providers.js";
+import { sendEmail } from "../../shared/mailer.js";
 import { resolveAgencyScope } from "../Auth/agencyScope.js";
 
 export class AutomationController {
@@ -43,6 +49,50 @@ export class AutomationController {
             return res.status(201).json(automation);
         } catch (error) {
             return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo guardar la automatización. Revisa los datos enviados."})
+        }
+    }
+
+    // Envío de prueba desde el editor de flujos o el constructor de correos.
+    // El correo se envía de verdad (Resend); el resto de canales se simula
+    // honestamente si no hay proveedor real conectado.
+    public testSend = async (req: Request<{}, {}, TestSendBody>, res: Response) => {
+        const { channel, to, subject, message, html } = req.body;
+        try {
+            if (channel === "send_email" && html && html.trim()) {
+                const result = await sendEmail({
+                    to,
+                    subject: subject?.trim() || "Prueba de Dr Logistics",
+                    html,
+                });
+                if (!result.sent) {
+                    return res.status(502).json({ status: "error", message: "El proveedor de correo rechazó el envío." });
+                }
+                return res.status(200).json({
+                    detail: result.simulated
+                        ? `Correo de prueba simulado a ${to} (define RESEND_API_KEY para enviarlo de verdad).`
+                        : `Correo de prueba enviado a ${to}.`,
+                    simulated: result.simulated,
+                });
+            }
+            const { detail } = await getMessageProvider().send({
+                channel: channel as Channel,
+                to,
+                message: message ?? "",
+                ...(channel === "send_email" ? { subject: subject ?? "" } : {}),
+            });
+            return res.status(200).json({ detail, simulated: false });
+        } catch (error) {
+            if (error instanceof NoProviderError) {
+                // Sin integración real: se reporta como simulación para no bloquear la prueba.
+                return res.status(200).json({
+                    detail: `Envío de prueba simulado a ${to} (canal sin proveedor real conectado).`,
+                    simulated: true,
+                });
+            }
+            return res.status(400).json({
+                status: "error",
+                message: error instanceof Error ? error.message : "No se pudo enviar la prueba.",
+            });
         }
     }
 

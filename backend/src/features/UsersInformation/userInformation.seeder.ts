@@ -16,6 +16,13 @@ export async function seedUsersInformation() {
   });
 
   const ownerByEmail = new Map(owners.map((owner) => [owner.email, owner.id]));
+
+  // Resuelve el id de agencia por nombre (todo contacto pertenece a una).
+  const agencies = await prisma.agencies.findMany({
+    select: { id: true, name: true },
+  });
+  const agencyByName = new Map(agencies.map((a) => [a.name, a.id]));
+
   const seededUserInformation = [];
 
   for (const item of userInformationSeedData) {
@@ -26,6 +33,8 @@ export async function seedUsersInformation() {
         `Cannot seed user information for ${item.userEmail}: missing user.`,
       );
     }
+
+    const agencyId = agencyByName.get(item.agencyName) ?? null;
 
     const seededInformation = await prisma.users_information.upsert({
       where: {
@@ -38,6 +47,7 @@ export async function seedUsersInformation() {
         phone: item.phone,
         address: item.address,
         birthday: item.birthday,
+        agency_id: agencyId,
       },
       create: {
         user_id: ownerId,
@@ -47,6 +57,7 @@ export async function seedUsersInformation() {
         phone: item.phone,
         address: item.address,
         birthday: item.birthday,
+        agency_id: agencyId,
       },
       select: {
         id: true,

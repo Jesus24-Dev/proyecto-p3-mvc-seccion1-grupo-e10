@@ -4,13 +4,15 @@ import type { UserInformationResponse } from './userInformation.types.js';
 import type { ErrorResponse } from '../../shared/error.responses.types.js';
 import type { CreateUserInformationBody } from './userInformation.schema.js';
 import { recordAudit } from '../Audit/audit.helper.js';
+import { resolveAgencyScope } from '../Auth/agencyScope.js';
 import { fireContactCreated, fireTagAdded, safeFire } from '../Automations/engine/index.js';
 
 export class UserInformationController {
     constructor (private userInformationService: UserInformationService){}
 
-    public getUsersInformation = async (_req: Request, res: Response<UserInformationResponse[]>) => {
-        const usersInformation = await this.userInformationService.getAllUsersInformation();
+    public getUsersInformation = async (req: Request, res: Response<UserInformationResponse[]>) => {
+        const scope = await resolveAgencyScope(req);
+        const usersInformation = await this.userInformationService.getAllUsersInformation(scope);
         return res.status(200).json(usersInformation);
     }
 
@@ -125,13 +127,61 @@ export class UserInformationController {
         }
     }
 
+    public getTrashedContacts = async (_req: Request, res: Response) => {
+        const trashed = await this.userInformationService.getTrashedContacts();
+        return res.status(200).json(trashed);
+    }
+
+    public trashContact = async (req: Request<{user_id: string}, {}>, res: Response<ErrorResponse>) => {
+        try {
+            const {user_id} = req.params;
+            await this.userInformationService.trashContactUsingUserId(user_id);
+            await recordAudit(req, {
+                action: "client.trash",
+                entity: "client",
+                entity_id: user_id,
+                detail: `Envió a la papelera el contacto del usuario ${user_id} (con sus paquetes y pagos)`,
+            });
+            return res.status(204).json();
+        } catch (error){
+            const message = error instanceof Error ? error.message : "No se pudo enviar a la papelera.";
+            return res.status(404).json({"status": "error", "message": message});
+        }
+    }
+
+    public restoreContact = async (req: Request<{user_id: string}, {}>, res: Response<ErrorResponse>) => {
+        try {
+            const {user_id} = req.params;
+            await this.userInformationService.restoreContactUsingUserId(user_id);
+            await recordAudit(req, {
+                action: "client.restore",
+                entity: "client",
+                entity_id: user_id,
+                detail: `Restauró de la papelera el contacto del usuario ${user_id}`,
+            });
+            return res.status(204).json();
+        } catch (error){
+            const message = error instanceof Error ? error.message : "No se pudo restaurar el contacto.";
+            return res.status(404).json({"status": "error", "message": message});
+        }
+    }
+
     public deleteUserInformationUsingUserId = async (req: Request<{user_id: string}, {}>, res: Response<ErrorResponse>) => {
         try {
             const {user_id} = req.params;
             await this.userInformationService.deleteUserInformationUsingUserId(user_id);
+            await recordAudit(req, {
+                action: "client.delete",
+                entity: "client",
+                entity_id: user_id,
+                detail: `Eliminó el contacto del usuario ${user_id}`,
+            });
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el registro no existe o ya fue eliminado."})
+            const message = error instanceof Error ? error.message : "No se pudo eliminar: el registro no existe o ya fue eliminado.";
+            // FK/registros asociados → 409; el resto → 404.
+            const status = message.includes("registros asociados") ? 409 : 404;
+            return res.status(status).json({"status": "error", "message": message})
         }
     }
 }

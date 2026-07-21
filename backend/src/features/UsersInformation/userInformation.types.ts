@@ -26,4 +26,6 @@ export interface UserInformationResponse {
     birthday: Date;
     created_at: Date;
     tags: string[];
+    agency_id: string | null;
+    agency: { id: string; name: string } | null;
 }

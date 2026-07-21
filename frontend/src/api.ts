@@ -578,6 +578,18 @@ export const automationsApi = {
   // Inscripciones de un contacto en cualquier flujo, para su ficha.
   runsByContact: (contactId: string) =>
     request<ContactRun[]>(`/automations/contact/${contactId}/runs`),
+  // Envío de prueba: mensajería (editor de flujos) o correo HTML (constructor).
+  testSend: (payload: {
+    channel: "send_email" | "send_whatsapp" | "send_instagram" | "send_messenger";
+    to: string;
+    subject?: string;
+    message?: string;
+    html?: string;
+  }) =>
+    request<{ detail: string; simulated: boolean }>("/automations/test-send", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   // URL del stream SSE. EventSource no envía cabeceras, así que el token va
   // como query param (lo valida requireAdminQueryToken en el backend).
   streamUrl: (id: string) => {

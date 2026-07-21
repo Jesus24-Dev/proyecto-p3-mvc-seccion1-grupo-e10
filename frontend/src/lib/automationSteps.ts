@@ -10,6 +10,7 @@ import {
   MessagesSquare,
   NotebookPen,
   PackageCheck,
+  Sparkles,
   Split,
   Tag,
   Truck,
@@ -33,6 +34,7 @@ export type StepKind =
   | "notify_team"
   | "create_note"
   | "send_webhook"
+  | "ai_generate"
   | "condition"
   | "switch";
 
@@ -59,6 +61,9 @@ export type StepData = {
   /** send_webhook */
   url?: string;
   method?: "POST" | "GET";
+  /** ai_generate: instrucción al modelo y variable donde guardar el texto. */
+  ai_prompt?: string;
+  ai_output?: string;
   /** condition / switch */
   field?: string;
   operator?: string;
@@ -403,6 +408,14 @@ export const STEP_META: Record<StepKind, StepMeta> = {
       }
     },
   },
+  ai_generate: {
+    label: "Generar con IA",
+    icon: Sparkles,
+    summary: (data) =>
+      data.ai_prompt?.trim()
+        ? `"${data.ai_prompt.slice(0, 40)}…"`
+        : "Describe qué debe generar",
+  },
   condition: {
     label: "Condición (Sí / No)",
     icon: GitBranch,
@@ -470,6 +483,8 @@ export function stepWarning(data: StepData): string | null {
       return data.body?.trim() ? null : "Escribe el contenido de la nota.";
     case "send_webhook":
       return data.url?.trim() ? null : "Define la URL de destino.";
+    case "ai_generate":
+      return data.ai_prompt?.trim() ? null : "Describe qué debe generar la IA.";
     case "condition":
       if (!data.field) return "Elige un campo.";
       if (!data.operator) return "Elige un operador.";
@@ -498,6 +513,7 @@ export const ADDABLE_STEPS: StepKind[] = [
   "notify_team",
   "create_note",
   "send_webhook",
+  "ai_generate",
   "condition",
   "switch",
 ];
@@ -525,6 +541,8 @@ export function defaultDataFor(kind: StepKind): StepData {
       return { kind, note_kind: "NOTE", body: "" };
     case "send_webhook":
       return { kind, url: "", method: "POST" };
+    case "ai_generate":
+      return { kind, ai_prompt: "", ai_output: "ia_respuesta" };
     case "condition":
       return { kind, field: "tag", operator: "equals", value: "" };
     case "switch":

@@ -27,6 +27,7 @@ import {
   Plus,
   Save,
   Search,
+  Send,
   Settings,
   Sparkles,
   StickyNote,
@@ -130,6 +131,7 @@ const ACTION_CATALOG: Array<{ group: string; kinds: StepKind[] }> = [
     kinds: ["add_tag", "remove_tag", "update_contact", "create_note"],
   },
   { group: "Equipo", kinds: ["notify_team"] },
+  { group: "Inteligencia artificial", kinds: ["ai_generate"] },
   { group: "Lógica", kinds: ["wait", "condition", "switch"] },
   { group: "Integraciones", kinds: ["send_webhook"] },
 ];
@@ -204,7 +206,17 @@ export function AutomationEditorPage() {
     email_from_domain: string;
     whatsapp_from: string;
     allow_reentry: boolean;
-  }>({ email_from_domain: "", whatsapp_from: "", allow_reentry: false });
+    ai_provider: string;
+    ai_model: string;
+    ai_api_key: string;
+  }>({
+    email_from_domain: "",
+    whatsapp_from: "",
+    allow_reentry: false,
+    ai_provider: "openai",
+    ai_model: "",
+    ai_api_key: "",
+  });
   // Filtros de las vistas de ejecución: por contacto ("all" = todos) y por
   // rango de fechas (YYYY-MM-DD, vacío = sin límite).
   const [runFilterContact, setRunFilterContact] = useState("all");
@@ -522,6 +534,9 @@ export function AutomationEditorPage() {
             email_from_domain: loadedSettings.email_from_domain ?? "",
             whatsapp_from: loadedSettings.whatsapp_from ?? "",
             allow_reentry: loadedSettings.allow_reentry ?? false,
+            ai_provider: loadedSettings.ai_provider ?? "openai",
+            ai_model: loadedSettings.ai_model ?? "",
+            ai_api_key: loadedSettings.ai_api_key ?? "",
           });
         }
       })
@@ -948,6 +963,9 @@ export function AutomationEditorPage() {
         email_from_domain: flowSettings.email_from_domain,
         whatsapp_from: flowSettings.whatsapp_from,
         allow_reentry: flowSettings.allow_reentry,
+        ai_provider: flowSettings.ai_provider,
+        ai_model: flowSettings.ai_model,
+        ai_api_key: flowSettings.ai_api_key,
       },
     };
 
@@ -1656,6 +1674,81 @@ export function AutomationEditorPage() {
               Se usa como remitente de los pasos "Enviar WhatsApp".
             </p>
           </div>
+          <div className="grid gap-3 rounded-lg border p-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" aria-hidden="true" />
+              <p className="text-sm font-medium">Inteligencia artificial</p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Proveedor y clave para el paso "Generar con IA". La clave solo se
+              usa para este flujo.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2">
+                <Label htmlFor="flow-ai-provider">Proveedor</Label>
+                <Select
+                  items={[
+                    { value: "openai", label: "OpenAI" },
+                    { value: "anthropic", label: "Anthropic" },
+                  ]}
+                  value={flowSettings.ai_provider || "openai"}
+                  onValueChange={(value) =>
+                    setFlowSettings((current) => ({
+                      ...current,
+                      ai_provider: value as string,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="flow-ai-provider" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="anthropic">Anthropic</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="flow-ai-model">Modelo</Label>
+                <Input
+                  id="flow-ai-model"
+                  value={flowSettings.ai_model}
+                  onChange={(event) =>
+                    setFlowSettings((current) => ({
+                      ...current,
+                      ai_model: event.target.value,
+                    }))
+                  }
+                  placeholder={
+                    flowSettings.ai_provider === "anthropic"
+                      ? "claude-3-5-haiku-latest"
+                      : "gpt-4o-mini"
+                  }
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="flow-ai-key">Clave de API</Label>
+              <Input
+                id="flow-ai-key"
+                type="password"
+                autoComplete="off"
+                value={flowSettings.ai_api_key}
+                onChange={(event) =>
+                  setFlowSettings((current) => ({
+                    ...current,
+                    ai_api_key: event.target.value,
+                  }))
+                }
+                placeholder={
+                  flowSettings.ai_provider === "anthropic" ? "sk-ant-…" : "sk-…"
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Si la dejas vacía, se usa la clave configurada en el servidor.
+              </p>
+            </div>
+          </div>
           <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
             <div className="min-w-0">
               <Label htmlFor="flow-reentry">Permitir re-entrada</Label>
@@ -1879,6 +1972,10 @@ function StepConfig({
             placeholder="¡Hola {{nombre}}! Tu paquete {{tracking}} va en camino."
           />
           <VariableHint />
+          <TestSendRow
+            channel={data.kind}
+            build={() => ({ message: data.message ?? "" })}
+          />
         </div>
       )}
 
@@ -1991,6 +2088,21 @@ function StepConfig({
             <span className="font-medium">Ajustes</span> del flujo (aplica a todos
             los correos).
           </p>
+          <TestSendRow
+            channel="send_email"
+            build={() => {
+              if ((data.email_mode ?? "custom") === "template") {
+                const template = emailTemplates.find(
+                  (t) => t.id === data.template_id,
+                );
+                return {
+                  subject: template?.subject ?? "",
+                  html: template?.body ?? "",
+                };
+              }
+              return { subject: data.subject ?? "", message: data.body ?? "" };
+            }}
+          />
         </>
       )}
 
@@ -2144,6 +2256,42 @@ function StepConfig({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </>
+      )}
+
+      {data.kind === "ai_generate" && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-ai-prompt">Instrucción para la IA</Label>
+            <VariableTextarea
+              id="cfg-ai-prompt"
+              value={data.ai_prompt ?? ""}
+              onChange={(value) => onChange({ ai_prompt: value })}
+              variables={variables}
+              placeholder="Redacta un mensaje corto y cálido para {{nombre}} avisando que su paquete {{tracking}} va en camino."
+            />
+            <VariableHint />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cfg-ai-output">Guardar la respuesta en</Label>
+            <Input
+              id="cfg-ai-output"
+              value={data.ai_output ?? "ia_respuesta"}
+              onChange={(event) => onChange({ ai_output: event.target.value })}
+              placeholder="ia_respuesta"
+            />
+            <p className="text-xs text-muted-foreground">
+              Reutilízala en pasos siguientes como{" "}
+              <code className="rounded bg-primary/15 px-1 font-medium text-primary">
+                {`{{${
+                  normalizeVariableToken(data.ai_output || "ia_respuesta") ||
+                  "ia_respuesta"
+                }}}`}
+              </code>
+              . El proveedor y la clave se definen en{" "}
+              <span className="font-medium">Ajustes → IA</span> del flujo.
+            </p>
           </div>
         </>
       )}
@@ -2311,6 +2459,82 @@ function StepConfig({
         </Button>
       )}
     </>
+  );
+}
+
+type TestChannel =
+  | "send_email"
+  | "send_whatsapp"
+  | "send_instagram"
+  | "send_messenger";
+
+// Envío de prueba desde la configuración de un paso de mensajería/correo.
+function TestSendRow({
+  channel,
+  build,
+}: {
+  channel: TestChannel;
+  build: () => { subject?: string; message?: string; html?: string };
+}) {
+  const [to, setTo] = useState("");
+  const [sending, setSending] = useState(false);
+  const isEmail = channel === "send_email";
+
+  async function send() {
+    if (!to.trim()) {
+      return;
+    }
+    setSending(true);
+    try {
+      const { subject, message, html } = build();
+      const result = await automationsApi.testSend({
+        channel,
+        to: to.trim(),
+        ...(subject ? { subject } : {}),
+        ...(message ? { message } : {}),
+        ...(html ? { html } : {}),
+      });
+      toast.success(result.simulated ? "Prueba simulada" : "Prueba enviada", {
+        description: result.detail,
+      });
+    } catch (error) {
+      toast.error("No se pudo enviar la prueba", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-dashed p-3">
+      <Label htmlFor={`test-${channel}`} className="text-xs">
+        {isEmail ? "Enviar prueba a un correo" : "Enviar prueba a un número"}
+      </Label>
+      <div className="flex gap-2">
+        <Input
+          id={`test-${channel}`}
+          type={isEmail ? "email" : "text"}
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          placeholder={isEmail ? "tucorreo@ejemplo.com" : "+58 412 555 1234"}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => void send()}
+          disabled={sending || !to.trim()}
+        >
+          <Send data-icon="inline-start" aria-hidden="true" />
+          {sending ? "Enviando…" : "Probar"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Envía el contenido actual tal cual; las variables {"{{...}}"} no se
+        rellenan en la prueba.
+      </p>
+    </div>
   );
 }
 

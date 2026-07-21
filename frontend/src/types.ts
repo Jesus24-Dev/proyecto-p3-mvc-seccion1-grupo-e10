@@ -470,6 +470,11 @@ export interface AutomationDefinition {
     whatsapp_from?: string;
     /** Permite que un contacto se inscriba de nuevo aunque ya esté en curso. */
     allow_reentry?: boolean;
+    /** Proveedor de IA para el paso "Generar con IA": openai | anthropic. */
+    ai_provider?: string;
+    ai_model?: string;
+    /** Clave de API del proveedor de IA (se inyecta por flujo). */
+    ai_api_key?: string;
   };
 }
 

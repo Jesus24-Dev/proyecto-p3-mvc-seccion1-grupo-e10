@@ -11,6 +11,7 @@ import { seedUsers } from "../../features/Users/user.seeder.js";
 import { seedUsersInformation } from "../../features/UsersInformation/userInformation.seeder.js";
 import { seedPayments } from "../../features/Payments/payment.seeder.js";
 import { seedRoles } from "../../features/Roles/role.seeder.js";
+import { seedPipelineStages } from "../../features/Config/pipelineStage.seeder.js";
 
 type SeedSummary = {
   feature: string;
@@ -34,6 +35,7 @@ async function main() {
   summary.push(await runSeeder("UsersInformation", seedUsersInformation));
   summary.push(await runSeeder("Orders", seedOrders));
   summary.push(await runSeeder("Packages", seedPackages));
+  summary.push(await runSeeder("PipelineStages", seedPipelineStages));
   summary.push(await runSeeder("Memberships", seedMemberships));
   summary.push(await runSeeder("Automations", seedAutomations));
   summary.push(await runSeeder("Tags", seedTags));

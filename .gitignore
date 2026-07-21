@@ -9,3 +9,7 @@ generated
 .impeccable/
 .claude/
 .vercel
+.agents/
+skills-lock.json
+
+next-app

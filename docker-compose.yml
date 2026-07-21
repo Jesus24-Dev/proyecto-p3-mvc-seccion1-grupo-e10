@@ -40,6 +40,9 @@ services:
       # El esquema y las migraciones también se montan para que el contenedor
       # siempre use la versión del repositorio (nuevas migraciones incluidas).
       - ./backend/prisma:/app/prisma
+      # Monta el .env del backend para que dotenv cargue claves como
+      # RESEND_API_KEY / RESEND_FROM / FRONTEND_URL sin reconstruir la imagen.
+      - ./backend/.env:/app/.env
     command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run db:seed && npm run dev"
 
 volumes:

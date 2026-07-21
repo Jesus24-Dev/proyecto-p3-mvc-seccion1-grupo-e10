@@ -25,7 +25,10 @@ export class UserService {
     }
   }
 
-  async updateUser(id: string, body: { email: string; password?: string }) {
+  async updateUser(
+    id: string,
+    body: { email: string; password?: string; role?: CreateUserBody["role"] },
+  ) {
     try {
       return await this.userRepository.update(id, body);
     } catch (e) {
@@ -45,10 +48,17 @@ export class UserService {
       await this.userRepository.delete(id);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
-        if (e.code === "P2001") {
+        if (e.code === "P2001" || e.code === "P2025") {
           throw new Error(`No se encontró usuario con ID ${id}`);
         }
+        if (e.code === "P2003") {
+          throw new Error(
+            "No se puede eliminar: el usuario tiene envíos o agencias propias.",
+          );
+        }
       }
+      // No tragarse errores desconocidos (antes devolvía 204 en falso).
+      throw e;
     }
   }
 }

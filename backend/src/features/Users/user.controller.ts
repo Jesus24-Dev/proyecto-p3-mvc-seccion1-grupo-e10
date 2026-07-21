@@ -42,6 +42,12 @@ export class UserController {
         try {
             const {id} = req.params;
             const user = await this.userService.updateUser(id, req.body);
+            await recordAudit(req, {
+                action: "user.update",
+                entity: "user",
+                entity_id: id,
+                detail: `Actualizó el usuario ${user?.email ?? id}`,
+            });
             return res.status(200).json(user);
         } catch (error){
             return res.status(400).json({"status": "error", "message": error instanceof Error ? error.message : "No se pudo actualizar el usuario. Revisa los datos enviados."})
@@ -60,7 +66,9 @@ export class UserController {
             });
             return res.status(204).json();
         } catch (error){
-            return res.status(404).json({"status": "error", "message": "No se pudo eliminar: el usuario no existe o ya fue eliminado."})
+            const message = error instanceof Error ? error.message : "No se pudo eliminar: el usuario no existe o ya fue eliminado.";
+            const status = message.includes("envíos o agencias") ? 409 : 404;
+            return res.status(status).json({"status": "error", "message": message})
         }
     }
 }

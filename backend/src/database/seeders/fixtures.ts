@@ -7,9 +7,11 @@ import {
 
 export const userSeedData = [
   {
+    // Cuenta principal del demo: máximo nivel de permisos (papelera y borrado
+    // definitivo de contactos, además de todo lo de un administrador).
     email: "admin@drlogistics.local",
     password: "Admin123*",
-    role: roles.ADMIN,
+    role: roles.SUPERADMIN,
   },
   {
     email: "user@drlogistics.local",
@@ -19,6 +21,20 @@ export const userSeedData = [
   {
     email: "distributor@drlogistics.local",
     password: "Distributor123*",
+    role: roles.DISTRIBUTOR,
+  },
+  {
+    // Demo: administrador de AGENCIA. Ve y opera todas las subcuentas y puede
+    // cambiar entre "Todas las agencias" (agregado) y cualquier subcuenta.
+    email: "agencia@drlogistics.local",
+    password: "Agencia123*",
+    role: roles.ADMIN,
+  },
+  {
+    // Demo: administrador de SEDE. Solo ve los datos de las agencias donde es
+    // miembro (abajo se le asigna Valencia Centro). Alcance por ubicación.
+    email: "sede@drlogistics.local",
+    password: "Sede123*",
     role: roles.DISTRIBUTOR,
   },
 ] as const;
@@ -100,6 +116,7 @@ export const userInformationSeedData = [
     phone: "+58 412 555 0180",
     address: "Altamira, Caracas",
     birthday: new Date("1990-05-18T00:00:00.000Z"),
+    agencyName: "Caracas Central",
   },
   {
     userEmail: "user@drlogistics.local",
@@ -109,6 +126,8 @@ export const userInformationSeedData = [
     phone: "+58 414 555 3391",
     address: "Naguanagua, Valencia",
     birthday: new Date("1995-09-02T00:00:00.000Z"),
+    // Bajo Valencia Centro: visible para el administrador de sede (demo).
+    agencyName: "Valencia Centro",
   },
   {
     userEmail: "distributor@drlogistics.local",
@@ -118,6 +137,7 @@ export const userInformationSeedData = [
     phone: "+58 261 555 7742",
     address: "La Lago, Maracaibo",
     birthday: new Date("1988-11-11T00:00:00.000Z"),
+    agencyName: "Maracaibo Norte",
   },
 ] as const;
 
@@ -294,6 +314,8 @@ export const membershipSeedData = [
   { agencyName: "Valencia Centro", userEmail: "distributor@drlogistics.local", role: agency_role.OWNER },
   { agencyName: "Valencia Centro", userEmail: "user@drlogistics.local", role: agency_role.VIEWER },
   { agencyName: "Maracaibo Norte", userEmail: "user@drlogistics.local", role: agency_role.OWNER },
+  // El administrador de sede (demo) solo es miembro de Valencia Centro.
+  { agencyName: "Valencia Centro", userEmail: "sede@drlogistics.local", role: agency_role.MANAGER },
 ] as const;
 
 export const automationSeedData = [
